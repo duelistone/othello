@@ -5,42 +5,68 @@
 /*
  * Make a standard 8x8 othello board and initialize it to the standard setup.
  */
-Board::Board() {
-	taken = 0;
-	black = 0;
-	legalMovesComputed = false;
-	legalMoves = 0;
-	
+Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), evaluation(-1), frontierDiscs(0) {
     OCCUPY_WHITE(3 + 8 * 3, taken, black);
     OCCUPY_BLACK(3 + 8 * 4, taken, black);
     OCCUPY_BLACK(4 + 8 * 3, taken, black);
     OCCUPY_WHITE(4 + 8 * 4, taken, black);
 }
 
-Board::Board(uint64_t t, uint64_t b) {
-	taken = t;
-	black = b;
-	legalMovesComputed = false;
-	legalMoves = 0;
-	
-    OCCUPY_WHITE(3 + 8 * 3, taken, black);
-    OCCUPY_BLACK(3 + 8 * 4, taken, black);
-    OCCUPY_BLACK(4 + 8 * 3, taken, black);
-    OCCUPY_WHITE(4 + 8 * 4, taken, black);
-}	
+/*
+ * Make a board given a taken and black uint64_t.
+ */
+Board::Board(uint64_t t, uint64_t b) : taken(t), black(b), legalMovesComputed(false), legalMoves(0), evaluation(-1), frontierDiscs(0) {}
 
 uint64_t Board::findLegalMoves(Side side) {
 	legalMoves = 0;
 	
-	for (int x = 0; x < 8; x++) {
-		for (int y = 0; y < 8; y++) {
-			if (checkMove(x, y, side)) {
-				cerr << "Checkmove true" << endl;
-				legalMoves |= BIT(TO_INDEX(x, y));
+	for (int X = 0; X < 8; X++) {
+		for (int Y = 0; Y < 8; Y++) {
+			// Make sure the square hasn't already been taken.
+			if (OCCUPIED(X, Y, taken)) {
+				// Check if frontier disc
+				// Don't count edge discs as frontier discs (simplification)
+				int index = TO_INDEX(X, Y);
+				if (index < 8 || index > 56 || index % 8 == 0 || index % 8 == 7) {
+					continue;
+				}
+				for (int dx = -1; dx <= 1; dx++) {
+					for (int dy = -1; dy <= 1; dy++) {
+						if (dx == 0 && dy == 0) continue;
+						int x = X + dx;
+						int y = Y + dy;
+						if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken)) {
+							frontierDiscs++;
+						}
+					}
+				}
+				continue;
+			}
+			
+			// Else, check if legal move
+			Side other = OTHER_SIDE(side);
+			for (int dx = -1; dx <= 1; dx++) {
+				for (int dy = -1; dy <= 1; dy++) {
+					if (dy == 0 && dx == 0) continue;
+
+					// Is there a capture in that direction?
+					int x = X + dx;
+					int y = Y + dy;
+					if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
+						do {
+							x += dx;
+							y += dy;
+						} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
+
+						if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
+							//cerr << X << ' ' << Y << " is valid " << dx << ' ' << dy << ' ' << x << ' ' << y << endl;
+							legalMoves |= BIT(TO_INDEX(X, Y));
+						}
+					}
+				}
 			}
 		}
 	}
-	cerr << "findlegalmoves returning" << endl;
 	legalMovesComputed = true;
 	return legalMoves;
 }
@@ -72,11 +98,9 @@ bool Board::checkMove(int X, int Y, Side side) {
     if (OCCUPIED(X, Y, taken)) return false;
 
     Side other = (side == BLACK) ? WHITE : BLACK;
-    cerr << "Starting checkMove loops " << X << ' ' << Y << endl;
     for (int dx = -1; dx <= 1; dx++) {
         for (int dy = -1; dy <= 1; dy++) {
             if (dy == 0 && dx == 0) continue;
-			cerr << "Inside checkMove loop dy " << dy << " dx " << dx << endl;	
 
             // Is there a capture in that direction?
             int x = X + dx;
@@ -88,13 +112,12 @@ bool Board::checkMove(int X, int Y, Side side) {
                 } while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
 
                 if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-					cerr << X << ' ' << Y << " is valid " << dx << ' ' << dy << ' ' << x << ' ' << y << endl;
+					//cerr << X << ' ' << Y << " is valid " << dx << ' ' << dy << ' ' << x << ' ' << y << endl;
 					return true;
 				}
             }
         }
     }
-    cerr << "checkMove Returning" << endl;
     return false;
 }
 
@@ -106,6 +129,7 @@ void Board::doMove(int X, int Y, Side side) {
     if (X == -1) return;
 
     // Ignore if move is invalid.
+    // Might be removed later for efficiency
     if (!checkMove(X, Y, side)) return;
 
     Side other = (side == BLACK) ? WHITE : BLACK;
@@ -134,6 +158,110 @@ void Board::doMove(int X, int Y, Side side) {
         }
     }
     PLACE_DISC(side, X, Y, taken, black);
+}
+
+Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
+	// A NULL move means pass.
+    if (X == -1) return Board(taken, black);
+
+    // Ignore if move is invalid.
+    // Might be removed later for efficiency
+    if (!checkMove(X, Y, side)) return Board(taken, black);
+	
+	uint64_t newtaken = taken;
+	uint64_t newblack = black;
+	
+    Side other = (side == BLACK) ? WHITE : BLACK;
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+            if (dy == 0 && dx == 0) continue;
+
+            int x = X;
+            int y = Y;
+            do {
+                x += dx;
+                y += dy;
+            } while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
+
+            if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
+                x = X;
+                y = Y;
+                x += dx;
+                y += dy;
+                while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
+                    PLACE_DISC(side, x, y, newtaken, newblack);
+                    x += dx;
+                    y += dy;
+                }
+            }
+        }
+    }
+    PLACE_DISC(side, X, Y, newtaken, newblack);
+    return Board(newtaken, newblack);
+}
+
+/*
+ * Evaluation function. findLegalMoves must be called first to get a 
+ * nonzero value.
+ */
+int Board::evaluate() {
+	int greedyPoint = 60;
+	int totalCount = __builtin_popcount(taken);
+	
+	// Game over if no discs left
+	if (totalCount == countBlack()) {
+		evaluation = INT_MAX;
+		return evaluation;
+	}
+	else if (totalCount == countWhite()) {
+		evaluation = INT_MIN;
+		return evaluation;
+	}
+	
+	uint64_t white = taken & ~black;
+	if (totalCount < greedyPoint) {
+		// Constants to tweak
+		int cornerWeight = 90 - totalCount;
+		int frontierDiscWeight = 2;
+		int penaltyWeight = 10;
+		// Computations
+		findLegalMoves(BLACK);
+		evaluation = -__builtin_popcount(legalMoves) + frontierDiscWeight * frontierDiscs;
+		findLegalMoves(WHITE);
+		evaluation += __builtin_popcount(legalMoves) - frontierDiscWeight * frontierDiscs;
+		evaluation += cornerWeight * __builtin_popcount(black & CORNERS);
+		evaluation -= cornerWeight * __builtin_popcount(white & CORNERS);
+		// Penalty for risky squares if corner not filled
+		if ((CORNER_TL & taken) == 0) {
+			evaluation -= (black & NEXT_TO_CORNER_TL) ? penaltyWeight : 0;
+			evaluation += (white & NEXT_TO_CORNER_TL) ? penaltyWeight : 0;
+		}
+		if ((CORNER_TR & taken) == 0) {
+			evaluation -= (black & NEXT_TO_CORNER_TR) ? penaltyWeight : 0;
+			evaluation += (white & NEXT_TO_CORNER_TR) ? penaltyWeight : 0;
+		}
+		if ((CORNER_BL & taken) == 0) {
+			evaluation -= (black & NEXT_TO_CORNER_BL) ? penaltyWeight : 0;
+			evaluation += (white & NEXT_TO_CORNER_BL) ? penaltyWeight : 0;
+		}
+		if ((CORNER_BR & taken) == 0) {
+			evaluation -= (black & NEXT_TO_CORNER_BR) ? penaltyWeight : 0;
+			evaluation += (white & NEXT_TO_CORNER_BR) ? penaltyWeight : 0;
+		}
+	}
+	else {
+		// Become greedy in the end
+		evaluation = countBlack() - countWhite();
+	}
+	return evaluation;
+}
+
+/*
+ * Pure greedy evaluation for test
+ */
+int evaluateTest() {
+	evaluation = countBlack() - countWhite();
+	return evaluation;
 }
 
 /*

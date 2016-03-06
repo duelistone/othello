@@ -1,5 +1,8 @@
 #include "player.h"
 #include <bitset>
+#include <unistd.h>
+#include <climits>
+#include <ctime>
 
 // A minor change
 
@@ -45,22 +48,46 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
      * TODO: Implement how moves your AI should play here. You should first
      * process the opponent's opponents move before calculating your own move
      */
+     
     if (opponentsMove != NULL) {
-		currBoard.doMove(opponentsMove->x, opponentsMove->y, (side == BLACK) ? WHITE : BLACK);
+		currBoard.doMove(opponentsMove->x, opponentsMove->y, OTHER_SIDE(side));
+		cerr << TO_INDEX(opponentsMove->x, opponentsMove->y) << endl;
 	}
-    cerr << "So far so good" << endl;
     currBoard.findLegalMoves(side);
     if (currBoard.legalMoves == 0) return NULL;
-    cerr << "So far so good2" << endl;
-    int index = __builtin_clzll(currBoard.legalMoves);
-    bitset<64> bs(currBoard.legalMoves);
-    cerr << bs << ' ' << index << endl;
-	int x = FROM_INDEX_X(index);
-	int y = FROM_INDEX_Y(index);
-	cerr << OCCUPIED(x, y, currBoard.taken) << endl;
+    
+    // Loop through board
+    int besti = -1;
+    int bestBlack = INT_MIN;
+    int bestWhite = INT_MAX;
+    for (int i = 0; i < 64; i++) {
+		if (currBoard.legalMoves & BIT(i)) {
+			Board b = currBoard.doMoveOnNewBoard(FROM_INDEX_X(i), FROM_INDEX_Y(i), side);
+			b.evaluate(); // Positive evaluation better for black
+			if (testingMinimax) b.evaluateTest();
+			if (side == BLACK) {
+				if (b.evaluation > bestBlack) {
+					besti = i;
+					bestBlack = b.evaluation;
+					cerr << i << ' ' << b.evaluation << endl;
+				}
+			}
+			else {
+				if (b.evaluation < bestWhite) {
+					besti = i;
+					bestWhite = b.evaluation;
+					cerr << i << ' ' << b.evaluation << endl;
+				}
+			}
+		}
+	}
+	// cerr << besti << endl;
+	
+	// Make move
+	int x = FROM_INDEX_X(besti);
+	int y = FROM_INDEX_Y(besti);
     currBoard.doMove(x, y, side);
     Move *move = new Move(x, y);
-    cerr << "So far so good3" << endl;
     return move;
     
 }
