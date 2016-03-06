@@ -1,7 +1,7 @@
 CC          = g++
-CFLAGS      = -Wall -ansi -pedantic -ggdb
-OBJS        = player.o board.o
-PLAYERNAME  = player
+CFLAGS      = -Wall -ansi -pedantic -ggdb -std=c++14
+OBJS        = player.o board2.o
+PLAYERNAME  = duelist
 
 all: $(PLAYERNAME) testgame
 	

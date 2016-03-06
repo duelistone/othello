@@ -1,4 +1,5 @@
 #include "player.h"
+#include <bitset>
 
 // A minor change
 
@@ -7,7 +8,7 @@
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish 
  * within 30 seconds.
  */
-Player::Player(Side side) {
+Player::Player(Side s) : currBoard(Board()), side(s) {
     // Will be set to true in test_minimax.cpp.
     testingMinimax = false;
 
@@ -16,7 +17,10 @@ Player::Player(Side side) {
      * precalculating things, etc.) However, remember that you will only have
      * 30 seconds.
      */
+    
 }
+
+
 
 /*
  * Destructor for the player.
@@ -40,6 +44,23 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     /* 
      * TODO: Implement how moves your AI should play here. You should first
      * process the opponent's opponents move before calculating your own move
-     */ 
-    return NULL;
+     */
+    if (opponentsMove != NULL) {
+		currBoard.doMove(opponentsMove->x, opponentsMove->y, (side == BLACK) ? WHITE : BLACK);
+	}
+    cerr << "So far so good" << endl;
+    currBoard.findLegalMoves(side);
+    if (currBoard.legalMoves == 0) return NULL;
+    cerr << "So far so good2" << endl;
+    int index = __builtin_clzll(currBoard.legalMoves);
+    bitset<64> bs(currBoard.legalMoves);
+    cerr << bs << ' ' << index << endl;
+	int x = FROM_INDEX_X(index);
+	int y = FROM_INDEX_Y(index);
+	cerr << OCCUPIED(x, y, currBoard.taken) << endl;
+    currBoard.doMove(x, y, side);
+    Move *move = new Move(x, y);
+    cerr << "So far so good3" << endl;
+    return move;
+    
 }

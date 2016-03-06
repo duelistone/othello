@@ -3,13 +3,17 @@
 
 #include <iostream>
 #include "common.h"
-#include "board.h"
+#include "board2.h"
+
 using namespace std;
 
 class Player {
+private:
+	Board currBoard;
+	Side side;
 
 public:
-    Player(Side side);
+    Player(Side);
     ~Player();
     
     Move *doMove(Move *opponentsMove, int msLeft);
