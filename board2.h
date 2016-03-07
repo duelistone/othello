@@ -2,6 +2,9 @@
 #define __BOARD2_H__
 
 #include <cstdint>
+#include <vector>
+#include <climits>
+#include <unordered_map>
 #include "common.h"
 
 #define BIT(x) ((uint64_t) 1 << (63 - (x)))
@@ -60,6 +63,20 @@ public:
 
     void setBoard(char data[]);
 };
+
+class Node;
+
+class Node {
+	vector<Node *> children;
+	int moveTo;
+	Board board;
+	Side toMove;
+	
+	Node(int m, Board b, Side s) : children(), moveTo(m), board(b), toMove(s) {}
+};
+
+// unordered_map<Board, int> hashTable;
+// Need to make hash function
 
 #endif
 

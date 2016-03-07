@@ -7,14 +7,17 @@
 
 using namespace std;
 
+
+
 class Player {
 private:
-	Board currBoard;
 	Side side;
 
 public:
     Player(Side);
     ~Player();
+    
+    Board currBoard;
     
     Move *doMove(Move *opponentsMove, int msLeft);
 

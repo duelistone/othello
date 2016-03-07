@@ -1,7 +1,9 @@
 #include <cstdio>
 #include "common.h"
 #include "player.h"
-#include "board.h"
+#include "board2.h"
+#include <cassert>
+#include <bitset>
 
 // Use this file to test your minimax implementation (2-ply depth, with a
 // heuristic of the difference in number of pieces).
@@ -21,6 +23,10 @@ int main(int argc, char *argv[]) {
     };
     Board *board = new Board();
     board->setBoard(boardData);
+    board->findLegalMoves(WHITE);
+    bitset<64> bs(board->legalMoves);
+    //cerr << bs << endl;
+    assert(board->legalMoves == (BIT(9) | BIT(30)));
 
     // Initialize player as the white player, and set testing_minimax flag.
     Player *player = new Player(WHITE);
@@ -31,12 +37,14 @@ int main(int argc, char *argv[]) {
      * TODO: Write code to set your player's internal board state to the 
      * example state.
      */
+    player->currBoard = *board;
+    assert(player->currBoard.taken == board->taken);
 
     // Get player's move and check if it's right.
     Move *move = player->doMove(NULL, 0);
 
     if (move != NULL && move->x == 1 && move->y == 1) {
-        printf("Correct move: (1, 1)");
+        printf("Correct move: (1, 1)\n");
     } else {
         printf("Wrong move: got ");
         if (move == NULL) {
@@ -46,6 +54,10 @@ int main(int argc, char *argv[]) {
         }
         printf(", expected (1, 1)\n");
     }
+    
+    delete player;
+    delete board;
+    delete move;
 
     return 0;
 }

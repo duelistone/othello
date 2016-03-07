@@ -19,6 +19,7 @@ Board::Board(uint64_t t, uint64_t b) : taken(t), black(b), legalMovesComputed(fa
 
 uint64_t Board::findLegalMoves(Side side) {
 	legalMoves = 0;
+	frontierDiscs = 0;
 	
 	for (int X = 0; X < 8; X++) {
 		for (int Y = 0; Y < 8; Y++) {
@@ -206,7 +207,7 @@ Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
  */
 int Board::evaluate() {
 	int greedyPoint = 60;
-	int totalCount = __builtin_popcount(taken);
+	int totalCount = __builtin_popcount(taken >> 32) + __builtin_popcount(taken);
 	
 	// Game over if no discs left
 	if (totalCount == countBlack()) {
@@ -224,29 +225,86 @@ int Board::evaluate() {
 		int cornerWeight = 90 - totalCount;
 		int frontierDiscWeight = 2;
 		int penaltyWeight = 10;
+		int wedgeWeight = 10;
+		
 		// Computations
 		findLegalMoves(BLACK);
-		evaluation = -__builtin_popcount(legalMoves) + frontierDiscWeight * frontierDiscs;
+		evaluation = __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32) - frontierDiscWeight * frontierDiscs;
 		findLegalMoves(WHITE);
-		evaluation += __builtin_popcount(legalMoves) - frontierDiscWeight * frontierDiscs;
-		evaluation += cornerWeight * __builtin_popcount(black & CORNERS);
-		evaluation -= cornerWeight * __builtin_popcount(white & CORNERS);
+		evaluation -= __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32) - frontierDiscWeight * frontierDiscs;
+		uint64_t bc = black & CORNERS;
+		uint64_t wc = white & CORNERS;
+		evaluation += cornerWeight * (__builtin_popcount(bc >> 32) + __builtin_popcount(bc));
+		evaluation -= cornerWeight * (__builtin_popcount(bc >> 32) + __builtin_popcount(wc));
+		
+		// Idea: There are exceptions where we don't want a penalty
 		// Penalty for risky squares if corner not filled
-		if ((CORNER_TL & taken) == 0) {
-			evaluation -= (black & NEXT_TO_CORNER_TL) ? penaltyWeight : 0;
-			evaluation += (white & NEXT_TO_CORNER_TL) ? penaltyWeight : 0;
+		if (totalCount < 50) {
+			if ((CORNER_TL & taken) == 0) {
+				evaluation -= (black & NEXT_TO_CORNER_TL) ? penaltyWeight : 0;
+				evaluation += (white & NEXT_TO_CORNER_TL) ? penaltyWeight : 0;
+			}
+			if ((CORNER_TR & taken) == 0) {
+				evaluation -= (black & NEXT_TO_CORNER_TR) ? penaltyWeight : 0;
+				evaluation += (white & NEXT_TO_CORNER_TR) ? penaltyWeight : 0;
+			}
+			if ((CORNER_BL & taken) == 0) {
+				evaluation -= (black & NEXT_TO_CORNER_BL) ? penaltyWeight : 0;
+				evaluation += (white & NEXT_TO_CORNER_BL) ? penaltyWeight : 0;
+			}
+			if ((CORNER_BR & taken) == 0) {
+				evaluation -= (black & NEXT_TO_CORNER_BR) ? penaltyWeight : 0;
+				evaluation += (white & NEXT_TO_CORNER_BR) ? penaltyWeight : 0;
+			}
 		}
-		if ((CORNER_TR & taken) == 0) {
-			evaluation -= (black & NEXT_TO_CORNER_TR) ? penaltyWeight : 0;
-			evaluation += (white & NEXT_TO_CORNER_TR) ? penaltyWeight : 0;
+		
+		if (totalCount < 56) {
+			// Wedges
+			for (int i = 1; i <= 6; i++) {
+				// Check if occupied adjacent squares
+				if ((taken & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
+					if ((black & BIT(i)) == 0 && (black & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
+						evaluation -= wedgeWeight;
+					}
+					else if ((white & BIT(i)) == 0 && (white & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
+						evaluation += wedgeWeight;
+					}
+				}
+			}
+			for (int i = 57; i <= 62; i++) {
+				if ((taken & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
+					if ((black & BIT(i)) == 0 && (black & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
+						evaluation -= wedgeWeight;
+					}
+					else if ((white & BIT(i)) == 0 && (white & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
+						evaluation += wedgeWeight;
+					}
+				}
+			}
+			for (int i = 8; i <= 48; i += 8) {
+				if ((taken & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
+					if ((black & BIT(i)) == 0 && (black & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
+						evaluation -= wedgeWeight;
+					}
+					else if ((white & BIT(i)) == 0 && (white & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
+						evaluation += wedgeWeight;
+					}
+				}
+			}
+			for (int i = 15; i <= 55; i += 8) {
+				if ((taken & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
+					if ((black & BIT(i)) == 0 && (black & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
+						evaluation -= wedgeWeight;
+					}
+					else if ((white & BIT(i)) == 0 && (white & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
+						evaluation += wedgeWeight;
+					}
+				}
+			}
 		}
-		if ((CORNER_BL & taken) == 0) {
-			evaluation -= (black & NEXT_TO_CORNER_BL) ? penaltyWeight : 0;
-			evaluation += (white & NEXT_TO_CORNER_BL) ? penaltyWeight : 0;
-		}
-		if ((CORNER_BR & taken) == 0) {
-			evaluation -= (black & NEXT_TO_CORNER_BR) ? penaltyWeight : 0;
-			evaluation += (white & NEXT_TO_CORNER_BR) ? penaltyWeight : 0;
+		else {
+			// Disc count should start mattering a little more at this point
+			evaluation += 2 * (countBlack() - countWhite());
 		}
 	}
 	else {
@@ -259,7 +317,7 @@ int Board::evaluate() {
 /*
  * Pure greedy evaluation for test
  */
-int evaluateTest() {
+int Board::evaluateTest() {
 	evaluation = countBlack() - countWhite();
 	return evaluation;
 }
@@ -275,14 +333,14 @@ int Board::count(Side side) {
  * Current count of black stones.
  */
 int Board::countBlack() {
-    return __builtin_popcount(black);
+    return __builtin_popcount(black >> 32) + __builtin_popcount(black);
 }
 
 /*
  * Current count of white stones.
  */
 int Board::countWhite() {
-    return __builtin_popcount(taken) - __builtin_popcount(black);
+    return __builtin_popcount(taken >> 32) + __builtin_popcount(taken) - __builtin_popcount(black >> 32) - __builtin_popcount(black);
 }
 
 /*
@@ -293,10 +351,8 @@ void Board::setBoard(char data[]) {
     taken = 0;
     black = 0;
     for (int i = 0; i < 64; i++) {
-        taken |= BIT(i);
-        if (data[i] == 'b') {
-            black |= BIT(i);
-        }
-    }
+        if (data[i] != ' ') taken |= BIT(i);
+		if (data[i] == 'b') black |= BIT(i);
+	}
 }
 

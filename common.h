@@ -22,13 +22,4 @@ public:
     void setY(int y) { this->y = y; }
 };
 
-class Node {
-	Node *parent;
-	int moveTo;
-	Board board;
-	Side toMove;
-	
-	Node(Node *p, int m, Board b, Side s) : parent(p), moveTo(m), board(b), toMove(s) {}
-}
-
 #endif
