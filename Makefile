@@ -1,5 +1,5 @@
 CC          = g++
-CFLAGS      = -Wall -ansi -pedantic -ggdb -std=c++14 -pthread
+CFLAGS      = -Wall -O2 -ansi -pedantic -ggdb -std=c++14 -pthread
 OBJS        = player.o board2.o
 PLAYERNAME  = duelist
 
@@ -8,11 +8,11 @@ all: $(PLAYERNAME) testgame
 $(PLAYERNAME): $(OBJS) wrapper.o
 	$(CC) -o $@ $^ -pthread
 
-testgame: testgame.o
-	$(CC) -o $@ $^
+testgame: testgame.o 
+	$(CC) -o $@ $^ -pthread
 
 testminimax: $(OBJS) testminimax.o
-	$(CC) -o $@ $^
+	$(CC) -o $@ $^ -pthread
 
 %.o: %.cpp
 	$(CC) -c $(CFLAGS) -x c++ $< -o $@ -pthread

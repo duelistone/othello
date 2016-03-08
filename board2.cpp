@@ -1,6 +1,8 @@
 #include "board2.h"
 #include <iostream>
-
+#include <iomanip>
+#include <chrono>
+#include <cassert>
 
 /*
  * Make a standard 8x8 othello board and initialize it to the standard setup.
@@ -20,12 +22,13 @@ Board::Board(uint64_t t, uint64_t b) : taken(t), black(b), legalMovesComputed(fa
 uint64_t Board::findLegalMoves(Side side) {
 	legalMoves = 0;
 	frontierDiscs = 0;
+	// uint64_t empty = taken;
 	
 	for (int X = 0; X < 8; X++) {
 		for (int Y = 0; Y < 8; Y++) {
 			// Make sure the square hasn't already been taken.
 			if (OCCUPIED(X, Y, taken)) {
-				// Check if frontier disc
+				// Check if frontier disc (adds about 1 microsecond)
 				// Don't count edge discs as frontier discs (simplification)
 				int index = TO_INDEX(X, Y);
 				if (index < 8 || index > 56 || index % 8 == 0 || index % 8 == 7) {
@@ -60,7 +63,6 @@ uint64_t Board::findLegalMoves(Side side) {
 						} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
 
 						if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-							//cerr << X << ' ' << Y << " is valid " << dx << ' ' << dy << ' ' << x << ' ' << y << endl;
 							legalMoves |= BIT(TO_INDEX(X, Y));
 						}
 					}
@@ -84,7 +86,7 @@ bool Board::isDone() {
  * Returns true if there are legal moves for the given side.
  */
 bool Board::hasMoves(Side side) {
-	if (!legalMovesComputed) findLegalMoves(side);
+	findLegalMoves(side);
 	return legalMoves != 0;
 }
 
@@ -129,10 +131,6 @@ void Board::doMove(int X, int Y, Side side) {
     // A NULL move means pass.
     if (X == -1) return;
 
-    // Ignore if move is invalid.
-    // Might be removed later for efficiency
-    if (!checkMove(X, Y, side)) return;
-
     Side other = (side == BLACK) ? WHITE : BLACK;
     for (int dx = -1; dx <= 1; dx++) {
         for (int dy = -1; dy <= 1; dy++) {
@@ -164,10 +162,6 @@ void Board::doMove(int X, int Y, Side side) {
 Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
 	// A NULL move means pass.
     if (X == -1) return Board(taken, black);
-
-    // Ignore if move is invalid.
-    // Might be removed later for efficiency
-    if (!checkMove(X, Y, side)) return Board(taken, black);
 	
 	uint64_t newtaken = taken;
 	uint64_t newblack = black;
@@ -206,6 +200,8 @@ Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
  * nonzero value.
  */
 int Board::evaluate() {
+	//auto start = chrono::high_resolution_clock::now();
+	
 	int greedyPoint = 60;
 	int totalCount = __builtin_popcount(taken >> 32) + __builtin_popcount(taken);
 	
@@ -223,19 +219,22 @@ int Board::evaluate() {
 	if (totalCount < greedyPoint) {
 		// Constants to tweak
 		int cornerWeight = 90 - totalCount;
-		int frontierDiscWeight = 2;
+		int frontierDiscWeight = 1;
+		int mobilityWeight = 2;
 		int penaltyWeight = 10;
-		int wedgeWeight = 10;
+		int wedgeWeight = 15;
 		
 		// Computations
 		findLegalMoves(BLACK);
-		evaluation = __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32) - frontierDiscWeight * frontierDiscs;
+		evaluation = mobilityWeight * (__builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32)) - frontierDiscWeight * frontierDiscs;
 		findLegalMoves(WHITE);
-		evaluation -= __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32) - frontierDiscWeight * frontierDiscs;
+		evaluation -= mobilityWeight * (__builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32)) - frontierDiscWeight * frontierDiscs;
 		uint64_t bc = black & CORNERS;
 		uint64_t wc = white & CORNERS;
 		evaluation += cornerWeight * (__builtin_popcount(bc >> 32) + __builtin_popcount(bc));
-		evaluation -= cornerWeight * (__builtin_popcount(bc >> 32) + __builtin_popcount(wc));
+		evaluation -= cornerWeight * (__builtin_popcount(wc >> 32) + __builtin_popcount(wc));
+		
+		//cerr << "Legal moves: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 		
 		// Idea: There are exceptions where we don't want a penalty
 		// Penalty for risky squares if corner not filled
@@ -258,10 +257,12 @@ int Board::evaluate() {
 			}
 		}
 		
+		//cerr << "Corners: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+		
 		if (totalCount < 56) {
 			// Wedges
 			for (int i = 1; i <= 6; i++) {
-				// Check if occupied adjacent squares
+		 		// Check if occupied adjacent squares
 				if ((taken & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
 					if ((black & BIT(i)) == 0 && (black & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
 						evaluation -= wedgeWeight;
@@ -302,10 +303,7 @@ int Board::evaluate() {
 				}
 			}
 		}
-		else {
-			// Disc count should start mattering a little more at this point
-			evaluation += 2 * (countBlack() - countWhite());
-		}
+		//cerr << "Wedges: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 	}
 	else {
 		// Become greedy in the end
@@ -340,7 +338,8 @@ int Board::countBlack() {
  * Current count of white stones.
  */
 int Board::countWhite() {
-    return __builtin_popcount(taken >> 32) + __builtin_popcount(taken) - __builtin_popcount(black >> 32) - __builtin_popcount(black);
+	uint64_t white = taken & ~black;
+    return __builtin_popcount(white >> 32) + __builtin_popcount(white);
 }
 
 /*

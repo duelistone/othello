@@ -24,15 +24,266 @@ Player::Player(Side s) : side(s), currBoard(Board()) {
     
 }
 
-
-
 /*
  * Destructor for the player.
  */
 Player::~Player() {
 }
 
+// Returns index of best move for side s, or -2 if depth is 0, for first part
+// Second part is the best evaluation found for side s
+pair<int, int> minimax(Board b, int depth, Side s, bool prevPass, bool useThreads) {
+	// Base case
+	if (depth == 0) {
+		b.evaluate();
+		return make_pair(-2, b.evaluation); 
+	}
+	
+	// Special case
+	b.findLegalMoves(s);
+	uint64_t legalMoves = b.legalMoves;
+	if (legalMoves == 0) {
+		if (prevPass) {
+			int blacks = b.countBlack();
+			int whites = b.countWhite();
+			int val = (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
+			return make_pair(-1, val);
+		}
+		int val = minimax(b, depth - 1, OTHER_SIDE(s), true, false).second;
+		return make_pair(-1, val);
+	}
+	
+	// Main case
+	if (useThreads) {
+		pair<int, int> retValue;
+		thread t([&retValue, &b, legalMoves, depth, s] () {
+			// Almost identical to below, for first half of legalMoves
+			uint64_t lm = (legalMoves >> 32) << 32;
+			int besti = -1;
+			int bestWhite = INT_MAX;
+			int bestBlack = INT_MIN;
+			while (lm != 0) {
+				int index = __builtin_clzl(lm);
+				lm &= ~BIT(index);
+				
+				Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
+				int val = minimax(b2, depth - 1, OTHER_SIDE(s), false, false).second;
+				if (s == BLACK) {
+					if (val >= bestBlack) {
+						besti = index;
+						bestBlack = val;
+					}
+				}
+				else {
+					if (val <= bestWhite) {
+						besti = index;
+						bestWhite = val;
+					}
+				}
+				if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+			}
+			retValue = make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+		});
+		
+		// Extract a legal move (from second half of legalMoves)
+		uint64_t lm = (legalMoves << 32) >> 32;
+		int besti = -1;
+		int bestWhite = INT_MAX;
+		int bestBlack = INT_MIN;
+		while (lm != 0) {
+		
+			int index = __builtin_clzl(lm);
+			lm &= ~BIT(index);
+			
+			// Make move on new board
+			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
+			int val = minimax(b2, depth - 1, OTHER_SIDE(s), false, false).second;
+			if (s == BLACK) {
+				if (val >= bestBlack) {
+					besti = index;
+					bestBlack = val;
+				}
+			}
+			else {
+				if (val <= bestWhite) {
+					besti = index;
+					bestWhite = val;
+				}
+			}
+			// Optimization to avoid finding multiple winning lines
+			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+		}
+		t.join();
+		
+		// Combine results
+		// Not null moves get priority
+		if (s == BLACK && retValue.second >= bestBlack && retValue.first > -1) {
+			return retValue;
+		}
+		if (s == WHITE && retValue.second <= bestWhite && retValue.first > -1) {
+			return retValue;
+		}
+		if (s == BLACK && retValue.second == bestBlack) {
+			return retValue;
+		}
+		if (s == WHITE && retValue.second == bestWhite)	 {
+			return retValue;
+		}
+		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+	} // end thread case
+	else {
+		uint64_t lm = legalMoves;
+		int besti = -1;
+		int bestWhite = INT_MAX;
+		int bestBlack = INT_MIN;
+		while (lm != 0) {
+			int index = __builtin_clzl(lm);
+			lm &= ~BIT(index);
+			
+			// Make move on new board
+			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
+			int val = minimax(b2, depth - 1, OTHER_SIDE(s), false, false).second;
+			if (s == BLACK) {
+				if (val >= bestBlack) {
+					besti = index;
+					bestBlack = val;
+				}
+			}
+			else {
+				if (val <= bestWhite) {
+					besti = index;
+					bestWhite = val;
+				}
+			}
+			// Optimization to avoid finding multiple winning lines
+			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+		}
+		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+	}
+}
 
+// Similar function as minimax geared for the endgame
+pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
+	// Find legal moves
+	uint64_t legalMoves = b.findLegalMoves(s);
+
+	// Special case of pass
+	if (legalMoves == 0) {
+		uint64_t legalMovesOther = b.findLegalMoves(OTHER_SIDE(s));
+		if (legalMovesOther == 0) {
+			// Simple evaluation here
+			int diff = b.countBlack() - b.countWhite();
+			if (diff > 0) return make_pair(-2, INT_MAX);
+			else if (diff < 0) return make_pair(-2, INT_MIN);
+			else return make_pair(-2, 0);
+		}
+		return make_pair(-1, endgameMinimax(b, OTHER_SIDE(s), false).second);
+	}
+	
+	// Main case
+	if (useThreads) {
+		pair<int, int> retValue;
+		auto f = [&retValue, &b, legalMoves, s] () {
+			// Almost identical to below, for first half of legalMoves
+			uint64_t lm = (legalMoves >> 32) << 32;
+			int besti = -1;
+			int bestWhite = INT_MAX;
+			int bestBlack = INT_MIN;
+			while (lm != 0) {
+				int index = __builtin_clzl(lm);
+				lm &= ~BIT(index);
+				
+				Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
+				int val = endgameMinimax(b2, OTHER_SIDE(s), false).second;
+				if (s == BLACK) {
+					if (val >= bestBlack) {
+						besti = index;
+						bestBlack = val;
+					}
+				}
+				else {
+					if (val <= bestWhite) {
+						besti = index;
+						bestWhite = val;
+					}
+				}
+				if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+			}
+			retValue = make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+		};
+		
+		thread t(f);
+		
+		// Extract a legal move (from second half of legalMoves)
+		uint64_t lm = (legalMoves << 32) >> 32;
+		int besti = -1;
+		int bestWhite = INT_MAX;
+		int bestBlack = INT_MIN;
+		while (lm != 0) {
+		
+			int index = __builtin_clzl(lm);
+			lm &= ~BIT(index);
+			
+			// Make move on new board
+			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
+			int val = endgameMinimax(b2, OTHER_SIDE(s), false).second;
+			if (s == BLACK) {
+				if (val >= bestBlack) {
+					besti = index;
+					bestBlack = val;
+				}
+			}
+			else {
+				if (val <= bestWhite) {
+					besti = index;
+					bestWhite = val;
+				}
+			}
+			// Optimization to avoid finding multiple winning lines
+			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+		}
+		t.join();
+		
+		// Combine results
+		// Not null moves get priority
+		if (s == BLACK && retValue.second >= bestBlack && retValue.first > -1) {
+			return retValue;
+		}
+		if (s == WHITE && retValue.second <= bestWhite && retValue.first > -1) {
+			return retValue;
+		}
+		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+	} // end thread case
+	else {
+		uint64_t lm = legalMoves;
+		int besti = -1;
+		int bestWhite = INT_MAX;
+		int bestBlack = INT_MIN;
+		while (lm != 0) {
+			int index = __builtin_clzl(lm);
+			lm &= ~BIT(index);
+			
+			// Make move on new board
+			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
+			int val = endgameMinimax(b2, OTHER_SIDE(s), false).second;
+			if (s == BLACK) {
+				if (val >= bestBlack) {
+					besti = index;
+					bestBlack = val;
+				}
+			}
+			else {
+				if (val <= bestWhite) {
+					besti = index;
+					bestWhite = val;
+				}
+			}
+			// Optimization to avoid finding multiple winning lines
+			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+		}
+		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+	}
+}
 
 /*
  * Compute the next move given the opponent's last move. Your AI is
@@ -47,6 +298,19 @@ Player::~Player() {
  * return NULL.
  */
 Move *Player::doMove(Move *opponentsMove, int msLeft) {
+	// Code for testing minimax
+	if (testingMinimax) {
+		pair<int, int> p = minimax(currBoard, 2, side, false, false);
+		int x = FROM_INDEX_X(p.first);
+		int y = FROM_INDEX_Y(p.first);
+		if (p.first == -1) {x = -1; y = -1;}
+		currBoard.doMove(x, y, side);
+		Move *move = new Move(x, y);
+		return move;
+	}
+	
+	// Usual code
+	
     /* 
      * TODO: Implement how moves your AI should play here. You should first
      * process the opponent's opponents move before calculating your own move
@@ -66,156 +330,35 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     // Really worst case
     //int msForMove = msLeft / (64 - totalCount);
     
-    // Returns index of best move for side s, or -2 if depth is 0, for first part
-	// Second part is the best evaluation found for side s
-	function<pair<int, int>(Board, int, Side, bool, bool)> minimax = [&] (Board b, int depth, Side s, bool prevPass, bool useThreads) -> pair<int, int> {
-		// Base case
-		if (depth == 0) {
-			b.evaluate();
-			return make_pair(-2, b.evaluation); 
-		}
-		
-		// Special case
-		b.findLegalMoves(s);
-		uint64_t legalMoves = b.legalMoves;
-		if (legalMoves == 0) {
-			if (prevPass) {
-				int blacks = b.countBlack();
-				int whites = b.countWhite();
-				int val = (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
-				return make_pair(-1, val);
-			}
-			int val = minimax(b, depth - 1, OTHER_SIDE(s), true, false).second;
-			return make_pair(-1, val);
-		}
-		
-		// Main case
-		if (useThreads) {
-			pair<int, int> retValue;
-			thread t([&retValue, &b, &minimax, legalMoves, depth, s] () {
-				// Almost identical to below, for first half of legalMoves
-				uint64_t lm = (legalMoves >> 32) << 32;
-				int besti = -1;
-				int bestWhite = INT_MAX;
-				int bestBlack = INT_MIN;
-				while (lm != 0) {
-					int index = __builtin_clzl(lm);
-					lm &= ~BIT(index);
-					
-					Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-					int val = minimax(b2, depth - 1, OTHER_SIDE(s), false, false).second;
-					if (s == BLACK) {
-						if (val >= bestBlack) {
-							besti = index;
-							bestBlack = val;
-						}
-					}
-					else {
-						if (val <= bestWhite) {
-							besti = index;
-							bestWhite = val;
-						}
-					}
-				}
-				retValue = make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
-			});
-			
-			// Extract a legal move (from second half of legalMoves)
-			uint64_t lm = (legalMoves << 32) >> 32;
-			int besti = -1;
-			int bestWhite = INT_MAX;
-			int bestBlack = INT_MIN;
-			while (lm != 0) {
-			
-				int index = __builtin_clzl(lm);
-				lm &= ~BIT(index);
-				
-				// Make move on new board
-				Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-				int val = minimax(b2, depth - 1, OTHER_SIDE(s), false, false).second;
-				if (s == BLACK) {
-					if (val >= bestBlack) {
-						besti = index;
-						bestBlack = val;
-					}
-				}
-				else {
-					if (val <= bestWhite) {
-						besti = index;
-						bestWhite = val;
-					}
-				}
-			}
-			t.join();
-			
-			// Combine results
-			if (s == BLACK && retValue.second >= bestBlack) {
-				return retValue;
-			}
-			if (s == WHITE && retValue.second <= bestWhite) {
-				return retValue;
-			}
-			return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
-		}
-		else {
-			uint64_t lm = legalMoves;
-			int besti = -1;
-			int bestWhite = INT_MAX;
-			int bestBlack = INT_MIN;
-			while (lm != 0) {
-			
-				int index = __builtin_clzl(lm);
-				lm &= ~BIT(index);
-				
-				// Make move on new board
-				Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-				int val = minimax(b2, depth - 1, OTHER_SIDE(s), false, false).second;
-				if (s == BLACK) {
-					if (val >= bestBlack) {
-						besti = index;
-						bestBlack = val;
-					}
-				}
-				else {
-					if (val <= bestWhite) {
-						besti = index;
-						bestWhite = val;
-					}
-				}
-			}
-			return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
-		}
-	};
-    
     // Set depth according to how far into game
     int depth;
     if (totalCount <= 36) depth = 6;
-    else if (totalCount <= 46) depth = 7;
-    else if (totalCount <= 52) depth = 8;
-    else depth = 64 - totalCount + 2;
+    else if (totalCount <= 42) depth = 7;
+    else depth = INT_MAX; // Search to end (much faster)
     
-    
-    pair<int, int> p = minimax(currBoard, depth, side, false, true);
+    // Find index of best move via search
+    pair<int, int> p;
+    if (depth != INT_MAX) {
+		p = minimax(currBoard, depth, side, false, true);
+	}
+	else {
+		p = endgameMinimax(currBoard, side, true);
+	}
     int besti = p.first;
-    /*
-    double msElapsed = 1000 * difftime(time(NULL), startTime);
-    double msSearch = msElapsed;
-    int factor = 10; // Estimate for how much longer one depth larger could take
-    while (msSearch * factor < msForMove - msElapsed) {
-		depth++;
-		time_t start_search_time = time(NULL);
-		besti = minimax(currBoard, depth, side, false).first;
-		msSearch = 1000 * difftime(time(NULL), start_search_time);
-		msElapsed = 1000 * difftime(time(NULL), startTime);
-	}*/
     
+    // Output some useful info and return
 	cerr << totalCount + 1 << ' ' << difftime(time(NULL), startTime) << ' ' << p.second << endl;
-	
 	// Make move
 	int x = FROM_INDEX_X(besti);
 	int y = FROM_INDEX_Y(besti);
+	if (besti == -1) {x = -1; y = -1;}
+	cerr << "Move: " << x << ' ' << y << endl;
+    //bitset<64> bs(currBoard.findLegalMoves(side));
+    //cerr << bs << endl;
     currBoard.doMove(x, y, side);
     Move *move = new Move(x, y);
     return move;
     
 }
+
+// Hash function idea: (taken << 2) ^ (black << 1) ^ side

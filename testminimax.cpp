@@ -24,8 +24,8 @@ int main(int argc, char *argv[]) {
     Board *board = new Board();
     board->setBoard(boardData);
     board->findLegalMoves(WHITE);
-    bitset<64> bs(board->legalMoves);
-    //cerr << bs << endl;
+    // bitset<64> bs(board->legalMoves);
+    // cerr << bs << endl;
     assert(board->legalMoves == (BIT(9) | BIT(30)));
 
     // Initialize player as the white player, and set testing_minimax flag.
