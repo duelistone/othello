@@ -7,6 +7,9 @@
 #include <functional>
 #include <thread> 	
 
+// Should correspond to at most 50 sec
+#define DEFAULT_MAX_NODES (10000000)
+
 /*
  * Constructor for the player; initialize everything here. The side your AI is
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish 
@@ -32,7 +35,7 @@ Player::~Player() {
 
 // Returns index of best move for side s, or -2 if depth is 0, for first part
 // Second part is the best evaluation found for side s
-pair<int, int> minimax(Board b, int depth, Side s, bool prevPass, bool useThreads) {
+pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool useThreads = false) {
 	// Base case
 	if (depth == 0) {
 		b.evaluate();
@@ -123,12 +126,7 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass, bool useThread
 		if (s == WHITE && retValue.second <= bestWhite && retValue.first > -1) {
 			return retValue;
 		}
-		if (s == BLACK && retValue.second == bestBlack) {
-			return retValue;
-		}
-		if (s == WHITE && retValue.second == bestWhite)	 {
-			return retValue;
-		}
+		if (besti == -1) cerr << "Something's wrong" << endl;
 		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
 	} // end thread case
 	else {
@@ -158,19 +156,33 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass, bool useThread
 			// Optimization to avoid finding multiple winning lines
 			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
 		}
+		if (besti == -1) cerr << "Something's wrong" << endl;
 		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
 	}
 }
 
+// Global counter for how many final nodes endgameMinimax is searching
+long long globalEndgameNodeCount;
+bool abortEndgameMinimax = false;
+Side abortSide;
+double minutesForMove = 1;
+
 // Similar function as minimax geared for the endgame
+// A first part of -3 means that this computation takes too long and should be aborted
 pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
+	// Abort quickly
+	if (abortEndgameMinimax) return make_pair(-3, (abortSide == BLACK) ? INT_MIN : INT_MAX); // Go with worst case scenario
+	
 	// Find legal moves
 	uint64_t legalMoves = b.findLegalMoves(s);
-
+	
 	// Special case of pass
 	if (legalMoves == 0) {
 		uint64_t legalMovesOther = b.findLegalMoves(OTHER_SIDE(s));
 		if (legalMovesOther == 0) {
+			globalEndgameNodeCount++;
+			if (globalEndgameNodeCount % 1000000 == 0) cerr << globalEndgameNodeCount << endl;
+			if (globalEndgameNodeCount > minutesForMove * DEFAULT_MAX_NODES) abortEndgameMinimax = true;
 			// Simple evaluation here
 			int diff = b.countBlack() - b.countWhite();
 			if (diff > 0) return make_pair(-2, INT_MAX);
@@ -183,18 +195,37 @@ pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 	// Main case
 	if (useThreads) {
 		pair<int, int> retValue;
-		auto f = [&retValue, &b, legalMoves, s] () {
+		bool stop = false;
+		auto f = [&retValue, &b, &stop, legalMoves, s] () {
 			// Almost identical to below, for first half of legalMoves
 			uint64_t lm = (legalMoves >> 32) << 32;
 			int besti = -1;
 			int bestWhite = INT_MAX;
 			int bestBlack = INT_MIN;
-			while (lm != 0) {
+			while (lm != 0 && !stop) {
 				int index = __builtin_clzl(lm);
 				lm &= ~BIT(index);
 				
+				if (abortEndgameMinimax) {
+					// Need a non-null move
+					if (besti == -1) besti = index;
+					
+					// Take into account worse case scenario
+					if (abortSide == BLACK && s == WHITE) {
+						bestWhite = INT_MIN;
+						besti = index;
+					}
+					else if (abortSide == WHITE && s == BLACK) {
+						bestBlack = INT_MAX;
+						besti = index;
+					}
+					break;
+				}
+				
 				Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-				int val = endgameMinimax(b2, OTHER_SIDE(s), false).second;
+				pair<int, int> p = endgameMinimax(b2, OTHER_SIDE(s), false);
+				int val = p.second;
+				if (p.first == -3) break; // Abort, go with best move so far
 				if (s == BLACK) {
 					if (val >= bestBlack) {
 						besti = index;
@@ -207,7 +238,10 @@ pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 						bestWhite = val;
 					}
 				}
-				if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+				if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) {
+					stop = true;
+					break;
+				}
 			}
 			retValue = make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
 		};
@@ -219,14 +253,32 @@ pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 		int besti = -1;
 		int bestWhite = INT_MAX;
 		int bestBlack = INT_MIN;
-		while (lm != 0) {
-		
+		while (lm != 0 && !stop) {
+			// Extract legal move
 			int index = __builtin_clzl(lm);
 			lm &= ~BIT(index);
 			
+			if (abortEndgameMinimax) {
+				// Need a non-null move
+				if (besti == -1) besti = index;
+				
+				// Take into account worse case scenario
+				if (abortSide == BLACK && s == WHITE) {
+					bestWhite = INT_MIN;
+					besti = index;
+				}
+				else if (abortSide == WHITE && s == BLACK) {
+					bestBlack = INT_MAX;
+					besti = index;
+				}
+				break;
+			}
+			
 			// Make move on new board
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = endgameMinimax(b2, OTHER_SIDE(s), false).second;
+			pair<int, int> p = endgameMinimax(b2, OTHER_SIDE(s), false);
+			int val = p.second;
+			if (p.first == -3) break; // Abort, go with best move so far
 			if (s == BLACK) {
 				if (val >= bestBlack) {
 					besti = index;
@@ -240,7 +292,10 @@ pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 				}
 			}
 			// Optimization to avoid finding multiple winning lines
-			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) {
+				stop = true;
+				break;
+			}
 		}
 		t.join();
 		
@@ -260,12 +315,33 @@ pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 		int bestWhite = INT_MAX;
 		int bestBlack = INT_MIN;
 		while (lm != 0) {
+			// Extract legal move
 			int index = __builtin_clzl(lm);
 			lm &= ~BIT(index);
 			
+			if (abortEndgameMinimax) {
+				// Need a non-null move
+				if (besti == -1) besti = index;
+				
+				// Take into account worse case scenario
+				if (abortSide == BLACK && s == WHITE) {
+					bestWhite = INT_MIN;
+					besti = index;
+				}
+				else if (abortSide == WHITE && s == BLACK) {
+					bestBlack = INT_MAX;
+					besti = index;
+				}
+				break;
+			}
+			
 			// Make move on new board
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = endgameMinimax(b2, OTHER_SIDE(s), false).second;
+			// Recurse
+			pair<int, int> p = endgameMinimax(b2, OTHER_SIDE(s), false);
+			int val = p.second;
+			if (p.first == -3) break; // Abort, go with best move so far
+			// Find best
 			if (s == BLACK) {
 				if (val >= bestBlack) {
 					besti = index;
@@ -279,8 +355,11 @@ pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 				}
 			}
 			// Optimization to avoid finding multiple winning lines
-			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) {
+				break;
+			}
 		}
+		if (besti == -1) cerr << "Something's wrong" << endl;
 		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
 	}
 }
@@ -310,14 +389,12 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	}
 	
 	// Usual code
-	
-    /* 
-     * TODO: Implement how moves your AI should play here. You should first
-     * process the opponent's opponents move before calculating your own move
-     */
     
     // Time!
     time_t startTime = time(NULL);
+    
+    // Set minutesForMove to half the amount of time left
+    if (msLeft > 0) minutesForMove = msLeft / 60.0 / 1000 / 2;
     
     if (opponentsMove != NULL) {
 		currBoard.doMove(opponentsMove->x, opponentsMove->y, OTHER_SIDE(side));
@@ -327,14 +404,16 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     int totalCount = currBoard.countBlack() + currBoard.countWhite();
     
-    // Really worst case
-    //int msForMove = msLeft / (64 - totalCount);
-    
     // Set depth according to how far into game
     int depth;
-    if (totalCount <= 36) depth = 6;
-    else if (totalCount <= 42) depth = 7;
+    if (totalCount <= 29) depth = 6;
+    else if (totalCount <= 41) depth = 7;
     else depth = INT_MAX; // Search to end (much faster)
+    
+    // Set counter, reset abort variables
+    globalEndgameNodeCount = 0;
+    abortEndgameMinimax = false;
+    abortSide = side;
     
     // Find index of best move via search
     pair<int, int> p;
@@ -342,19 +421,24 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 		p = minimax(currBoard, depth, side, false, true);
 	}
 	else {
-		p = endgameMinimax(currBoard, side, true);
+		p = endgameMinimax(currBoard, side, false);
+		// If could not calculate a win or draw, fall back to other algorithm
+		if (p.second == ((side == BLACK) ? INT_MIN : INT_MAX)) {
+			cerr << "Just minimaxing depth 7" << endl;
+			p = minimax(currBoard, 7, side, false, true);
+		}
 	}
     int besti = p.first;
     
     // Output some useful info and return
-	cerr << totalCount + 1 << ' ' << difftime(time(NULL), startTime) << ' ' << p.second << endl;
+    
+	cerr << totalCount + 1 << ' ' << msLeft - difftime(time(NULL), startTime) << ' ' << p.second;
+	if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount;
+	cerr << endl;
 	// Make move
 	int x = FROM_INDEX_X(besti);
 	int y = FROM_INDEX_Y(besti);
-	if (besti == -1) {x = -1; y = -1;}
 	cerr << "Move: " << x << ' ' << y << endl;
-    //bitset<64> bs(currBoard.findLegalMoves(side));
-    //cerr << bs << endl;
     currBoard.doMove(x, y, side);
     Move *move = new Move(x, y);
     return move;

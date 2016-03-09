@@ -7,7 +7,7 @@
 /*
  * Make a standard 8x8 othello board and initialize it to the standard setup.
  */
-Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), evaluation(-1), frontierDiscs(0) {
+Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), evaluation(0), frontierDiscs(0) {
     OCCUPY_WHITE(3 + 8 * 3, taken, black);
     OCCUPY_BLACK(3 + 8 * 4, taken, black);
     OCCUPY_BLACK(4 + 8 * 3, taken, black);
@@ -115,7 +115,6 @@ bool Board::checkMove(int X, int Y, Side side) {
                 } while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
 
                 if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-					//cerr << X << ' ' << Y << " is valid " << dx << ' ' << dy << ' ' << x << ' ' << y << endl;
 					return true;
 				}
             }
