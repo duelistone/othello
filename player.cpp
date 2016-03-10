@@ -1,11 +1,5 @@
 #include "player.h"
-#include <bitset>
-#include <unistd.h>
-#include <climits>
-#include <ctime>
-#include <cassert>
-#include <functional>
-#include <thread> 	
+
 
 // Should correspond to at most 50 sec
 #define DEFAULT_MAX_NODES (10000000)
@@ -32,6 +26,9 @@ Player::Player(Side s) : side(s), currBoard(Board()) {
  */
 Player::~Player() {
 }
+
+Side abortSide;
+#define PRUNE_ABS (100)
 
 // Returns index of best move for side s, or -2 if depth is 0, for first part
 // Second part is the best evaluation found for side s
@@ -83,6 +80,14 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 						bestWhite = val;
 					}
 				}
+				if (s == BLACK && abortSide == WHITE && bestBlack > PRUNE_ABS) {
+					bestBlack = INT_MAX - 1;
+					break;
+				} 
+				if (s == WHITE && abortSide == BLACK && bestWhite < -PRUNE_ABS) {
+					bestWhite = INT_MIN + 1;
+					break;
+				}
 				if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
 			}
 			retValue = make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
@@ -113,8 +118,16 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 					bestWhite = val;
 				}
 			}
-			// Optimization to avoid finding multiple winning lines
-			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+			// Optimization to avoid finding multiple winning lines or searching really bad lines
+			if (s == BLACK && abortSide == WHITE && bestBlack > PRUNE_ABS) {
+				bestBlack = INT_MAX - 1;
+				break;
+			} 
+			if (s == WHITE && abortSide == BLACK && bestWhite < -PRUNE_ABS) {
+				bestWhite = INT_MIN + 1;
+				break;
+			}
+			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break; // Does this do anything in this function?
 		}
 		t.join();
 		
@@ -153,7 +166,15 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 					bestWhite = val;
 				}
 			}
-			// Optimization to avoid finding multiple winning lines
+			// Optimization to avoid finding multiple winning lines or searching really bad ones
+			if (s == BLACK && abortSide == WHITE && bestBlack > PRUNE_ABS) {
+				bestBlack = INT_MAX - 1;
+				break;
+			} 
+			if (s == WHITE && abortSide == BLACK && bestWhite < -PRUNE_ABS) {
+				bestWhite = INT_MIN + 1;
+				break;
+			}
 			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
 		}
 		if (besti == -1) cerr << "Something's wrong" << endl;
@@ -161,23 +182,29 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 	}
 }
 
-// Global counter for how many final nodes endgameMinimax is searching
-long long globalEndgameNodeCount;
-bool abortEndgameMinimax = false;
-Side abortSide;
-double minutesForMove = 1;
-
 // Similar function as minimax geared for the endgame
 // A first part of -3 means that this computation takes too long and should be aborted
 pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 	// Abort quickly
 	if (abortEndgameMinimax) return make_pair(-3, (abortSide == BLACK) ? INT_MIN : INT_MAX); // Go with worst case scenario
 	
+	// Memoization
+	BoardWithSide bws(b.taken, b.black, s);
+	um_lock.lock();
+	if (um->count(bws) > 0) {
+		pair<int, int> result = (*um)[bws];
+		um_lock.unlock();
+		return result;
+	}
+	um_lock.unlock();
+	int totalCount = __builtin_popcount(b.taken) + __builtin_popcount(b.taken >> 32);
+	
 	// Find legal moves
 	uint64_t legalMoves = b.findLegalMoves(s);
-	
+
 	// Special case of pass
 	if (legalMoves == 0) {
+		//cerr << "Beginning special case check" << endl;
 		uint64_t legalMovesOther = b.findLegalMoves(OTHER_SIDE(s));
 		if (legalMovesOther == 0) {
 			globalEndgameNodeCount++;
@@ -189,13 +216,22 @@ pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 			else if (diff < 0) return make_pair(-2, INT_MIN);
 			else return make_pair(-2, 0);
 		}
-		return make_pair(-1, endgameMinimax(b, OTHER_SIDE(s), false).second);
+		
+		pair<int, int> ret = make_pair(-1, endgameMinimax(b, OTHER_SIDE(s), false).second);
+		um_lock.lock();
+		if (um->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD) {
+			(*um)[bws] = ret;
+		}
+		um_lock.unlock();
+		return ret; 
 	}
+	
 	
 	// Main case
 	if (useThreads) {
 		pair<int, int> retValue;
-		bool stop = false;
+		atomic_bool stop;
+		stop = false;
 		auto f = [&retValue, &b, &stop, legalMoves, s] () {
 			// Almost identical to below, for first half of legalMoves
 			uint64_t lm = (legalMoves >> 32) << 32;
@@ -302,12 +338,24 @@ pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 		// Combine results
 		// Not null moves get priority
 		if (s == BLACK && retValue.second >= bestBlack && retValue.first > -1) {
+			um_lock.lock();
+			if (um->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD) (*um)[bws] = retValue;
+			um_lock.unlock();
 			return retValue;
 		}
 		if (s == WHITE && retValue.second <= bestWhite && retValue.first > -1) {
+			um_lock.lock();
+			if (um->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD) (*um)[bws] = retValue;
+			um_lock.unlock();
 			return retValue;
 		}
-		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+		pair<int, int> ret = make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+		if (um->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD) {
+			um_lock.lock();
+			(*um)[bws] = ret;
+			um_lock.unlock();
+		}
+		return ret;
 	} // end thread case
 	else {
 		uint64_t lm = legalMoves;
@@ -358,9 +406,15 @@ pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) {
 				break;
 			}
+			
 		}
-		if (besti == -1) cerr << "Something's wrong" << endl;
-		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+		pair<int, int> ret = make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+		um_lock.lock();
+		if (um->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD) {
+			(*um)[bws] = ret;
+		}
+		um_lock.unlock();
+		return ret;
 	}
 }
 
@@ -406,10 +460,10 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     // Set depth according to how far into game
     int depth;
-    if (totalCount <= 29) depth = 6;
-    else if (totalCount <= 41) depth = 7;
+    if (totalCount <= 29) depth = 2;
+    else if (totalCount <= 40) depth = 2; // 41 seems to be good
     else depth = INT_MAX; // Search to end (much faster)
-    
+	
     // Set counter, reset abort variables
     globalEndgameNodeCount = 0;
     abortEndgameMinimax = false;
@@ -421,18 +475,20 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 		p = minimax(currBoard, depth, side, false, true);
 	}
 	else {
-		p = endgameMinimax(currBoard, side, false);
+		p = endgameMinimax(currBoard, side, true);
 		// If could not calculate a win or draw, fall back to other algorithm
 		if (p.second == ((side == BLACK) ? INT_MIN : INT_MAX)) {
-			cerr << "Just minimaxing depth 7" << endl;
-			p = minimax(currBoard, 7, side, false, true);
+			cerr << "Just minimaxing" << endl;
+			p = minimax(currBoard, msLeft > 30000 ? 7 : (msLeft > 10 ? 6 : 5), side, false, true);
+			cerr << "Done minimaxing" << endl;
+			um->clear(); // For now, some values may be incorrect if search not done, later we may want to prune the hash table, if it's worth it
 		}
 	}
     int besti = p.first;
     
     // Output some useful info and return
     
-	cerr << totalCount + 1 << ' ' << msLeft - difftime(time(NULL), startTime) << ' ' << p.second;
+	cerr << totalCount + 1 << ' ' << msLeft - 1000 * difftime(time(NULL), startTime) << ' ' << p.second;
 	if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount;
 	cerr << endl;
 	// Make move
@@ -444,5 +500,3 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     return move;
     
 }
-
-// Hash function idea: (taken << 2) ^ (black << 1) ^ side

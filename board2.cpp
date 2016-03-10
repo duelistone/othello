@@ -354,3 +354,6 @@ void Board::setBoard(char data[]) {
 	}
 }
 
+bool operator==(const BoardWithSide& l, const BoardWithSide& r) {
+	return (l.taken == r.taken) && (l.black == r.black) && (l.side == r.side);
+}

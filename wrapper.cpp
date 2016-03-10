@@ -4,6 +4,13 @@
 #include "player.h"
 using namespace std;
 
+// Global variables...I'll get rid of these if I have time
+long long globalEndgameNodeCount = 0;
+unordered_map< BoardWithSide, pair<int, int> > *um = new unordered_map< BoardWithSide, pair<int, int> >;
+atomic_bool abortEndgameMinimax;
+double minutesForMove = 1;
+mutex um_lock;
+
 int main(int argc, char *argv[]) {    
     // Read in side the player is on.
     if (argc != 2)  {
@@ -14,12 +21,12 @@ int main(int argc, char *argv[]) {
 
     // Initialize player.
     Player *player = new Player(side);
-
+    
     // Tell java wrapper that we are done initializing.
     cout << "Init done" << endl;
     cout.flush();    
     
-    int moveX, moveY, msLeft;    
+    int moveX, moveY, msLeft;
 
     // Get opponent's move and time left for player each turn.
     while (cin >> moveX >> moveY >> msLeft) {
@@ -42,6 +49,10 @@ int main(int argc, char *argv[]) {
         if (opponentsMove != NULL) delete opponentsMove;
         if (playersMove != NULL) delete playersMove; 
     }
-
+	
+	// Delete hash table and player
+	if (um != nullptr) delete um;
+	if (player != nullptr) delete player;
+	
     return 0;
 }

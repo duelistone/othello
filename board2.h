@@ -64,19 +64,30 @@ public:
     void setBoard(char data[]);
 };
 
-class Node;
-
-class Node {
-	vector<Node *> children;
-	int moveTo;
-	Board board;
-	Side toMove;
+class BoardWithSide {
+public:
+	uint64_t taken;
+	uint64_t black;
+	Side side;
 	
-	Node(int m, Board b, Side s) : children(), moveTo(m), board(b), toMove(s) {}
+	BoardWithSide(uint64_t t, uint64_t b, Side s) : taken(t), black(b), side(s) {}
+	BoardWithSide(const BoardWithSide& bws) : taken(bws.taken), black(bws.black), side(bws.side) {}
 };
 
-// unordered_map<Board, int> hashTable;
+bool operator==(const BoardWithSide&, const BoardWithSide&);
+
+namespace std {	
+	template<> struct hash<BoardWithSide> {
+		size_t operator()(const BoardWithSide & b) const {
+			return hash<unsigned long long>()(b.black);
+		}
+	};
+}
+
+// unordered_map< pair<Board, Side>, int> hashTable;
 // Need to make hash function
+// Hash function idea: (taken << 2) ^ (black << 1) ^ side
+// Or, have unordered_map< uint64_t, unordered_map< uint64_t, unordered_map<Side, int> > >
 
 #endif
 
