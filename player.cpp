@@ -1,8 +1,7 @@
 #include "player.h"
 
 
-// Should correspond to at most 50 sec
-#define DEFAULT_MAX_NODES (10000000)
+
 
 /*
  * Constructor for the player; initialize everything here. The side your AI is
@@ -38,9 +37,22 @@ Side abortSide;
 // Returns index of best move for side s, or -2 if depth is 0, for first part
 // Second part is the best evaluation found for side s
 pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool useThreads = false) {
+	// Check if result stored in table
+	BoardWithSide bws(b.taken, b.black, s);
+	ttable_lock.lock();
+	if (ttable->count(bws) > 0) {
+		pair<int, int> result = (*ttable)[bws];
+		ttable_lock.unlock();
+		return result;
+	}
+	ttable_lock.unlock();
+	
 	// Base case
 	if (depth == 0) {
 		b.evaluate();
+		ttable_lock.lock();
+		(*ttable)[bws] = make_pair(-2, b.evaluation);
+		ttable_lock.unlock();
 		return make_pair(-2, b.evaluation); 
 	}
 	
@@ -54,8 +66,11 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 			int val = (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
 			return make_pair(-1, val);
 		}
-		int val = minimax(b, depth - 1, OTHER_SIDE(s), true).second;
-		return make_pair(-1, val);
+		pair<int, int> val = minimax(b, depth - 1, OTHER_SIDE(s), true);
+		ttable_lock.lock();
+		if (ttable->size() < MAX_HASH_SIZE) (*ttable)[bws] = val;
+		ttable_lock.unlock();
+		return make_pair(-1, val.second);
 	}
 	
 	// Main case
@@ -136,14 +151,17 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 		
 		// Combine results
 		// Not null moves get priority
-		if (s == BLACK && retValue.second >= bestBlack && retValue.first > -1) {
+		if ((s == BLACK && retValue.second >= bestBlack && retValue.first > -1) || (s == WHITE && retValue.second <= bestWhite && retValue.first > -1)) {
+			ttable_lock.lock();
+			if (ttable->size() < MAX_HASH_SIZE) (*ttable)[bws] = retValue;
+			ttable_lock.unlock();
 			return retValue;
 		}
-		if (s == WHITE && retValue.second <= bestWhite && retValue.first > -1) {
-			return retValue;
-		}
-		if (besti == -1) cerr << "Something's wrong" << endl;
-		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+		pair<int, int> p = make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+		ttable_lock.lock();
+		if (ttable->size() > DEFAULT_MAX_NODES) (*ttable)[bws] = p;
+		ttable_lock.unlock();
+		return p;
 	} // end thread case
 	else {
 		uint64_t lm = legalMoves;
@@ -173,7 +191,11 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 			if (s == BLACK && bestBlack > PRUNE_ABS) break;
 			if (s == WHITE && bestWhite < -PRUNE_ABS) break;
 		}
-		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+		pair<int, int> p = make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
+		ttable_lock.lock();
+		if (ttable->size() < MAX_HASH_SIZE) (*ttable)[bws] = p;
+		ttable_lock.unlock();
+		return p;
 	}
 }
 
@@ -476,7 +498,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 		// If could not calculate a win or draw, fall back to other algorithm
 		if (p.second == ((side == BLACK) ? INT_MIN : INT_MAX)) {
 			cerr << "Just minimaxing" << endl;
-			p = minimax(currBoard, msLeft > 30000 ? 7 : (msLeft > 10 ? 6 : 5), side, false, true);
+			p = minimax(currBoard, msLeft > 30000 ? 7 : (msLeft > 10000 ? 6 : 5), side, false, true);
 			cerr << "Done minimaxing" << endl;
 			um->clear(); // For now, some values may be incorrect if search not done, later we may want to prune the hash table, if it's worth it
 		}
@@ -485,7 +507,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     // Output some useful info and return
     
-	cerr << totalCount + 1 << ' ' << msLeft - 1000 * difftime(time(NULL), startTime) << ' ' << p.second;
+	cerr << totalCount + 1 << ' ' << msLeft - 1000 * difftime(time(NULL), startTime) << ' ' << p.second << ' ' << ttable->size();
 	if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount;
 	cerr << endl;
 	// Make move

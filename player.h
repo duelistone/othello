@@ -36,6 +36,9 @@ extern unordered_map< BoardWithSide, pair<int, int> > *ttable;
 #define STOP_SAVING_THRESHOLD 56
 // At this point it should be quick to compute to the end
 
+// Should correspond to at most a minute of computation
+#define DEFAULT_MAX_NODES (10000000)
+
 using namespace std;
 
 class Player {
