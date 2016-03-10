@@ -43,7 +43,6 @@ public:
     bool legalMovesComputed;
     uint64_t legalMoves;
     int evaluation;
-    int frontierDiscs;
     
     Board();
     Board(uint64_t, uint64_t);

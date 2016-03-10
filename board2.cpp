@@ -7,7 +7,7 @@
 /*
  * Make a standard 8x8 othello board and initialize it to the standard setup.
  */
-Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), evaluation(0), frontierDiscs(0) {
+Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), evaluation(0) {
     OCCUPY_WHITE(3 + 8 * 3, taken, black);
     OCCUPY_BLACK(3 + 8 * 4, taken, black);
     OCCUPY_BLACK(4 + 8 * 3, taken, black);
@@ -17,17 +17,18 @@ Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), e
 /*
  * Make a board given a taken and black uint64_t.
  */
-Board::Board(uint64_t t, uint64_t b) : taken(t), black(b), legalMovesComputed(false), legalMoves(0), evaluation(-1), frontierDiscs(0) {}
+Board::Board(uint64_t t, uint64_t b) : taken(t), black(b), legalMovesComputed(false), legalMoves(0), evaluation(-1) {}
 
 uint64_t Board::findLegalMoves(Side side) {
 	legalMoves = 0;
-	frontierDiscs = 0;
-	// uint64_t empty = taken;
+	uint64_t empty = ~taken;
 	
-	for (int X = 0; X < 8; X++) {
-		for (int Y = 0; Y < 8; Y++) {
-			// Make sure the square hasn't already been taken.
-			if (OCCUPIED(X, Y, taken)) {
+	while (empty != 0) {
+		int index = __builtin_clzl(empty);
+		empty &= ~BIT(index);
+		int X = FROM_INDEX_X(index);
+		int Y = FROM_INDEX_Y(index);
+		/*
 				// Check if frontier disc (adds about 1 microsecond)
 				// Don't count edge discs as frontier discs (simplification)
 				int index = TO_INDEX(X, Y);
@@ -46,25 +47,24 @@ uint64_t Board::findLegalMoves(Side side) {
 				}
 				continue;
 			}
-			
-			// Else, check if legal move
-			Side other = OTHER_SIDE(side);
-			for (int dx = -1; dx <= 1; dx++) {
-				for (int dy = -1; dy <= 1; dy++) {
-					if (dy == 0 && dx == 0) continue;
+		*/
+		// Else, check if legal move
+		Side other = OTHER_SIDE(side);
+		for (int dx = -1; dx <= 1; dx++) {
+			for (int dy = -1; dy <= 1; dy++) {
+				if (dy == 0 && dx == 0) continue;
 
-					// Is there a capture in that direction?
-					int x = X + dx;
-					int y = Y + dy;
-					if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-						do {
-							x += dx;
-							y += dy;
-						} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
+				// Is there a capture in that direction?
+				int x = X + dx;
+				int y = Y + dy;
+				if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
+					do {
+						x += dx;
+						y += dy;
+					} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
 
-						if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-							legalMoves |= BIT(TO_INDEX(X, Y));
-						}
+					if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
+						legalMoves |= BIT(index);
 					}
 				}
 			}
@@ -217,17 +217,16 @@ int Board::evaluate() {
 	uint64_t white = taken & ~black;
 	if (totalCount < greedyPoint) {
 		// Constants to tweak
-		int cornerWeight = 90 - totalCount;
-		int frontierDiscWeight = 1;
-		int mobilityWeight = 2;
-		int penaltyWeight = 10;
 		int wedgeWeight = 15;
+		int cornerWeight = 90 - totalCount;
+		int mobilityWeight = 2;
+		int penaltyWeight = 5;
 		
 		// Computations
 		findLegalMoves(BLACK);
-		evaluation = mobilityWeight * (__builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32)) - frontierDiscWeight * frontierDiscs;
+		evaluation = mobilityWeight * (__builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32));
 		findLegalMoves(WHITE);
-		evaluation -= mobilityWeight * (__builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32)) - frontierDiscWeight * frontierDiscs;
+		evaluation -= mobilityWeight * (__builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32));
 		uint64_t bc = black & CORNERS;
 		uint64_t wc = white & CORNERS;
 		evaluation += cornerWeight * (__builtin_popcount(bc >> 32) + __builtin_popcount(bc));
@@ -303,6 +302,8 @@ int Board::evaluate() {
 			}
 		}
 		//cerr << "Wedges: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+		
+		
 	}
 	else {
 		// Become greedy in the end

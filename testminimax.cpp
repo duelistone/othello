@@ -24,9 +24,6 @@ int main(int argc, char *argv[]) {
     Board *board = new Board();
     board->setBoard(boardData);
     board->findLegalMoves(WHITE);
-    // bitset<64> bs(board->legalMoves);
-    // cerr << bs << endl;
-    assert(board->legalMoves == (BIT(9) | BIT(30)));
 
     // Initialize player as the white player, and set testing_minimax flag.
     Player *player = new Player(WHITE);
@@ -38,7 +35,6 @@ int main(int argc, char *argv[]) {
      * example state.
      */
     player->currBoard = *board;
-    assert(player->currBoard.taken == board->taken);
 
     // Get player's move and check if it's right.
     Move *move = player->doMove(NULL, 0);

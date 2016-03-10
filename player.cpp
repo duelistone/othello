@@ -31,8 +31,8 @@ Side abortSide;
 // From black perspective, a move of less than -PRUNE_ABS will be deemed terrible,
 // and a move of more than PRUNE_ABS2 will be deemed great
 // Right now only PRUNE_ABS is being used
-#define PRUNE_ABS (50)
-#define PRUNE_ABS2 (50)
+#define PRUNE_ABS (70)
+#define PRUNE_ABS2 (70)
 
 // Returns index of best move for side s, or -2 if depth is 0, for first part
 // Second part is the best evaluation found for side s
@@ -49,11 +49,10 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 	
 	// Base case
 	if (depth == 0) {
-		b.evaluate();
-		ttable_lock.lock();
-		(*ttable)[bws] = make_pair(-2, b.evaluation);
-		ttable_lock.unlock();
-		return make_pair(-2, b.evaluation); 
+		// Parity
+		int totalCount = __builtin_popcount(b.taken >> 32) + __builtin_popcount(b.taken);
+		int parityWeight = 5;
+		return make_pair(-2, b.evaluate() + ( totalCount % 2 ? ( s == BLACK ? parityWeight : -parityWeight) : ( s == BLACK ? -parityWeight : parityWeight ) ));
 	}
 	
 	// Special case
@@ -477,7 +476,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     // Set depth according to how far into game
     int depth;
-    if (totalCount <= 29) depth = 6;
+    if (totalCount <= 14) depth = 6; // 29 prev value
     else if (totalCount <= 41) depth = 7; // 41 seems to be good
     else depth = INT_MAX; // Search to end (much faster)
 	
@@ -510,6 +509,8 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	cerr << totalCount + 1 << ' ' << msLeft - 1000 * difftime(time(NULL), startTime) << ' ' << p.second << ' ' << ttable->size();
 	if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount;
 	cerr << endl;
+	ttable->clear();
+	
 	// Make move
 	int x = FROM_INDEX_X(besti);
 	int y = FROM_INDEX_Y(besti);
