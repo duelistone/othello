@@ -7,9 +7,11 @@ using namespace std;
 // Global variables...I'll get rid of these if I have time
 long long globalEndgameNodeCount = 0;
 unordered_map< BoardWithSide, pair<int, int> > *um = new unordered_map< BoardWithSide, pair<int, int> >;
+unordered_map< BoardWithSide, pair<int, int> > *ttable = new unordered_map< BoardWithSide, pair<int, int> >;
 atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
 mutex um_lock;
+mutex ttable_lock;
 
 int main(int argc, char *argv[]) {    
     // Read in side the player is on.
@@ -52,6 +54,7 @@ int main(int argc, char *argv[]) {
 	
 	// Delete hash table and player
 	if (um != nullptr) delete um;
+	if (ttable != nullptr) delete ttable;
 	if (player != nullptr) delete player;
 	
     return 0;

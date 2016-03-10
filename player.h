@@ -23,11 +23,13 @@ extern long long globalEndgameNodeCount;
 extern std::atomic_bool abortEndgameMinimax;
 extern double minutesForMove;
 extern std::mutex um_lock;
+extern std::mutex ttable_lock;
 
 // For memoization
 // Question: Is it worth it?
 // Can run through the values it can store pretty quickly
 extern std::unordered_map< BoardWithSide, pair<int, int> > *um;
+extern unordered_map< BoardWithSide, pair<int, int> > *ttable;
 
 // To avoid um getting too big
 #define MAX_HASH_SIZE 3000000

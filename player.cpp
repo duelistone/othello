@@ -27,8 +27,13 @@ Player::Player(Side s) : side(s), currBoard(Board()) {
 Player::~Player() {
 }
 
-Side abortSide;
-#define PRUNE_ABS (100)
+Side abortSide; 
+
+// From black perspective, a move of less than -PRUNE_ABS will be deemed terrible,
+// and a move of more than PRUNE_ABS2 will be deemed great
+// Right now only PRUNE_ABS is being used
+#define PRUNE_ABS (50)
+#define PRUNE_ABS2 (50)
 
 // Returns index of best move for side s, or -2 if depth is 0, for first part
 // Second part is the best evaluation found for side s
@@ -49,7 +54,7 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 			int val = (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
 			return make_pair(-1, val);
 		}
-		int val = minimax(b, depth - 1, OTHER_SIDE(s), true, false).second;
+		int val = minimax(b, depth - 1, OTHER_SIDE(s), true).second;
 		return make_pair(-1, val);
 	}
 	
@@ -67,7 +72,7 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 				lm &= ~BIT(index);
 				
 				Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-				int val = minimax(b2, depth - 1, OTHER_SIDE(s), false, false).second;
+				int val = minimax(b2, depth - 1, OTHER_SIDE(s)).second;
 				if (s == BLACK) {
 					if (val >= bestBlack) {
 						besti = index;
@@ -80,15 +85,21 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 						bestWhite = val;
 					}
 				}
+				if (s == BLACK && bestBlack > PRUNE_ABS) break;
+				if (s == WHITE && bestWhite < -PRUNE_ABS) break;
+				/* Better: 
 				if (s == BLACK && abortSide == WHITE && bestBlack > PRUNE_ABS) {
-					bestBlack = INT_MAX - 1;
-					break;
-				} 
-				if (s == WHITE && abortSide == BLACK && bestWhite < -PRUNE_ABS) {
-					bestWhite = INT_MIN + 1;
 					break;
 				}
-				if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+				if (s == WHITE && abortSide == BLACK && bestWhite < -PRUNE_ABS) {
+					break;
+				}
+				if (s == BLACK && abortSide == BLACK && bestBlack > PRUNE_ABS2) {
+					break;
+				}
+				if (s == WHITE && abortSide == WHITE && bestWhite < -PRUNE_ABS2) {
+					break;
+				}*/
 			}
 			retValue = make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
 		});
@@ -99,7 +110,6 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 		int bestWhite = INT_MAX;
 		int bestBlack = INT_MIN;
 		while (lm != 0) {
-		
 			int index = __builtin_clzl(lm);
 			lm &= ~BIT(index);
 			
@@ -119,15 +129,8 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 				}
 			}
 			// Optimization to avoid finding multiple winning lines or searching really bad lines
-			if (s == BLACK && abortSide == WHITE && bestBlack > PRUNE_ABS) {
-				bestBlack = INT_MAX - 1;
-				break;
-			} 
-			if (s == WHITE && abortSide == BLACK && bestWhite < -PRUNE_ABS) {
-				bestWhite = INT_MIN + 1;
-				break;
-			}
-			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break; // Does this do anything in this function?
+			if (s == BLACK && bestBlack > PRUNE_ABS) break;
+			if (s == WHITE && bestWhite < -PRUNE_ABS) break;
 		}
 		t.join();
 		
@@ -167,17 +170,9 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 				}
 			}
 			// Optimization to avoid finding multiple winning lines or searching really bad ones
-			if (s == BLACK && abortSide == WHITE && bestBlack > PRUNE_ABS) {
-				bestBlack = INT_MAX - 1;
-				break;
-			} 
-			if (s == WHITE && abortSide == BLACK && bestWhite < -PRUNE_ABS) {
-				bestWhite = INT_MIN + 1;
-				break;
-			}
-			if ((s == BLACK && bestBlack == INT_MAX) || (s == WHITE && bestWhite == INT_MIN)) break;
+			if (s == BLACK && bestBlack > PRUNE_ABS) break;
+			if (s == WHITE && bestWhite < -PRUNE_ABS) break;
 		}
-		if (besti == -1) cerr << "Something's wrong" << endl;
 		return make_pair(besti, (s == BLACK) ? bestBlack : bestWhite);
 	}
 }
@@ -187,7 +182,7 @@ pair<int, int> minimax(Board b, int depth, Side s, bool prevPass = false, bool u
 pair<int, int> endgameMinimax(Board b, Side s, bool useThreads) {
 	// Abort quickly
 	if (abortEndgameMinimax) return make_pair(-3, (abortSide == BLACK) ? INT_MIN : INT_MAX); // Go with worst case scenario
-	
+		
 	// Memoization
 	BoardWithSide bws(b.taken, b.black, s);
 	um_lock.lock();
@@ -460,14 +455,16 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     // Set depth according to how far into game
     int depth;
-    if (totalCount <= 29) depth = 2;
-    else if (totalCount <= 40) depth = 2; // 41 seems to be good
+    if (totalCount <= 29) depth = 6;
+    else if (totalCount <= 41) depth = 7; // 41 seems to be good
     else depth = INT_MAX; // Search to end (much faster)
 	
     // Set counter, reset abort variables
     globalEndgameNodeCount = 0;
     abortEndgameMinimax = false;
     abortSide = side;
+    // Clear transposition table
+    ttable->clear();
     
     // Find index of best move via search
     pair<int, int> p;
