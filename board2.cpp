@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <chrono>
 #include <cassert>
+#include <cmath>
 
 /*
  * Make a standard 8x8 othello board and initialize it to the standard setup.
@@ -217,26 +218,31 @@ int Board::evaluate() {
 	uint64_t white = taken & ~black;
 	if (totalCount < greedyPoint) {
 		// Constants to tweak
-		int wedgeWeight = 15;
-		int cornerWeight = 90 - totalCount;
-		int mobilityWeight = 2;
-		int penaltyWeight = 5;
+		// int wedgeWeight = 10;
+		int cornerWeight = 20;
+		int mobilityWeight = 4;
+		int penaltyWeight = 3;
 		
 		// Computations
 		findLegalMoves(BLACK);
-		evaluation = mobilityWeight * (__builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32));
+		int blackMoves = __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32);
 		findLegalMoves(WHITE);
-		evaluation -= mobilityWeight * (__builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32));
+		int whiteMoves = __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32);
+		evaluation = round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
+		// if (evaluation > 20) cerr << whiteMoves << ' ' << blackMoves << endl;
 		uint64_t bc = black & CORNERS;
 		uint64_t wc = white & CORNERS;
-		evaluation += cornerWeight * (__builtin_popcount(bc >> 32) + __builtin_popcount(bc));
-		evaluation -= cornerWeight * (__builtin_popcount(wc >> 32) + __builtin_popcount(wc));
+		int blackCorners = __builtin_popcount(bc >> 32) + __builtin_popcount(bc);
+		int whiteCorners = __builtin_popcount(wc >> 32) + __builtin_popcount(wc);
+		//if (abs(evaluation) > 20 && blackCorners + whiteCorners > 0) {evaluation /= abs(evaluation); evaluation *= 20;} // Mobility worth at most a corner
+		evaluation += cornerWeight * blackCorners;
+		evaluation -= cornerWeight * whiteCorners;
 		
 		//cerr << "Legal moves: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 		
 		// Idea: There are exceptions where we don't want a penalty
 		// Penalty for risky squares if corner not filled
-		if (totalCount < 50) {
+		if (totalCount < 45) {
 			if ((CORNER_TL & taken) == 0) {
 				evaluation -= (black & NEXT_TO_CORNER_TL) ? penaltyWeight : 0;
 				evaluation += (white & NEXT_TO_CORNER_TL) ? penaltyWeight : 0;
@@ -256,54 +262,6 @@ int Board::evaluate() {
 		}
 		
 		//cerr << "Corners: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		
-		if (totalCount < 56) {
-			// Wedges
-			for (int i = 1; i <= 6; i++) {
-		 		// Check if occupied adjacent squares
-				if ((taken & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
-					if ((black & BIT(i)) == 0 && (black & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
-						evaluation -= wedgeWeight;
-					}
-					else if ((white & BIT(i)) == 0 && (white & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
-						evaluation += wedgeWeight;
-					}
-				}
-			}
-			for (int i = 57; i <= 62; i++) {
-				if ((taken & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
-					if ((black & BIT(i)) == 0 && (black & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
-						evaluation -= wedgeWeight;
-					}
-					else if ((white & BIT(i)) == 0 && (white & (BIT(i - 1) | BIT(i + 1))) == (BIT(i - 1) | BIT(i + 1))) {
-						evaluation += wedgeWeight;
-					}
-				}
-			}
-			for (int i = 8; i <= 48; i += 8) {
-				if ((taken & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
-					if ((black & BIT(i)) == 0 && (black & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
-						evaluation -= wedgeWeight;
-					}
-					else if ((white & BIT(i)) == 0 && (white & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
-						evaluation += wedgeWeight;
-					}
-				}
-			}
-			for (int i = 15; i <= 55; i += 8) {
-				if ((taken & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
-					if ((black & BIT(i)) == 0 && (black & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
-						evaluation -= wedgeWeight;
-					}
-					else if ((white & BIT(i)) == 0 && (white & (BIT(i - 8) | BIT(i + 8))) == (BIT(i - 8) | BIT(i + 8))) {
-						evaluation += wedgeWeight;
-					}
-				}
-			}
-		}
-		//cerr << "Wedges: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		
-		
 	}
 	else {
 		// Become greedy in the end

@@ -14,9 +14,11 @@
 #include <unordered_map>
 #include <atomic>
 #include <mutex>
+#include <cmath>
+#include <string>
 
-#define MAX(x, y) ((x) >= (y) ? x : y)
-#define MIN(x, y) ((x) >= (y) ? x : y)
+#define MAX(x, y) ((x) >= (y) ? (x) : (y))
+#define MIN(x, y) ((x) <= (y) ? (x) : (y))
 
 // Global counter for how many final nodes endgameMinimax is searching
 extern long long globalEndgameNodeCount;
@@ -29,6 +31,7 @@ extern std::mutex ttable_lock;
 // Question: Is it worth it?
 // Can run through the values it can store pretty quickly
 extern std::unordered_map< BoardWithSide, pair<int, int> > *um;
+extern std::unordered_map< BoardWithSide, int > *um2;
 extern unordered_map< BoardWithSide, pair<int, int> > *ttable;
 
 // To avoid um getting too big
@@ -37,7 +40,7 @@ extern unordered_map< BoardWithSide, pair<int, int> > *ttable;
 // At this point it should be quick to compute to the end
 
 // Should correspond to at most a minute of computation
-#define DEFAULT_MAX_NODES (10000000)
+#define DEFAULT_MAX_NODES (11000000)
 
 using namespace std;
 
