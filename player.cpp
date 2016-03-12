@@ -713,7 +713,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	}
 	else if (totalCount == 5) {
 		// Choose diagonal opening
-		int index = __builtin_clzl(currBoard.legalMoves & (BIT(18) | BIT(21) | BIT(42) | BIT(45));
+		int index = __builtin_clzl(currBoard.legalMoves & (BIT(18) | BIT(21) | BIT(42) | BIT(45)));
 		int x = FROM_INDEX_X(index);
 		int y = FROM_INDEX_Y(index);
 		Move *move = new Move(x, y);
