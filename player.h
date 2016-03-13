@@ -16,6 +16,7 @@
 #include <mutex>
 #include <cmath>
 #include <string>
+#include <vector>
 
 #define MAX(x, y) ((x) >= (y) ? (x) : (y))
 #define MIN(x, y) ((x) <= (y) ? (x) : (y))
@@ -25,12 +26,12 @@ extern long long globalEndgameNodeCount;
 extern std::atomic_bool abortEndgameMinimax;
 extern double minutesForMove;
 extern std::mutex um_lock;
-extern std::mutex ttable_lock;
+extern std::mutex um2_lock;
 
 // For memoization
 // Question: Is it worth it?
 // Can run through the values it can store pretty quickly
-extern std::unordered_map< BoardWithSide, pair<int, int> > *um;
+extern std::unordered_map< BoardWithSide, int > *um;
 extern std::unordered_map< BoardWithSide, int > *um2;
 extern unordered_map< BoardWithSide, pair<int, int> > *ttable;
 
@@ -41,6 +42,10 @@ extern unordered_map< BoardWithSide, pair<int, int> > *ttable;
 
 // Should correspond to at most a minute of computation
 #define DEFAULT_MAX_NODES (11000000)
+
+#define DEPTH_TIME_8 (15000)
+#define DEPTH_TIME_9 (45000)
+#define DEPTH_TIME_10 (90000)
 
 using namespace std;
 

@@ -29,26 +29,7 @@ uint64_t Board::findLegalMoves(Side side) {
 		empty &= ~BIT(index);
 		int X = FROM_INDEX_X(index);
 		int Y = FROM_INDEX_Y(index);
-		/*
-				// Check if frontier disc (adds about 1 microsecond)
-				// Don't count edge discs as frontier discs (simplification)
-				int index = TO_INDEX(X, Y);
-				if (index < 8 || index > 56 || index % 8 == 0 || index % 8 == 7) {
-					continue;
-				}
-				for (int dx = -1; dx <= 1; dx++) {
-					for (int dy = -1; dy <= 1; dy++) {
-						if (dx == 0 && dy == 0) continue;
-						int x = X + dx;
-						int y = Y + dy;
-						if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken)) {
-							frontierDiscs++;
-						}
-					}
-				}
-				continue;
-			}
-		*/
+
 		// Else, check if legal move
 		Side other = OTHER_SIDE(side);
 		for (int dx = -1; dx <= 1; dx++) {
@@ -219,7 +200,7 @@ int Board::evaluate() {
 	if (totalCount < greedyPoint) {
 		// Constants to tweak
 		// int wedgeWeight = 10;
-		int cornerWeight = 20;
+		int cornerWeight = 17;
 		int mobilityWeight = 4;
 		int penaltyWeight = 3;
 		
