@@ -197,7 +197,7 @@ int endgame_alphabeta(Board b, Side s, int alpha = INT_MIN, int beta = INT_MAX) 
 	
 	int ret = (s == BLACK) ? alpha : beta;
 	if (um2->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD) {
-		(*um2)[bws] = ret;
+		if (alpha != 0 || beta != 0) (*um2)[bws] = ret;
 	}
 	return ret;
 }
@@ -252,6 +252,8 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
 	}
 	return make_pair(besti, v);
 }
+
+bool gameSolved = false;
 
 /*
  * Compute the next move given the opponent's last move. Your AI is
@@ -325,18 +327,25 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 		}
 	}
 	else {
-		pair<int, int> p2 = main_minimax(currBoard, 10, side);
-		p = endgame_minimax(currBoard, side, p2.first);
-		besti = p.first;
-		eval = p.second;
-		// If could not calculate a win or draw, fall back to other algorithm
-		if (p.second == ((side == BLACK) ? INT_MIN : INT_MAX)) {
-			cerr << "Just minimaxing" << endl;
-			// p = main_minimax(currBoard, msLeft > 90000 ? 11 : (msLeft > 30000 ? 10 : (msLeft > 10000 ? 9 : 8)), side);
-			besti = p2.first;
-			eval = p2.second;
-			cerr << "Done minimaxing" << endl;
-			um2->clear(); // For now, some values may be incorrect if search not done, later we may want to prune the hash table, if it's worth it
+		if (!gameSolved) {
+			pair<int, int> p2 = main_minimax(currBoard, 10, side);
+			p = endgame_minimax(currBoard, side, p2.first);
+			besti = p.first;
+			eval = p.second;
+			// If could not calculate a win or draw, fall back to other algorithm
+			if (p.second == ((side == BLACK) ? INT_MIN : INT_MAX)) {
+				cerr << "Just minimaxing" << endl;
+				// p = main_minimax(currBoard, msLeft > 90000 ? 11 : (msLeft > 30000 ? 10 : (msLeft > 10000 ? 9 : 8)), side);
+				besti = p2.first;
+				eval = p2.second;
+				cerr << "Done minimaxing" << endl;
+				um2->clear(); // For now, some values may be incorrect if search not done, later we may want to prune the hash table, if it's worth it
+			}
+		}
+		else {
+			p = endgame_minimax(currBoard, side);
+			besti = p.first;
+			eval = p.second;
 		}
 	}
     

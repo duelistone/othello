@@ -41,7 +41,7 @@ extern unordered_map< BoardWithSide, pair<int, int> > *ttable;
 // At this point it should be quick to compute to the end
 
 // Should correspond to at most a minute of computation
-#define DEFAULT_MAX_NODES (11000000)
+#define DEFAULT_MAX_NODES (20000000)
 
 #define DEPTH_TIME_8 (15000)
 #define DEPTH_TIME_9 (45000)
