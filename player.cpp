@@ -2,6 +2,118 @@
 
 Side abortSide;
 
+void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int i4 = 0, int i5 = 0, int i6 = 0, int i7 = 0, int depth = 8) {
+	if (depth > 0) {
+		for (int i = -1; i <= 1; i++) {
+			if (depth == 8) i0 = i;
+			else if (depth == 7) i1 = i;
+			else if (depth == 6) i2 = i;
+			else if (depth == 5) i3 = i;
+			else if (depth == 4) i4 = i;
+			else if (depth == 3) i5 = i;
+			else if (depth == 2) i6 = i;
+			else if (depth == 1) i7 = i;
+			playerConstructorHelper(i0, i1, i2, i3, i4, i5, i6, i7, depth - 1);
+		}
+		return;
+	}
+	
+	int cornerWeight = 9;
+    int stableWeight = 3;
+    //int wedgeWeight = 2;
+    int unstableWeightC = -6;
+    
+    uint16_t data = 0;
+	int eval = 0;
+	if (i0) data |= EDGE_BIT(0);
+	if (i0 == 1) data |= EDGE_BIT(8);
+	if (i1) data |= EDGE_BIT(1);
+	if (i1 == 1) data |= EDGE_BIT(9);
+	if (i2) data |= EDGE_BIT(2);
+	if (i2 == 1) data |= EDGE_BIT(10);
+	if (i3) data |= EDGE_BIT(3);
+	if (i3 == 1) data |= EDGE_BIT(11);
+	if (i4) data |= EDGE_BIT(4);
+	if (i4 == 1) data |= EDGE_BIT(12);
+	if (i5) data |= EDGE_BIT(5);
+	if (i5 == 1) data |= EDGE_BIT(13);
+	if (i6) data |= EDGE_BIT(6);
+	if (i6 == 1) data |= EDGE_BIT(14);
+	if (i7) data |= EDGE_BIT(7);
+	if (i7 == 1) data |= EDGE_BIT(15);
+	
+	int count = __builtin_popcount(data >> 8);
+	
+	for (int i = 0; i < 8; i++) {
+		// If empty, continue
+		if ((data & EDGE_BIT(i)) == 0) continue;
+		
+		Side s = (data & EDGE_BIT(8 + i)) ? BLACK : WHITE;
+		
+		if (i == 0 || i == 7) {
+			if (s == BLACK) eval += cornerWeight;
+			else eval -= cornerWeight;
+			continue;
+		}
+		
+		// Is the disc stable?
+		if (count == 8) {
+			// Yes
+			if (i != 0 && i != 7) {
+				if (s == BLACK) eval += stableWeight;
+				else eval -= stableWeight;
+			}
+			continue;
+		}
+		
+		int x = i;
+		x--;
+		while (x >= 0 && ((data & EDGE_BIT(x)) == EDGE_BIT(x))) {
+			bool iset = ((data & EDGE_BIT(8 + i)) == EDGE_BIT(8 + i));
+			bool xset = ((data & EDGE_BIT(8 + x)) == EDGE_BIT(8 + x));
+			if ((iset && !xset) || ((!iset) && xset)) break;
+			x--;
+		}
+		if (x == -1) {
+			if (s == BLACK) eval += stableWeight;
+			else eval -= stableWeight;
+			continue;
+		}
+		else if (i == 1 || i == 6) {
+			if (s == BLACK) eval += unstableWeightC;
+			else eval -= unstableWeightC;
+			continue;
+		}
+		
+		x = i;
+		x++;
+		while (x < 8 && ((data & EDGE_BIT(x)) == EDGE_BIT(x))) {
+			bool iset = ((data & EDGE_BIT(8 + i)) == EDGE_BIT(8 + i));
+			bool xset = ((data & EDGE_BIT(8 + x)) == EDGE_BIT(8 + x));
+			if ((iset && !xset) || ((!iset) && xset)) break;
+			x++;
+		}
+		if (x == 8) {
+			if (s == BLACK) eval += stableWeight;
+			else eval -= stableWeight;
+		}
+		else if (i == 1 || i == 6) {
+			if (s == BLACK) eval += unstableWeightC;
+			else eval -= unstableWeightC;
+		}
+	}
+	
+	EDGE_VALUES[data] = eval;
+	
+	// ./testgame freezes when you uncomment this for who knows what reason
+	/*
+	bitset<8> bs((unsigned char) (data >> 8));
+	bitset<8> bs2((unsigned char) data);
+	cerr << bs << ' ' << bs2 << ' ' << eval << endl;
+	cerr << "---" << endl;
+	*/
+}
+
 /*
  * Constructor for the player; initialize everything here. The side your AI is
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish 
@@ -9,7 +121,9 @@ Side abortSide;
  */
 Player::Player(Side s) : side(s), currBoard(Board()) {
     // Will be set to true in test_minimax.cpp.
-    testingMinimax = false;    
+    testingMinimax = false;
+    
+    playerConstructorHelper();
 }
 
 /*
@@ -20,12 +134,12 @@ Player::~Player() {
 
 int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
 	uint64_t legalMoves = b.findLegalMoves(s);
-	int totalCount = __builtin_popcount(b.taken >> 32) + __builtin_popcount(b.taken);
+	//int totalCount = __builtin_popcount(b.taken >> 32) + __builtin_popcount(b.taken);
 	
 	if (depth == 0) {
 		// Parity
-		int parityWeight = 2;
-		return b.evaluate() + ( totalCount % 2 ? ( s == BLACK ? parityWeight : -parityWeight) : ( s == BLACK ? -parityWeight : parityWeight ) );
+		// int parityWeight = 0;
+		return b.evaluate();// + ( totalCount % 2 ? ( s == BLACK ? parityWeight : -parityWeight) : ( s == BLACK ? -parityWeight : parityWeight ) );
 	}
 	
 	BoardWithSide bws(b.taken, b.black, s);
@@ -56,8 +170,8 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			legalMoves &= ~BIT(index);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
 			int val = alphabeta(b2, depth - 1, OTHER_SIDE(s), alpha, beta);
-			v = MAX(v, val);
 			if (val > v || besti == -1) besti = index;
+			v = MAX(v, val);
 			alpha = MAX(v, alpha);
 		}
 		if (depth > 3) (*um)[bws] = besti;
@@ -78,8 +192,8 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			legalMoves &= ~BIT(index);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
 			int val = alphabeta(b2, depth - 1, OTHER_SIDE(s), alpha, beta);
-			v = MIN(v, val);
 			if (val < v || besti == -1) besti = index;
+			v = MIN(v, val);
 			beta = MIN(v, beta);
 		}
 		if (depth > 3) (*um)[bws] = besti;
@@ -88,10 +202,10 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 }
 
 pair<int, int> main_minimax(Board b, int depth, Side s, int guess = -1) {
+	cerr << "Calling main_minimax with guess " << guess << endl;
 	// Depth must be greater than or equal to 1
 	uint64_t legalMoves = b.findLegalMoves(s);
 	if (legalMoves == 0) return make_pair(-1, -100); // Evaluation here has no meaning
-	//int totalCount = __builtin_popcount(b.taken >> 32) + __builtin_popcount(b.taken);
 	
 	int besti = -1;
 	if (s == BLACK) {
@@ -101,6 +215,8 @@ pair<int, int> main_minimax(Board b, int depth, Side s, int guess = -1) {
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
 			v = alphabeta(b2, depth - 1, OTHER_SIDE(s));
 			besti = guess;
+			
+			cerr << besti << ' ' << v << endl;
 		}
 		while (legalMoves != 0) {
 			int index = __builtin_clzl(legalMoves);
@@ -299,8 +415,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     // Set depth according to how far into game
     int depth;
-    if (totalCount <= 33) depth = 10; 
-    else if (totalCount <= 41) depth = 10; // 41 seems to be good
+    if (totalCount <= 46) depth = 10; //41
     else depth = INT_MAX; // Search to end (much faster)
 	
     // Set counter, reset abort variables
@@ -315,16 +430,10 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     if (depth != INT_MAX) {
 		BoardWithSide bws(currBoard.taken, currBoard.black, side);
 		if (um->count(bws) > 0) besti = (*um)[bws];
+		else cerr << "Unexpected position" << endl;
 		p = main_minimax(currBoard, depth, side, besti);
 		besti = p.first;
 		eval = p.second;
-		while (depth < 9) {
-			depth = 9;
-			cerr << "Going depth " << depth << endl;
-			p = main_minimax(currBoard, depth + 1, side, besti);
-			besti = p.first;
-			eval = p.second;
-		}
 	}
 	else {
 		if (!gameSolved) {
@@ -340,6 +449,9 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 				eval = p2.second;
 				cerr << "Done minimaxing" << endl;
 				um2->clear(); // For now, some values may be incorrect if search not done, later we may want to prune the hash table, if it's worth it
+			}
+			else {
+				gameSolved = true;
 			}
 		}
 		else {
