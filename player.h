@@ -23,7 +23,7 @@
 #define MIN(x, y) ((x) <= (y) ? (x) : (y))
 
 #define PERCENTILE (1.5)
-#define SIGMA (3)
+#define SIGMA 3
 #define PROB_CUT_DEPTH1 4
 #define PROB_CUT_DEPTH2 8
 
@@ -40,7 +40,6 @@ extern std::mutex um2_lock;
 // Can run through the values it can store pretty quickly
 extern std::unordered_map< BoardWithSide, int > *um;
 extern std::unordered_map< BoardWithSide, int > *um2;
-extern unordered_map< BoardWithSide, pair<int, int> > *ttable;
 
 extern fstream fil;
 
@@ -57,10 +56,6 @@ extern unordered_map<uint16_t, int> EDGE_VALUES;
 
 // Should correspond to at most a minute of computation
 #define DEFAULT_MAX_NODES (30000000)
-
-#define DEPTH_TIME_8 (15000)
-#define DEPTH_TIME_9 (45000)
-#define DEPTH_TIME_10 (90000)
 
 using namespace std;
 

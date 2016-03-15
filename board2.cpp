@@ -343,8 +343,7 @@ int Board::evaluate() {
 		}
 		
 		if (totalCount < 45) {
-			// Corners
-						
+			// Edge penalties
 			if ((INNER_EDGE_TOP & b) != 0) evaluation -= edgePenalty;
 			if ((INNER_EDGE_BOTTOM & b) != 0) evaluation -= edgePenalty;
 			if ((INNER_EDGE_LEFT & b) != 0) evaluation -= edgePenalty;
@@ -354,10 +353,10 @@ int Board::evaluate() {
 			if ((INNER_EDGE_BOTTOM & white) != 0) evaluation += edgePenalty;
 			if ((INNER_EDGE_LEFT & white) != 0) evaluation += edgePenalty;
 			if ((INNER_EDGE_RIGHT & white) != 0) evaluation += edgePenalty;
-			
 		}
 		
 		if (totalCount < 40) {
+			// Minimize discs early
 			int discdiff = (countWhite() - countBlack());
 		    if (abs(discdiff) > 15) discdiff = (discdiff > 0) ? 15 : -15;
 		    evaluation += discdiff / 5;

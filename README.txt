@@ -1,3 +1,7 @@
+First off, I have to apologize for not writing enough comments and some other poor programming projects. I spent a lot of time on this, but I was always in quite a hurry.
+
+Second, there are still some bugs to squash...my program sometimes makes strange moves for reasons I can't explain.
+
 Some of the ideas used:
 
 1. The board class was changed to use two 64-bit integers instead of two bitsets. 
