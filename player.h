@@ -17,9 +17,16 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #define MAX(x, y) ((x) >= (y) ? (x) : (y))
 #define MIN(x, y) ((x) <= (y) ? (x) : (y))
+
+#define PERCENTILE (1.5)
+#define SIGMA (3)
+#define PROB_CUT_DEPTH1 4
+#define PROB_CUT_DEPTH2 8
+
 
 // Global counter for how many final nodes endgameMinimax is searching
 extern long long globalEndgameNodeCount;
@@ -35,8 +42,13 @@ extern std::unordered_map< BoardWithSide, int > *um;
 extern std::unordered_map< BoardWithSide, int > *um2;
 extern unordered_map< BoardWithSide, pair<int, int> > *ttable;
 
+extern fstream fil;
 
-unordered_map<uint16_t, int> EDGE_VALUES;
+extern unordered_map<int, double> sigma;
+extern unordered_map<int, double> constant_terms;
+extern unordered_map<int, double> coefficients;
+
+extern unordered_map<uint16_t, int> EDGE_VALUES;
 
 // To avoid um getting too big
 #define MAX_HASH_SIZE 3000000

@@ -132,9 +132,30 @@ Player::Player(Side s) : side(s), currBoard(Board()) {
 Player::~Player() {
 }
 
+long long timeSpent = 0;
 int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
+	auto start = chrono::high_resolution_clock::now();
+	int totalCount = __builtin_popcount(b.taken >> 32) + __builtin_popcount(b.taken);
+
+	int bound;
+	
+	if (depth == PROB_CUT_DEPTH2 && totalCount <= 50) {
+		if (beta < 500) {
+			bound = round(PERCENTILE * SIGMA + beta);
+			if (alphabeta(b, PROB_CUT_DEPTH1, s, bound - 1, bound) >= bound) {
+				return beta;
+			}
+		}
+		
+		if (alpha > -500) {
+			bound = round(-PERCENTILE * SIGMA + alpha);
+			if (alphabeta(b, PROB_CUT_DEPTH1, s, bound, bound + 1) <= bound) {
+				return alpha;
+			}
+		}
+	}
+	
 	uint64_t legalMoves = b.findLegalMoves(s);
-	//int totalCount = __builtin_popcount(b.taken >> 32) + __builtin_popcount(b.taken);
 	
 	if (depth == 0) {
 		// Parity
@@ -175,6 +196,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			alpha = MAX(v, alpha);
 		}
 		if (depth > 3) (*um)[bws] = besti;
+		if (depth == 8) timeSpent += chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count();
 		return alpha;
 	}
 	else {
@@ -197,12 +219,15 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			beta = MIN(v, beta);
 		}
 		if (depth > 3) (*um)[bws] = besti;
+		if (depth == 8) timeSpent += chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count();
 		return beta;
 	}
+	
 }
 
 pair<int, int> main_minimax(Board b, int depth, Side s, int guess = -1) {
-	cerr << "Calling main_minimax with guess " << guess << endl;
+	auto start = chrono::high_resolution_clock::now();
+	
 	// Depth must be greater than or equal to 1
 	uint64_t legalMoves = b.findLegalMoves(s);
 	if (legalMoves == 0) return make_pair(-1, -100); // Evaluation here has no meaning
@@ -215,10 +240,11 @@ pair<int, int> main_minimax(Board b, int depth, Side s, int guess = -1) {
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
 			v = alphabeta(b2, depth - 1, OTHER_SIDE(s));
 			besti = guess;
-			
-			cerr << besti << ' ' << v << endl;
 		}
 		while (legalMoves != 0) {
+			int secondsPast = chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - start).count();
+			if (secondsPast >= 30) depth--;
+			if (secondsPast >= 40) break;
 			int index = __builtin_clzl(legalMoves);
 			legalMoves &= ~BIT(index);
 			
@@ -228,7 +254,6 @@ pair<int, int> main_minimax(Board b, int depth, Side s, int guess = -1) {
 				besti = index;
 				v = val;
 			}
-			cerr << besti << ' ' << v << endl;
 		}
 		return make_pair(besti, v);
 	}
@@ -241,6 +266,9 @@ pair<int, int> main_minimax(Board b, int depth, Side s, int guess = -1) {
 			besti = guess;
 		}
 		while (legalMoves != 0) {
+			int secondsPast = chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - start).count();
+			if (secondsPast > 30) {depth--;}
+			if (secondsPast > 35) {break;}
 			int index = __builtin_clzl(legalMoves);
 			legalMoves &= ~BIT(index);
 			
@@ -271,7 +299,7 @@ int endgame_alphabeta(Board b, Side s, int alpha = INT_MIN, int beta = INT_MAX) 
 		uint64_t legalMovesOther = b.findLegalMoves(OTHER_SIDE(s));
 		if (legalMovesOther == 0) {
 			globalEndgameNodeCount++;
-			if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
+			// if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
 			if (globalEndgameNodeCount > minutesForMove * DEFAULT_MAX_NODES) abortEndgameMinimax = true;
 			// Simple evaluation here
 			int diff = b.countBlack() - b.countWhite();
@@ -383,10 +411,7 @@ bool gameSolved = false;
  * The move returned must be legal; if there are no valid moves for your side,
  * return NULL.
  */
-Move *Player::doMove(Move *opponentsMove, int msLeft) {    
-    // Time!
-    time_t startTime = time(NULL);
-    
+Move *Player::doMove(Move *opponentsMove, int msLeft) {        
     // Set minutesForMove to half the amount of time left
     if (msLeft > 0) minutesForMove = msLeft / 60.0 / 1000 / 2;
     
@@ -415,7 +440,8 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     // Set depth according to how far into game
     int depth;
-    if (totalCount <= 46) depth = 10; //41
+    if (totalCount <= 20) depth = 11;
+    else if (totalCount <= 41) depth = 11;
     else depth = INT_MAX; // Search to end (much faster)
 	
     // Set counter, reset abort variables
@@ -430,24 +456,20 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     if (depth != INT_MAX) {
 		BoardWithSide bws(currBoard.taken, currBoard.black, side);
 		if (um->count(bws) > 0) besti = (*um)[bws];
-		else cerr << "Unexpected position" << endl;
 		p = main_minimax(currBoard, depth, side, besti);
 		besti = p.first;
 		eval = p.second;
 	}
 	else {
 		if (!gameSolved) {
-			pair<int, int> p2 = main_minimax(currBoard, 10, side);
+			pair<int, int> p2 = main_minimax(currBoard, 11, side);
 			p = endgame_minimax(currBoard, side, p2.first);
 			besti = p.first;
 			eval = p.second;
 			// If could not calculate a win or draw, fall back to other algorithm
 			if (p.second == ((side == BLACK) ? INT_MIN : INT_MAX)) {
-				cerr << "Just minimaxing" << endl;
-				// p = main_minimax(currBoard, msLeft > 90000 ? 11 : (msLeft > 30000 ? 10 : (msLeft > 10000 ? 9 : 8)), side);
 				besti = p2.first;
 				eval = p2.second;
-				cerr << "Done minimaxing" << endl;
 				um2->clear(); // For now, some values may be incorrect if search not done, later we may want to prune the hash table, if it's worth it
 			}
 			else {
@@ -462,18 +484,22 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	}
     
     
+    // Temporary
+    //int v1 = main_minimax(currBoard, 4, side).second;
+    //int v2 = main_minimax(currBoard, 8, side).second;
+    //fil << totalCount << ' ' << v1 << ' ' << v2 << endl;
+    
+    
     // Output some useful info and return (remove for more speed)
-	cerr << totalCount + 1 << ' ' << msLeft - 1000 * difftime(time(NULL), startTime) << " eval: " << eval << " umsize: " << um->size();
-	if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount;
-	cerr << endl;
-	
+	cerr << totalCount + 1 << " eval: " << eval << endl;
+	// if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount;
 	if (um->size() > MAX_HASH_SIZE) um->clear(); // Don't want to lose due to too much memory!
 	
 	// Make move
 	int x = FROM_INDEX_X(besti);
 	int y = FROM_INDEX_Y(besti);
 	string letters = "abcdefgh";
-	cerr << "Move: " << letters[x] << ' ' << y + 1 << ' ' << besti << endl;
+	cerr << "Move: " << letters[x] << ' ' << y + 1 << endl;
     currBoard.doMove(x, y, side);
     Move *move = new Move(x, y);
     return move;

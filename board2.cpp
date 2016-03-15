@@ -274,16 +274,6 @@ Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
             if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
                 newtaken = newtakenCopy;
                 newblack = newblackCopy;
-                 /*
-                x = X;
-                y = Y;
-                x += dx;
-                y += dy;
-                while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-                    PLACE_DISC(side, x, y, newtaken, newblack);
-                    x += dx;
-                    y += dy;
-                }*/
             }
         }
     }
@@ -318,9 +308,7 @@ int Board::evaluate() {
 	uint64_t white = taken & ~black;
 	if (totalCount < greedyPoint) {
 		// Constants to tweak
-		// int wedgeWeight = 10;
-		//int cornerWeight = 10;
-		int mobilityWeight = 3;
+		int mobilityWeight = 4;
 		int mobilityBoost = 5;
 		int penaltyWeight = 10;
 		int edgePenalty = 5;
@@ -331,42 +319,32 @@ int Board::evaluate() {
 		findLegalMoves(WHITE);
 		int whiteMoves = __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32);
 		evaluation = mobilityWeight * (blackMoves - whiteMoves);//round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
-		if (abs(evaluation) > 15) evaluation = (evaluation > 0) ? 15 : -15; // Cap the influence of mobility
+		if (abs(evaluation) > 20) evaluation = (evaluation > 0) ? 20 : -20; // Cap the influence of mobility
 		if (whiteMoves < 3 && blackMoves >= 5) evaluation += mobilityBoost;
 		if (blackMoves < 3 && whiteMoves >= 5) evaluation -= mobilityBoost;
-		// cerr << "Legal moves: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		
-		
-		//uint64_t bc = b & CORNERS;
-		//uint64_t wc = white & CORNERS;
-		//int blackCorners = __builtin_popcount(bc >> 32) + __builtin_popcount(bc);
-		//int whiteCorners = __builtin_popcount(wc >> 32) + __builtin_popcount(wc);
-		//if (abs(evaluation) > 20 && blackCorners + whiteCorners > 0) {evaluation /= abs(evaluation); evaluation *= 20;} // Mobility worth at most a corner
-		//evaluation += cornerWeight * blackCorners;
-		//evaluation -= cornerWeight * whiteCorners;
-		
 		
 		// Idea: There are exceptions where we don't want a penalty
 		// Penalty for risky squares if corner not filled
+		if (!(taken & CORNER_TL)) {
+			if (BIT(9) & b) evaluation -= penaltyWeight;
+			if (BIT(9) & white) evaluation += penaltyWeight;
+		}
+		if (!(taken & CORNER_TR)) {
+			if (BIT(14) & b) evaluation -= penaltyWeight;
+			if (BIT(14) & white) evaluation += penaltyWeight;
+		}
+		if (!(taken & CORNER_BL)) {
+			if (BIT(49) & b) evaluation -= penaltyWeight;
+			if (BIT(49) & white) evaluation += penaltyWeight;
+		}
+		if (!(taken & CORNER_BR)) {
+			if (BIT(54) & b) evaluation -= penaltyWeight;
+			if (BIT(54) & white) evaluation += penaltyWeight;
+		}
+		
 		if (totalCount < 45) {
 			// Corners
-			if (!(taken & CORNER_TL)) {
-				if (BIT(9) & b) evaluation -= penaltyWeight;
-				if (BIT(9) & white) evaluation += penaltyWeight;
-			}
-			if (!(taken & CORNER_TR)) {
-				if (BIT(14) & b) evaluation -= penaltyWeight;
-				if (BIT(14) & white) evaluation += penaltyWeight;
-			}
-			if (!(taken & CORNER_BL)) {
-				if (BIT(49) & b) evaluation -= penaltyWeight;
-				if (BIT(49) & white) evaluation += penaltyWeight;
-			}
-			if (!(taken & CORNER_BR)) {
-				if (BIT(54) & b) evaluation -= penaltyWeight;
-				if (BIT(54) & b) evaluation += penaltyWeight;
-			}
-			
+						
 			if ((INNER_EDGE_TOP & b) != 0) evaluation -= edgePenalty;
 			if ((INNER_EDGE_BOTTOM & b) != 0) evaluation -= edgePenalty;
 			if ((INNER_EDGE_LEFT & b) != 0) evaluation -= edgePenalty;
@@ -378,8 +356,6 @@ int Board::evaluate() {
 			if ((INNER_EDGE_RIGHT & white) != 0) evaluation += edgePenalty;
 			
 		}
-		
-		//cerr << "Corners: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 		
 		if (totalCount < 40) {
 			int discdiff = (countWhite() - countBlack());

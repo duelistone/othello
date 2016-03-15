@@ -1,6 +1,8 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstring>
+#include <string>
+#include <fstream>
 #include "player.h"
 using namespace std;
 
@@ -10,8 +12,10 @@ unordered_map< BoardWithSide, int > *um = new unordered_map< BoardWithSide, int 
 unordered_map< BoardWithSide, int > *um2 = new unordered_map< BoardWithSide, int >;
 atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
+unordered_map<uint16_t, int> EDGE_VALUES;
+// fstream fil("c.txt", ios_base::app);
 
-int main(int argc, char *argv[]) {    
+int main(int argc, char *argv[]) {   
     // Read in side the player is on.
     if (argc != 2)  {
         cerr << "usage: " << argv[0] << " side" << endl;
@@ -49,6 +53,8 @@ int main(int argc, char *argv[]) {
         if (opponentsMove != NULL) delete opponentsMove;
         if (playersMove != NULL) delete playersMove; 
     }
+	
+	// fil.close();
 	
 	// Delete hash table and player
 	if (um != nullptr) delete um;
