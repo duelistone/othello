@@ -157,7 +157,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 	
 	uint64_t legalMoves = b.findLegalMoves(s);
 	
-	if (depth == 0) {
+	if (depth <= 0) {
 		// Parity
 		// int parityWeight = 0;
 		return b.evaluate();// + ( totalCount % 2 ? ( s == BLACK ? parityWeight : -parityWeight) : ( s == BLACK ? -parityWeight : parityWeight ) );
@@ -243,8 +243,10 @@ pair<int, int> main_minimax(Board b, int depth, Side s, int guess = -1) {
 		}
 		while (legalMoves != 0) {
 			int secondsPast = chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - start).count();
-			if (secondsPast >= 30) depth--;
-			if (secondsPast >= 40) break;
+			// Questionable
+			if (secondsPast >= 30 && depth > 10) depth--;
+			if (secondsPast >= 60) break;
+			
 			int index = __builtin_clzl(legalMoves);
 			legalMoves &= ~BIT(index);
 			
@@ -267,8 +269,10 @@ pair<int, int> main_minimax(Board b, int depth, Side s, int guess = -1) {
 		}
 		while (legalMoves != 0) {
 			int secondsPast = chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - start).count();
-			if (secondsPast > 30) {depth--;}
-			if (secondsPast > 35) {break;}
+			// Questionable
+			if (secondsPast > 30 && depth > 10) {depth--;}
+			if (secondsPast > 60) {break;}
+			
 			int index = __builtin_clzl(legalMoves);
 			legalMoves &= ~BIT(index);
 			

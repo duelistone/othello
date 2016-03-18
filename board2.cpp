@@ -321,7 +321,11 @@ int Board::evaluate() {
 		evaluation = mobilityWeight * (blackMoves - whiteMoves);//round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
 		if (abs(evaluation) > 20) evaluation = (evaluation > 0) ? 20 : -20; // Cap the influence of mobility
 		if (whiteMoves < 3 && blackMoves >= 5) evaluation += mobilityBoost;
+		if (whiteMoves < 2) evaluation += mobilityBoost;
+		if (whiteMoves == 0) evaluation += mobilityBoost;
 		if (blackMoves < 3 && whiteMoves >= 5) evaluation -= mobilityBoost;
+		if (blackMoves < 2) evaluation -= mobilityBoost;
+		if (blackMoves == 0) evaluation -= mobilityBoost;
 		
 		// Idea: There are exceptions where we don't want a penalty
 		// Penalty for risky squares if corner not filled
