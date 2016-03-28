@@ -10,6 +10,7 @@ using namespace std;
 long long globalEndgameNodeCount = 0;
 unordered_map< BoardWithSide, int > *um = new unordered_map< BoardWithSide, int >;
 unordered_map< BoardWithSide, int > *um2 = new unordered_map< BoardWithSide, int >;
+unordered_map< BoardWithSide, int > *um3 = new unordered_map< BoardWithSide, int >;
 atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
 unordered_map<uint16_t, int> EDGE_VALUES;

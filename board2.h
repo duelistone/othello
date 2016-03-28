@@ -49,6 +49,9 @@
 
 #define EDGE_BIT(x) ((uint16_t) 1 << (15 - (x)))
 
+#define MOBILITY_CAP 20
+#define PM_CAP 5
+
 using namespace std;
 
 extern unordered_map<uint16_t, int> EDGE_VALUES;
@@ -63,6 +66,7 @@ public:
 	uint64_t black;
     bool legalMovesComputed;
     uint64_t legalMoves;
+    int potentialMobility;
     int evaluation;
     
     Board();
@@ -70,10 +74,12 @@ public:
     
     uint64_t findLegalMoves(Side side);
     int evaluate();
+    int pos_evaluate();
     int evaluateTest();
      
     bool isDone();
     bool hasMoves(Side side);
+    bool hasLegalMoves(Side side);
     bool checkMove(int x, int y, Side side);
     void doMove(int x, int y, Side side);
     Board doMoveOnNewBoard(int x, int y, Side side);

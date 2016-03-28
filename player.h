@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <climits>
 #include <ctime>
+#include <chrono>
 #include <cassert>
 #include <functional>
 #include <thread>
@@ -27,6 +28,12 @@
 #define PROB_CUT_DEPTH1 4
 #define PROB_CUT_DEPTH2 8
 
+#define ERROR1 5
+#define ERROR2 10
+#define ERROR3 20
+
+#define THRESHOLD 15
+#define NO_MOVES_LEFT_BONUS 25
 
 // Global counter for how many final nodes endgameMinimax is searching
 extern long long globalEndgameNodeCount;
@@ -40,6 +47,7 @@ extern std::mutex um2_lock;
 // Can run through the values it can store pretty quickly
 extern std::unordered_map< BoardWithSide, int > *um;
 extern std::unordered_map< BoardWithSide, int > *um2;
+extern std::unordered_map< BoardWithSide, int > *um3;
 
 extern fstream fil;
 
