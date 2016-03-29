@@ -17,6 +17,7 @@ Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), p
 Board::Board(uint64_t t, uint64_t b) : taken(t), black(b), legalMovesComputed(false), legalMoves(0), potentialMobility(0), evaluation(0) {}
 
 uint64_t Board::findLegalMoves(Side side) {
+	auto start = chrono::high_resolution_clock::now();
 	legalMoves = 0;
 	potentialMobility = 0;
 	uint64_t empty = black & ~taken;
@@ -29,7 +30,8 @@ uint64_t Board::findLegalMoves(Side side) {
 
 		// Potential mobility
 		bool increaseMobility = false;
-
+		bool notEdge = !(EDGES & BIT(index)); //index > 8 && index < 55 && temp && (temp != 7);
+		
 		// Else, check if legal move
 		Side other = OTHER_SIDE(side);
 		
@@ -48,7 +50,7 @@ uint64_t Board::findLegalMoves(Side side) {
 				legalMoves |= BIT(index);
 				continue;
 			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken)) {
+			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
 				increaseMobility = true;
 			}
 		}
@@ -66,7 +68,7 @@ uint64_t Board::findLegalMoves(Side side) {
 				legalMoves |= BIT(index);
 				continue;
 			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken)) {
+			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
 				increaseMobility = true;
 			}
 		}
@@ -84,12 +86,12 @@ uint64_t Board::findLegalMoves(Side side) {
 				legalMoves |= BIT(index);
 				continue;
 			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken)) {
+			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
 				increaseMobility = true;
 			}
 		}
 		
-		dx = 1; dy = 1;
+		dy = 1;
 		x = X + dx;
 		y = Y + dy;
 		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
@@ -102,13 +104,13 @@ uint64_t Board::findLegalMoves(Side side) {
 				legalMoves |= BIT(index);
 				continue;
 			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken)) {
+			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
 				increaseMobility = true;
 			}
 		}
 		
 		dx = 0; dy = 1;
-		x = X + dx;
+		x = X;
 		y = Y + dy;
 		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
 			do {
@@ -119,14 +121,14 @@ uint64_t Board::findLegalMoves(Side side) {
 				legalMoves |= BIT(index);
 				continue;
 			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken)) {
+			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
 				increaseMobility = true;
 			}
 		}
 		
 		dx = -1; dy = 0;
 		x = X + dx;
-		y = Y + dy;
+		y = Y;
 		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
 			do {
 				x += dx;
@@ -136,13 +138,13 @@ uint64_t Board::findLegalMoves(Side side) {
 				legalMoves |= BIT(index);
 				continue;
 			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken)) {
+			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
 				increaseMobility = true;
 			}
 		}
 		
 		dx = 0; dy = -1;
-		x = X + dx;
+		x = X;
 		y = Y + dy;
 		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
 			do {
@@ -153,14 +155,14 @@ uint64_t Board::findLegalMoves(Side side) {
 				legalMoves |= BIT(index);
 				continue;
 			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken)) {
+			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
 				increaseMobility = true;
 			}
 		}
 		
 		dx = 1; dy = 0;
 		x = X + dx;
-		y = Y + dy;
+		y = Y;
 		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
 			do {
 				x += dx;
@@ -170,13 +172,14 @@ uint64_t Board::findLegalMoves(Side side) {
 				legalMoves |= BIT(index);
 				continue;
 			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken)) {
+			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
 				increaseMobility = true;
 			}
 		}
 		
 		if (increaseMobility) potentialMobility++;
 	}
+	// cerr << "LM time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
 	legalMovesComputed = true;
 	return legalMoves;
 }
@@ -641,7 +644,7 @@ Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
  * nonzero value.
  */
 int Board::evaluate() {
-	// auto start = chrono::high_resolution_clock::now();
+	auto start = chrono::high_resolution_clock::now();
 	
 	int greedyPoint = 60;
 	int totalCount = __builtin_popcount(taken >> 32) + __builtin_popcount(taken);
@@ -662,10 +665,10 @@ int Board::evaluate() {
 	if (totalCount < greedyPoint) {
 		// Constants to tweak
 		int mobilityWeight = 4;
-		double potentialMobilityWeight = 0.7;
+		int potentialMobilityWeight = 1;
 		int mobilityBoost = 5;
 		int penaltyWeight = 10;
-		int edgePenalty = 5;
+		//int edgePenalty = 5;
 		
 		// Computations
 		findLegalMoves(BLACK);
@@ -673,6 +676,7 @@ int Board::evaluate() {
 		int blackMoves = __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32);
 		findLegalMoves(WHITE);
 		whitePM = potentialMobility;
+		// cerr << "Evaluation time LM + PM: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
 		int whiteMoves = __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32);
 		evaluation = 15 * mobilityWeight * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2); //Iago mobility evaluation //round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
 		if (abs(evaluation) > MOBILITY_CAP) evaluation = (evaluation > 0) ? MOBILITY_CAP : -MOBILITY_CAP; // Cap the influence of mobility
@@ -706,7 +710,7 @@ int Board::evaluate() {
 			if (BIT(54) & b) evaluation -= penaltyWeight;
 			if (BIT(54) & white) evaluation += penaltyWeight;
 		}
-		
+		/*
 		if (totalCount < 45) {
 			// Edge penalties
 			if ((INNER_EDGE_TOP & b) != 0) evaluation -= edgePenalty;
@@ -719,40 +723,102 @@ int Board::evaluate() {
 			if ((INNER_EDGE_LEFT & white) != 0) evaluation += edgePenalty;
 			if ((INNER_EDGE_RIGHT & white) != 0) evaluation += edgePenalty;
 		}
-		
+		*/
 		if (totalCount < 40) {
 			// Minimize discs early
 			int discdiff = (countWhite() - countBlack());
 		    if (abs(discdiff) > 15) discdiff = (discdiff > 0) ? 15 : -15;
-		    evaluation += discdiff / 5;
+		    evaluation += discdiff / 4;
 		}
 		if (totalCount > 20) {
 			// Get top edge into uint16
 			uint16_t u16 = ((taken >> 56) << 8) | (b >> 56);
-			if (taken & BIT(1)) assert(u16 & EDGE_BIT(1));
 			evaluation += EDGE_VALUES[u16];
 			
 			u16 = ((taken << 56) >> 48) | ((b << 56) >> 56);
 			evaluation += EDGE_VALUES[u16];
 			
 			// Get left edge
-			u16 = 0;
-			for (int i = 0; i < 64; i+=8) {
-				if ((taken | BIT(i)) == BIT(i)) {
-					u16 |= EDGE_BIT(i / 8);
-					if ((b | BIT(i)) == BIT(i)) u16 |= EDGE_BIT(8 + i / 8);
+			uint64_t tempTaken = taken & EDGE_LEFT;
+			uint64_t tempB = b & EDGE_LEFT;
+			tempTaken = tempTaken >> 7;
+			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x3333333333333333ull;
+			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x0f0f0f0f0f0f0f0full;
+			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x00ff00ff00ff00ffull;
+			tempTaken = (tempTaken | (tempTaken >> 8)) & 0x0000ffff0000ffffull;
+			tempTaken = (tempTaken | (tempTaken >> 16)) & 0x00000000ffffffffull;
+			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x0000000033333333ull;
+			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x000000000f0f0f0full;
+			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x0000000000ff00ffull;
+			tempTaken = (tempTaken | (tempTaken >> 8)) & 0x000000000000ffffull;
+			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x0000000000003333ull;
+			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x0000000000000f0full;
+			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x00000000000000ffull;
+			tempB = tempB >> 7;
+			tempB = (tempB | (tempB >> 1)) & 0x3333333333333333ull;
+			tempB = (tempB | (tempB >> 2)) & 0x0f0f0f0f0f0f0f0full;
+			tempB = (tempB | (tempB >> 4)) & 0x00ff00ff00ff00ffull;
+			tempB = (tempB | (tempB >> 8)) & 0x0000ffff0000ffffull;
+			tempB = (tempB | (tempB >> 16)) & 0x00000000ffffffffull;
+			tempB = (tempB | (tempB >> 1)) & 0x0000000033333333ull;
+			tempB = (tempB | (tempB >> 2)) & 0x000000000f0f0f0full;
+			tempB = (tempB | (tempB >> 4)) & 0x0000000000ff00ffull;
+			tempB = (tempB | (tempB >> 8)) & 0x000000000000ffffull;
+			tempB = (tempB | (tempB >> 1)) & 0x0000000000003333ull;
+			tempB = (tempB | (tempB >> 2)) & 0x0000000000000f0full;
+			tempB = (tempB | (tempB >> 4)) & 0x00000000000000ffull;
+			u16 = (tempTaken << 8) | tempB;
+			
+			/*
+			uint16_t u16_2 = 0;
+			for (unsigned int i = 0; i < 64; i+=8) {
+				if ((taken & BIT(i)) == BIT(i)) {
+					u16_2 |= EDGE_BIT(i >> 3);
+					if ((b & BIT(i)) == BIT(i)) u16_2 |= EDGE_BIT(8 + i / 8);
 				}
 			}
+			bitset<16> bs(u16), bs2(u16_2);
+			cerr << bs << ' ' << bs2 << endl;*/
 			evaluation += EDGE_VALUES[u16];
 			
 			// Get right edge
-			u16 = 0;
-			for (int i = 7; i < 64; i+=8) {
-				if ((taken | BIT(i)) == BIT(i)) {
-					u16 |= EDGE_BIT(i / 8);
-					if ((b | BIT(i)) == BIT(i)) u16 |= EDGE_BIT(8 + i / 8);
+			tempTaken = taken & EDGE_RIGHT;
+			tempB = b & EDGE_RIGHT;
+			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x3333333333333333ull;
+			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x0f0f0f0f0f0f0f0full;
+			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x00ff00ff00ff00ffull;
+			tempTaken = (tempTaken | (tempTaken >> 8)) & 0x0000ffff0000ffffull;
+			tempTaken = (tempTaken | (tempTaken >> 16)) & 0x00000000ffffffffull;
+			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x0000000033333333ull;
+			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x000000000f0f0f0full;
+			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x0000000000ff00ffull;
+			tempTaken = (tempTaken | (tempTaken >> 8)) & 0x000000000000ffffull;
+			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x0000000000003333ull;
+			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x0000000000000f0full;
+			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x00000000000000ffull;
+			tempB = (tempB | (tempB >> 1)) & 0x3333333333333333ull;
+			tempB = (tempB | (tempB >> 2)) & 0x0f0f0f0f0f0f0f0full;
+			tempB = (tempB | (tempB >> 4)) & 0x00ff00ff00ff00ffull;
+			tempB = (tempB | (tempB >> 8)) & 0x0000ffff0000ffffull;
+			tempB = (tempB | (tempB >> 16)) & 0x00000000ffffffffull;
+			tempB = (tempB | (tempB >> 1)) & 0x0000000033333333ull;
+			tempB = (tempB | (tempB >> 2)) & 0x000000000f0f0f0full;
+			tempB = (tempB | (tempB >> 4)) & 0x0000000000ff00ffull;
+			tempB = (tempB | (tempB >> 8)) & 0x000000000000ffffull;
+			tempB = (tempB | (tempB >> 1)) & 0x0000000000003333ull;
+			tempB = (tempB | (tempB >> 2)) & 0x0000000000000f0full;
+			tempB = (tempB | (tempB >> 4)) & 0x00000000000000ffull;
+			u16 = (tempTaken << 8) | tempB;
+			/*
+			uint16_t u16_2 = 0;
+			for (unsigned int i = 7; i < 64; i+=8) {
+				if ((taken & BIT(i)) == BIT(i)) {
+					u16_2 |= EDGE_BIT(i >> 3);
+					if ((b & BIT(i)) == BIT(i)) u16_2 |= EDGE_BIT(8 + (i >> 3));
 				}
 			}
+			bitset<16> bs(u16), bs2(u16_2);
+			cerr << bs << ' ' << bs2 << endl;*/
 			evaluation += EDGE_VALUES[u16];
 		}
 	}
@@ -760,6 +826,7 @@ int Board::evaluate() {
 		// Become greedy in the end
 		evaluation = countBlack() - countWhite();
 	}
+	//if (totalCount > 20) cerr << "Evaluation time: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
 	return evaluation;
 }
 
