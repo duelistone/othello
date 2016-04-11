@@ -87,6 +87,7 @@ public:
     
     uint64_t findLegalMoves(Side side);
     uint64_t findLegalMoves2(Side side);
+    uint64_t findLegalMoves3(Side side);
     uint64_t onlyFindLegalMoves(Side side);
     int evaluate();
     int pos_evaluate();

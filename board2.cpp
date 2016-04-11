@@ -85,7 +85,7 @@ uint64_t Board::findLegalMoves2(Side side) {
 		t = tNew;
 		tNew |= w & (t << 9);
 	}
-	moves |= empty & (UP_LEFT_FILTER & (t << 9));
+	moves |= empty & UP_LEFT_FILTER & (t << 9);
 	
 	// DOWN_RIGHT
 	w = opp & DOWN_RIGHT_FILTER;
@@ -121,8 +121,128 @@ uint64_t Board::findLegalMoves2(Side side) {
 	return moves;
 }
 
+uint64_t Board::findLegalMoves3(Side side) {
+	//auto start = chrono::high_resolution_clock::now();
+	
+	uint64_t moves = 0;
+	//uint64_t b = black & taken;
+	uint64_t white = ~black & taken;
+	uint64_t empty = ~taken;
+	
+	uint64_t w, opp, own, tNew, t;
+	
+	// Set opponent
+	if (side == BLACK) {
+		own = black;
+		opp = white;
+	}
+	else {
+		own = white;
+		opp = black;
+	}
+	
+	// RIGHT
+	w = opp & RIGHT_FILTER;
+	t = w & (own >> 1);
+	t |= (w & (t >> 1));
+	t |= (w & (t >> 1));
+	t |= (w & (t >> 1));
+	t |= (w & (t >> 1));
+	t |= (w & (t >> 1));
+	t |= (w & (t >> 1));
+	
+	moves |= empty & RIGHT_FILTER & (t >> 1);
+	
+	// LEFT
+	w = opp & LEFT_FILTER;
+	t = w & (own << 1);
+	t |= w & (t << 1);
+	t |= w & (t << 1);
+	t |= w & (t << 1);
+	t |= w & (t << 1);
+	t |= w & (t << 1);
+	t |= w & (t << 1);
+	
+	moves |= empty & LEFT_FILTER & (t << 1);
+	
+	// DOWN
+	w = opp & DOWN_FILTER;
+	t = w & (own >> 8);
+	t |= w & (t >> 8);
+	t |= w & (t >> 8);
+	t |= w & (t >> 8);
+	t |= w & (t >> 8);
+	t |= w & (t >> 8);
+	t |= w & (t >> 8);
+	
+	moves |= empty & DOWN_FILTER & (t >> 8);
+	
+	// UP
+	w = opp & UP_FILTER;
+	t = w & (own << 8);
+	t |= w & (t << 8);
+	t |= w & (t << 8);
+	t |= w & (t << 8);
+	t |= w & (t << 8);
+	t |= w & (t << 8);
+	t |= w & (t << 8);
+	
+	moves |= empty & UP_FILTER & (t << 8);
+	
+	// UP_LEFT
+	w = opp & UP_LEFT_FILTER;
+	t = w & (own << 9);
+	t |= w & (t << 9);
+	t |= w & (t << 9);
+	t |= w & (t << 9);
+	t |= w & (t << 9);
+	t |= w & (t << 9);
+	t |= w & (t << 9);
+	
+	moves |= empty & UP_LEFT_FILTER & (t << 9);
+	
+	// DOWN_RIGHT
+	w = opp & DOWN_RIGHT_FILTER;
+	t = w & (own >> 9);
+	t |= w & (t >> 9);
+	t |= w & (t >> 9);
+	t |= w & (t >> 9);
+	t |= w & (t >> 9);
+	t |= w & (t >> 9);
+	t |= w & (t >> 9);
+	
+	moves |= empty & DOWN_RIGHT_FILTER & (t >> 9);
+	
+	// UP_RIGHT
+	w = opp & UP_RIGHT_FILTER;
+	t = w & (own << 7);
+	t |= w & (t << 7);
+	t |= w & (t << 7);
+	t |= w & (t << 7);
+	t |= w & (t << 7);
+	t |= w & (t << 7);
+	t |= w & (t << 7);
+	
+	moves |= empty & UP_RIGHT_FILTER & (t << 7);
+	
+	// DOWN_LEFT
+	w = opp & DOWN_LEFT_FILTER;
+	t = w & (own >> 7);
+	t |= w & (t >> 7);
+	t |= w & (t >> 7);
+	t |= w & (t >> 7);
+	t |= w & (t >> 7);
+	t |= w & (t >> 7);
+	t |= w & (t >> 7);
+	
+	moves |= empty & DOWN_LEFT_FILTER & (t >> 7);
+	
+	//cerr << "LM time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<< endl;
+	return moves;
+}
+
 uint64_t Board::findLegalMoves(Side side) {
-	legalMoves = findLegalMoves2(side);
+	legalMoves = findLegalMoves3(side);
 	return legalMoves;
 	//auto start = chrono::high_resolution_clock::now();
 	legalMoves = 0;
