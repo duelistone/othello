@@ -24,13 +24,13 @@
 #define MIN(x, y) ((x) <= (y) ? (x) : (y))
 
 #define PERCENTILE (1.5)
-#define SIGMA 3
+#define SIGMA 4
 #define PROB_CUT_DEPTH1 4
 #define PROB_CUT_DEPTH2 8
 
-#define ERROR1 5
-#define ERROR2 10
-#define ERROR3 20
+#define ERROR1 4
+#define ERROR2 8
+#define ERROR3 12
 
 #define THRESHOLD 15
 #define NO_MOVES_LEFT_BONUS 25
@@ -63,7 +63,7 @@ extern unordered_map<uint16_t, int> EDGE_VALUES;
 // At this point it should be quick to compute to the end
 
 // Should correspond to at most a minute of computation
-#define DEFAULT_MAX_NODES (30000000)
+#define DEFAULT_MAX_NODES (60000000)
 
 using namespace std;
 

@@ -21,6 +21,7 @@
 #define TO_INDEX(x, y) ((x) + 8 * (y))
 #define OCCUPIED(x, y, t) (((t) & BIT(TO_INDEX(x, y))) != 0)
 #define OCCUPIED_SIDE(side, x, y, t, b) ( OCCUPIED(x, y, t) && ( ( (b) & BIT(TO_INDEX(x, y)) ) == ( ((side) == BLACK) ? BIT(TO_INDEX(x, y)) : 0 ) ) )
+#define OCCUPIED_BI(t) (((t) & bi) != 0)
 #define ON_BOARD(x, y) (0 <= (x) && (x) < 8 && 0 <= (y) && (y) < 8)
 #define PLACE_DISC(side, x, y, t, b) {(t) |= BIT(TO_INDEX(x, y)); if ((side) == BLACK) (b) |= BIT(TO_INDEX(x, y)); else (b) &= ~BIT(TO_INDEX(x, y));}
 #define FROM_INDEX_X(index) ((index) % 8)
@@ -42,6 +43,7 @@
 #define INNER_EDGE_BOTTOM 0b0000000000000000000000000000000000000000000000000000000001111110ull
 #define INNER_EDGE_LEFT 0b0000000010000000100000001000000010000000100000001000000000000000ull
 #define INNER_EDGE_RIGHT 0b0000000000000001000000010000000100000001000000010000000100000000ull
+#define INNER_EDGES (INNER_EDGE_TOP | INNER_EDGE_BOTTOM | INNER_EDGE_LEFT | INNER_EDGE_RIGHT)
 #define EDGE_TOP 0b1111111100000000000000000000000000000000000000000000000000000000ull
 #define EDGE_BOTTOM 0b0000000000000000000000000000000000000000000000000000000011111111ull
 #define EDGE_LEFT 0b1000000010000000100000001000000010000000100000001000000010000000ull
@@ -50,12 +52,22 @@
 
 #define EDGE_BIT(x) ((uint16_t) 1 << (15 - (x)))
 
-#define MOBILITY_CAP 25
+#define DOWN_FILTER 0x00FFFFFFFFFFFFFFULL
+#define RIGHT_FILTER 0x7F7F7F7F7F7F7F7FULL
+#define DOWN_RIGHT_FILTER 0x007F7F7F7F7F7F7FULL
+#define DOWN_LEFT_FILTER 0x00FEFEFEFEFEFEFEULL
+#define UP_FILTER 0xFFFFFFFFFFFFFF00ULL
+#define LEFT_FILTER 0xFEFEFEFEFEFEFEFEULL
+#define UP_RIGHT_FILTER 0x7F7F7F7F7F7F7F00ULL
+#define UP_LEFT_FILTER 0xFEFEFEFEFEFEFE00ULL
+
+#define MOBILITY_CAP 30
 #define PM_CAP 10
 
 using namespace std;
 
 extern unordered_map<uint16_t, int> EDGE_VALUES;
+extern uint64_t SINGLE_BIT[64];
 
 class Board {
    
@@ -74,16 +86,19 @@ public:
     Board(uint64_t, uint64_t);
     
     uint64_t findLegalMoves(Side side);
+    uint64_t findLegalMoves2(Side side);
+    uint64_t onlyFindLegalMoves(Side side);
     int evaluate();
     int pos_evaluate();
     int evaluateTest();
      
     bool isDone();
     bool hasMoves(Side side);
-    bool hasLegalMoves(Side side);
+    //bool hasLegalMoves(Side side);
     bool checkMove(int x, int y, Side side);
     void doMove(int x, int y, Side side);
     Board doMoveOnNewBoard(int x, int y, Side side);
+    Board doMoveOnNewBoard2(int x, int y, Side side);
     int count(Side side);
     int countBlack();
     int countWhite();

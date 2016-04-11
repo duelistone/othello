@@ -8,7 +8,7 @@ Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), p
     OCCUPY_BLACK(3 + 8 * 4, taken, black);
     OCCUPY_BLACK(4 + 8 * 3, taken, black);
     OCCUPY_WHITE(4 + 8 * 4, taken, black);
-    black |= BIT(18) | BIT(19) | BIT(20) | BIT(21) | BIT(26) | BIT(29) | BIT(34) | BIT(37) | BIT(42) | BIT(43) | BIT(44) | BIT(45);
+    // black |= BIT(18) | BIT(19) | BIT(20) | BIT(21) | BIT(26) | BIT(29) | BIT(34) | BIT(37) | BIT(42) | BIT(43) | BIT(44) | BIT(45);
 }
 
 /*
@@ -16,181 +16,825 @@ Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), p
  */
 Board::Board(uint64_t t, uint64_t b) : taken(t), black(b), legalMovesComputed(false), legalMoves(0), potentialMobility(0), evaluation(0) {}
 
+uint64_t Board::findLegalMoves2(Side side) {
+	//auto start = chrono::high_resolution_clock::now();
+	
+	uint64_t moves = 0;
+	uint64_t b = black & taken;
+	uint64_t white = ~black & taken;
+	uint64_t empty = ~taken;
+	
+	uint64_t w, opp, own, tNew, t;
+	
+	// Set opponent
+	if (side == BLACK) {
+		own = b;
+		opp = white;
+	}
+	else {
+		own = white;
+		opp = b;
+	}
+	
+	// RIGHT
+	w = opp & RIGHT_FILTER;
+	t = w & (own >> 1);
+	tNew = t | (w & (t >> 1));
+	while (tNew != t) {
+		t = tNew;
+		tNew |= w & (t >> 1);
+	}
+	
+	moves |= empty & RIGHT_FILTER & (t >> 1);
+	
+	// LEFT
+	w = opp & LEFT_FILTER;
+	t = w & (own << 1);
+	tNew = t | (w & (t << 1));
+	while (tNew != t) {
+		t = tNew;
+		tNew |= w & (t << 1);
+	}
+	moves |= empty & LEFT_FILTER & (t << 1);
+	
+	// DOWN
+	w = opp & DOWN_FILTER;
+	t = w & (own >> 8);
+	tNew = t | (w & (t >> 8));
+	while (tNew != t) {
+		t = tNew;
+		tNew |= w & (t >> 8);
+	}
+	moves |= empty & DOWN_FILTER & (t >> 8);
+	
+	// UP
+	w = opp & UP_FILTER;
+	t = w & (own << 8);
+	tNew = t | (w & (t << 8));
+	while (tNew != t) {
+		t = tNew;
+		tNew |= w & (t << 8);
+	}
+	moves |= empty & UP_FILTER & (t << 8);
+	
+	// UP_LEFT
+	w = opp & UP_LEFT_FILTER;
+	t = w & (own << 9);
+	tNew = t | (w & (t << 9));
+	while (tNew != t) {
+		t = tNew;
+		tNew |= w & (t << 9);
+	}
+	moves |= empty & (UP_LEFT_FILTER & (t << 9));
+	
+	// DOWN_RIGHT
+	w = opp & DOWN_RIGHT_FILTER;
+	t = w & (own >> 9);
+	tNew = t | (w & (t >> 9));
+	while (tNew != t) {
+		t = tNew;
+		tNew |= w & (t >> 9);
+	}
+	moves |= empty & DOWN_RIGHT_FILTER & (t >> 9);
+	
+	// UP_RIGHT
+	w = opp & UP_RIGHT_FILTER;
+	t = w & (own << 7);
+	tNew = t | (w & (t << 7));
+	while (tNew != t) {
+		t = tNew;
+		tNew |= w & (t << 7);
+	}
+	moves |= empty & UP_RIGHT_FILTER & (t << 7);
+	
+	// DOWN_LEFT
+	w = opp & DOWN_LEFT_FILTER;
+	t = w & (own >> 7);
+	tNew = t | (w & (t >> 7));
+	while (tNew != t) {
+		t = tNew;
+		tNew |= w & (t >> 7);
+	}
+	moves |= empty & DOWN_LEFT_FILTER & (t >> 7);
+	
+	//cerr << "LM time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<< endl;
+	return moves;
+}
+
 uint64_t Board::findLegalMoves(Side side) {
-	auto start = chrono::high_resolution_clock::now();
+	legalMoves = findLegalMoves2(side);
+	return legalMoves;
+	//auto start = chrono::high_resolution_clock::now();
 	legalMoves = 0;
 	potentialMobility = 0;
 	uint64_t empty = black & ~taken;
+	uint64_t b = black & taken;
+	uint64_t white = ~black & taken;
 	
-	while (empty != 0) {
-		int index = __builtin_clzl(empty);
-		empty &= ~BIT(index);
-		int X = FROM_INDEX_X(index);
-		int Y = FROM_INDEX_Y(index);
+	if (side == BLACK) {
+		while (empty) {
+			int index = __builtin_clzll(empty);
+			uint64_t bi = SINGLE_BIT[index];
+			empty &= ~bi;
+			int X = FROM_INDEX_X(index);
+			int Y = FROM_INDEX_Y(index);
 
-		// Potential mobility
-		bool increaseMobility = false;
-		bool notEdge = !(EDGES & BIT(index)); //index > 8 && index < 55 && temp && (temp != 7);
-		
-		// Else, check if legal move
-		Side other = OTHER_SIDE(side);
-		
-		int dx, dy, x, y;
-		
-		dx = -1; dy = -1;
-		x = X + dx;
-		y = Y + dy;
-		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-			do {
-				x += dx;
-				y += dy;
-			} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
-
-			if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-				legalMoves |= BIT(index);
-				continue;
-			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
+			// Potential mobility
+			bool increaseMobility = false;
+			bool notEdge = !(EDGES & bi); //index > 8 && index < 55 && temp && (temp != 7);
+			
+			int x, y;
+			//int dx, dy;
+			uint64_t bi2; // For BIT(TO_INDEX(x, y))
+			
+			//auto start2 = chrono::high_resolution_clock::now();
+			// dx = -1; dy = -1;
+			x = X - 1;
+			y = Y - 1;
+			bi2 = bi << 9;
+			if (x >= 0 && y >= 0 && (white & bi2)) {
+				do {
+					x--;
+					y--;
+					bi2 <<= 9;
+					if (x < 0 || y < 0) goto lm_case1_end;
+				} while (white & bi2);
+				
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				// Else if x, y is not taken, we have potential mobility due to X, Y
 				increaseMobility = true;
+				lm_case1_end: ;
 			}
-		}
-		
-		dy = 1;
-		x = X + dx;
-		y = Y + dy;
-		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-			do {
-				x += dx;
-				y += dy;
-			} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
-
-			if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-				legalMoves |= BIT(index);
-				continue;
-			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
+			//cerr << "LM inner time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start2).count()<< endl;
+			//dy = 1; // dx = -1;
+			x = X + 1;
+			y = Y - 1;
+			bi2 = bi >> 7;
+			if (y < 8 && x >= 0 && (white & bi2)) {
+				do {
+					x--;
+					y++;
+					bi2 >>= 7;
+					if (y >= 8 || x < 0) goto lm_case2_end;
+				} while (white & bi2);
+				
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
 				increaseMobility = true;
+				lm_case2_end: ;
 			}
-		}
-		
-		dx = 1; dy = -1;
-		x = X + dx;
-		y = Y + dy;
-		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-			do {
-				x += dx;
-				y += dy;
-			} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
+			
+			//dx = 1; dy = -1;
+			x = X + 1;
+			y = Y - 1;
+			bi2 = bi << 7;
+			if (x < 8 && y >= 0 && (white & bi2)) {
+				do {
+					x++;
+					y--;
+					bi2 <<= 7;
+					if (x >= 8 || y < 0) goto lm_case3_end;
+				} while (white & bi2);
 
-			if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-				legalMoves |= BIT(index);
-				continue;
-			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
 				increaseMobility = true;
+				lm_case3_end: ;
 			}
-		}
-		
-		dy = 1;
-		x = X + dx;
-		y = Y + dy;
-		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-			do {
-				x += dx;
-				y += dy;
-			} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
+			
+			//dy = 1; // dx = 1;
+			x = X + 1;
+			y = Y + 1;
+			bi2 = bi >> 9;
+			if (x < 8 && y < 8 && (white & bi2)) {
+				do {
+					x++;
+					y++;
+					bi2 >>= 9;
+					if (x >= 8 || y >= 8) goto lm_case4_end;
+				} while (white & bi2);
 
-			if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-				legalMoves |= BIT(index);
-				continue;
-			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
 				increaseMobility = true;
+				lm_case4_end: ;
 			}
-		}
-		
-		dx = 0; dy = 1;
-		x = X;
-		y = Y + dy;
-		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-			do {
-				y += dy;
-			} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
+			
+			// dx = 0; dy = 1;
+			//x = X;
+			y = Y + 1;
+			bi2 = bi >> 8;
+			if (y < 8 && (white & bi2)) {
+				do {
+					y++;
+					bi2 >>= 8;
+					if (y >= 8) goto lm_case5_end;
+				} while (white & bi2);
 
-			if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-				legalMoves |= BIT(index);
-				continue;
-			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
 				increaseMobility = true;
+				lm_case5_end: ;
 			}
-		}
-		
-		dx = -1; dy = 0;
-		x = X + dx;
-		y = Y;
-		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-			do {
-				x += dx;
-			} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
+			
+			// dx = -1; dy = 0;
+			x = X - 1;
+			//y = Y;
+			bi2 = bi << 1;
+			if (x >= 0 && (white & bi2)) {
+				do {
+					x--;
+					bi2 <<= 1;
+					if (x < 0) goto lm_case6_end;
+				} while (white & bi2);
 
-			if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-				legalMoves |= BIT(index);
-				continue;
-			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
 				increaseMobility = true;
+				lm_case6_end: ;
 			}
-		}
-		
-		dx = 0; dy = -1;
-		x = X;
-		y = Y + dy;
-		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-			do {
-				y += dy;
-			} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
+			
+			// dx = 0; dy = -1;
+			//x = X;
+			y = Y - 1;
+			bi2 = bi << 8;
+			if (y >= 0 && (white & bi2)) {
+				do {
+					y--;
+					bi2 <<= 8;
+					if (y < 0) goto lm_case7_end;
+				} while (white & bi2);
 
-			if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-				legalMoves |= BIT(index);
-				continue;
-			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
 				increaseMobility = true;
+				lm_case7_end: ;
 			}
-		}
-		
-		dx = 1; dy = 0;
-		x = X + dx;
-		y = Y;
-		if (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-			do {
-				x += dx;
-			} while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
+			
+			//dx = 1; dy = 0;
+			x = X + 1;
+			//y = Y;
+			bi2 = bi >> 1;
+			if (x < 8 && (white & bi2)) {
+				do {
+					x++;
+					bi2 >>= 1;
+					if (x >= 8) goto lm_case8_end;
+				} while (white & bi2);
 
-			if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-				legalMoves |= BIT(index);
-				continue;
-			}
-			else if (ON_BOARD(x, y) && !OCCUPIED(x, y, taken) && notEdge) {
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
 				increaseMobility = true;
+				lm_case8_end: ;
 			}
+			
+			if (increaseMobility && notEdge) potentialMobility++;
 		}
-		
-		if (increaseMobility) potentialMobility++;
 	}
-	// cerr << "LM time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
+	else {
+		while (empty) {
+			int index = __builtin_clzll(empty);
+			uint64_t bi = SINGLE_BIT[index];
+			empty &= ~bi;
+			int X = FROM_INDEX_X(index);
+			int Y = FROM_INDEX_Y(index);
+
+			// Potential mobility
+			bool increaseMobility = false;
+			bool notEdge = !(EDGES & bi); //index > 8 && index < 55 && temp && (temp != 7);
+			
+			//int dx, dy;
+			int x, y;
+			uint64_t bi2; // For BIT(TO_INDEX(x, y))
+			
+			// dx = -1; dy = -1;
+			x = X - 1;
+			y = Y - 1;
+			bi2 = bi << 9;
+			if (x >= 0 && y >= 0 && (b & bi2)) {
+				do {
+					x--;
+					y--;
+					bi2 <<= 9;
+					if (x < 0 || y < 0) goto lm_case9_end;
+				} while (b & bi2);
+				
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				increaseMobility = true;
+				lm_case9_end: ;
+			}
+				
+			// dy = 1; // dx = -1;
+			x = X + 1;
+			y = Y - 1;
+			bi2 = bi >> 7;
+			if (x >= 0 && y < 8 && (b & bi2)) {
+				do {
+					x--;
+					y++;
+					bi2 >>= 7;
+					if (y >= 8 || x < 0) goto lm_case10_end;
+				} while (b & bi2);
+
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				increaseMobility = true;
+				lm_case10_end: ;
+			}
+			
+			// dx = 1; dy = -1;
+			x = X + 1;
+			y = Y - 1;
+			bi2 = bi << 7;
+			if (x < 8 && y >= 0 && (b & bi2)) {
+				do {
+					x++;
+					y--;
+					bi2 <<= 7;
+					if (x >= 8 || y < 0) goto lm_case11_end;
+				} while (b & bi2);
+				
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				increaseMobility = true;
+				lm_case11_end: ;
+			}
+			
+			// dy = 1; // dx = 1;
+			x = X + 1;
+			y = Y + 1;
+			bi2 = bi >> 9;
+			if (x < 8 && y < 8 && (b & bi2)) {
+				do {
+					x++;
+					y++;
+					bi2 >>= 9;
+					if (x >= 8 || y >= 8) goto lm_case12_end;
+				} while (b & bi2);
+
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				increaseMobility = true;
+				lm_case12_end: ;
+			}
+			
+			//dx = 0; dy = 1;
+			//x = X;
+			y = Y + 1;
+			bi2 = bi >> 8;
+			if (y < 8 && (b & bi2)) {
+				do {
+					y++;
+					bi2 >>= 8;
+					if (y >= 8) goto lm_case13_end;
+				} while (b & bi2);
+
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				increaseMobility = true;
+				lm_case13_end: ;
+			}
+			
+			//dx = -1; dy = 0;
+			x = X - 1;
+			//y = Y;
+			bi2 = bi << 1;
+			if (x >= 0 && (b & bi2)) {
+				do {
+					x--;
+					bi2 <<= 1;
+					if (x < 0) goto lm_case14_end;
+				} while (b & bi2);
+				
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				increaseMobility = true;
+				lm_case14_end: ;
+			}
+			
+			// dx = 0; dy = -1;
+			//x = X;
+			y = Y - 1;
+			bi2 = bi << 8;
+			if (y >= 0 && (b & bi2)) {
+				do {
+					y--;
+					bi2 <<= 8;
+					if (y < 0) goto lm_case15_end;
+				} while (b & bi2);
+				
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				increaseMobility = true;
+				lm_case15_end: ;
+			}
+			
+			// dx = 1; dy = 0;
+			x = X + 1;
+			//y = Y;
+			bi2 = bi >> 1;
+			if (x < 8 && (b & bi2)) {
+				do {
+					x++;
+					bi2 >>= 1;
+					if (x >= 8) goto lm_case16_end;
+				} while (b & bi2);
+				
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				increaseMobility = true;
+				lm_case16_end: ;
+			}
+			
+			if (increaseMobility && notEdge) potentialMobility++;
+		}
+	}
+	//cerr << "LM time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<< endl;
 	legalMovesComputed = true;
 	return legalMoves;
 }
 
+uint64_t Board::onlyFindLegalMoves(Side side) {
+	legalMoves = findLegalMoves2(side);
+	return legalMoves;
+	
+	//auto start = chrono::high_resolution_clock::now();
+	legalMoves = 0;
+	uint64_t empty = black & ~taken;
+	uint64_t b = black & taken;
+	uint64_t white = ~black & taken;
+	
+	if (side == BLACK) {
+		while (empty != 0) {
+			int index = __builtin_clzll(empty);
+			uint64_t bi = SINGLE_BIT[index];
+			empty &= ~bi;
+			int X = FROM_INDEX_X(index);
+			int Y = FROM_INDEX_Y(index);
+
+			// int dx, dy;
+			int x, y;
+			uint64_t bi2; // For BIT(TO_INDEX(x, y))
+			
+			// dx = -1; dy = -1;
+			x = X - 1;
+			y = Y + 1;
+			bi2 = bi << 9;
+			if (x >= 0 && y >= 0 && (white & bi2)) {
+				do {
+					x--;
+					y--;
+					bi2 <<= 9;
+					if (x < 0 || y < 0) goto olm_case1_end;
+				} while (white & bi2);
+				
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case1_end:
+			
+			// dy = 1; // dx = -1;
+			x = X - 1;
+			y = Y + 1;
+			bi2 = bi >> 7;
+			if (y < 8 && x >= 0 && (white & bi2)) {
+				do {
+					x--;
+					y++;
+					bi2 >>= 7;
+					if (y >= 8 || x < 0) goto olm_case2_end;
+				} while (white & bi2);
+				
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case2_end:
+			
+			//dx = 1; dy = -1;
+			x = X + 1;
+			y = Y - 1;
+			bi2 = bi << 7;
+			if (x < 8 && y >= 0 && (white & bi2)) {
+				do {
+					x++;
+					y--;
+					bi2 <<= 7;
+					if (x >= 8 || y < 0) goto olm_case3_end;
+				} while (white & bi2);
+
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				
+			}
+			olm_case3_end: 
+			
+			// dy = 1; // dx = 1;
+			x = X + 1;
+			y = Y + 1;
+			bi2 = bi >> 9;
+			if (x < 8 && y < 8 && (white & bi2)) {
+				do {
+					x++;
+					y++;
+					bi2 >>= 9;
+					if (x >= 8 || y >= 8) goto olm_case4_end;
+				} while (white & bi2);
+
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case4_end:
+			
+			// dx = 0; dy = 1;
+			x = X;
+			y = Y + 1;
+			bi2 = bi >> 8;
+			if (y < 8 && (white & bi2)) {
+				do {
+					y++;
+					bi2 >>= 8;
+					if (y >= 8) goto olm_case5_end;
+				} while (white & bi2);
+
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case5_end:
+			
+			//dx = -1; dy = 0;
+			x = X - 1;
+			y = Y;
+			bi2 = bi << 1;
+			if (x >= 0 && (white & bi2)) {
+				do {
+					x--;
+					bi2 <<= 1;
+					if (x < 0) goto olm_case6_end;
+				} while (white & bi2);
+
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case6_end:
+			
+			// dx = 0; dy = -1;
+			x = X;
+			y = Y - 1;
+			bi2 = bi << 8;
+			if (y >= 0 && (white & bi2)) {
+				do {
+					y--;
+					bi2 <<= 8;
+					if (y < 0) goto olm_case7_end;
+				} while (white & bi2);
+
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case7_end:
+			
+			// dx = 1; dy = 0;
+			x = X + 1;
+			y = Y;
+			bi2 = bi >> 1;
+			if (x < 8 && (white & bi2)) {
+				do {
+					x++;
+					bi2 >>= 1;
+					if (x >= 8) goto olm_case8_end;
+				} while (white & bi2);
+
+				if (b & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case8_end: ;
+		}
+	}
+	else {
+				while (empty != 0) {
+			int index = __builtin_clzll(empty);
+			uint64_t bi = BIT(index);
+			empty &= ~bi;
+			int X = FROM_INDEX_X(index);
+			int Y = FROM_INDEX_Y(index);
+
+			// int dx, dy;
+			int x, y;
+			uint64_t bi2; // For BIT(TO_INDEX(x, y))
+			
+			// dx = -1; dy = -1;
+			x = X - 1;
+			y = Y + 1;
+			bi2 = bi << 9;
+			if (x >= 0 && y >= 0 && (b & bi2)) {
+				do {
+					x--;
+					y--;
+					bi2 <<= 9;
+					if (x < 0 || y < 0) goto olm_case9_end;
+				} while (b & bi2);
+				
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case9_end:
+			
+			// dy = 1; // dx = -1;
+			x = X - 1;
+			y = Y + 1;
+			bi2 = bi >> 7;
+			if (y < 8 && x >= 0 && (b & bi2)) {
+				do {
+					x--;
+					y++;
+					bi2 >>= 7;
+					if (y >= 8 || x < 0) goto olm_case10_end;
+				} while (b & bi2);
+				
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case10_end:
+			
+			//dx = 1; dy = -1;
+			x = X + 1;
+			y = Y - 1;
+			bi2 = bi << 7;
+			if (x < 8 && y >= 0 && (b & bi2)) {
+				do {
+					x++;
+					y--;
+					bi2 <<= 7;
+					if (x >= 8 || y < 0) goto olm_case11_end;
+				} while (b & bi2);
+
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+				
+			}
+			olm_case11_end: 
+			
+			// dy = 1; // dx = 1;
+			x = X + 1;
+			y = Y + 1;
+			bi2 = bi >> 9;
+			if (x < 8 && y < 8 && (b & bi2)) {
+				do {
+					x++;
+					y++;
+					bi2 >>= 9;
+					if (x >= 8 || y >= 8) goto olm_case12_end;
+				} while (b & bi2);
+
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case12_end:
+			
+			// dx = 0; dy = 1;
+			x = X;
+			y = Y + 1;
+			bi2 = bi >> 8;
+			if (y < 8 && (b & bi2)) {
+				do {
+					y++;
+					bi2 >>= 8;
+					if (y >= 8) goto olm_case13_end;
+				} while (b & bi2);
+
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case13_end:
+			
+			//dx = -1; dy = 0;
+			x = X - 1;
+			y = Y;
+			bi2 = bi << 1;
+			if (x >= 0 && (b & bi2)) {
+				do {
+					x--;
+					bi2 <<= 1;
+					if (x < 0) goto olm_case14_end;
+				} while (b & bi2);
+
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case14_end:
+			
+			// dx = 0; dy = -1;
+			x = X;
+			y = Y - 1;
+			bi2 = bi << 8;
+			if (y >= 0 && (b & bi2)) {
+				do {
+					y--;
+					bi2 <<= 8;
+					if (y < 0) goto olm_case15_end;
+				} while (b & bi2);
+
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case15_end:
+			
+			// dx = 1; dy = 0;
+			x = X + 1;
+			y = Y;
+			bi2 = bi >> 1;
+			if (x < 8 && (b & bi2)) {
+				do {
+					x++;
+					bi2 >>= 1;
+					if (x >= 8) goto olm_case16_end;
+				} while (b & bi2);
+
+				if (white & bi2) {
+					legalMoves |= bi;
+					continue;
+				}
+			}
+			olm_case16_end: ;
+		}
+	}
+	//cerr << "LegalMoves: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
+	return legalMoves;
+
+}
+
+#if 0
 bool Board::hasLegalMoves(Side side) {
-	auto start = chrono::high_resolution_clock::now();
+	//auto start = chrono::high_resolution_clock::now();
 	legalMoves = 0;
 	uint64_t empty = black & ~taken;
 	
 	while (empty != 0) {
-		int index = __builtin_clzl(empty);
+		int index = __builtin_clzll(empty);
 		empty &= ~BIT(index);
 		int X = FROM_INDEX_X(index);
 		int Y = FROM_INDEX_Y(index);
@@ -318,6 +962,7 @@ bool Board::hasLegalMoves(Side side) {
 	}
 	return false;
 }
+#endif
 
 /*
  * Returns true if the game is finished; false otherwise. The game is finished 
@@ -388,7 +1033,7 @@ void Board::doMove(int X, int Y, Side side) {
             // For legal moves function
 			// A square adjacent to an unoccupied square should be 1 in black
 			if (ON_BOARD(xx, yy) && !OCCUPIED(xx, yy, taken)) {
-				black |= BIT(TO_INDEX(xx, yy));
+				black |= SINGLE_BIT[TO_INDEX(xx, yy)];
 			}
 			
             do {
@@ -412,7 +1057,338 @@ void Board::doMove(int X, int Y, Side side) {
     PLACE_DISC(side, X, Y, taken, black);
 }
 
+Board Board::doMoveOnNewBoard2(int x, int y, Side side) {
+	// Makes move on new board using bit operations
+	
+	// auto start = chrono::high_resolution_clock::now();
+	//uint64_t b = black & taken; // Should be unnecessary now
+	uint64_t white = ~black & taken;
+	uint64_t empty = ~taken;
+	
+	int index = TO_INDEX(x, y);
+	uint64_t n = SINGLE_BIT[index];
+	
+	uint64_t newtaken = taken;
+	uint64_t newblack = black;
+	
+	newtaken |= n;
+	
+	int counter;
+	
+	if (side == BLACK) {
+		newblack |= n;
+		
+		// LEFT
+		counter = 0;
+		do {
+			n <<= 1;
+			n &= LEFT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case1_end;
+			counter++;
+		} while (white & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n >>= 1;
+			newblack |= n;
+			counter--;
+		}
+		dmonb2_case1_end:
+		
+		// RIGHT
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n >>= 1;
+			n &= RIGHT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case2_end;
+			counter++;
+		} while (white & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n <<= 1;
+			newblack |= n;
+			counter--;
+		}
+		dmonb2_case2_end:
+		
+		// DOWN
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n >>= 8;
+			n &= DOWN_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case3_end;
+			counter++;
+		} while (white & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n <<= 8;
+			newblack |= n;
+			counter--;
+		}
+		dmonb2_case3_end:
+		
+		// UP
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n <<= 8;
+			n &= UP_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case4_end;
+			counter++;
+		} while (white & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n >>= 8;
+			newblack |= n;
+			counter--;
+		}
+		dmonb2_case4_end:
+		
+		// UP_LEFT
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n <<= 9;
+			n &= UP_LEFT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case5_end;
+			counter++;
+		} while (white & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n >>= 9;
+			newblack |= n;
+			counter--;
+		}
+		dmonb2_case5_end:
+		
+		// DOWN_RIGHT
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n >>= 9;
+			n &= DOWN_RIGHT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case6_end;
+			counter++;
+		} while (white & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n <<= 9;
+			newblack |= n;
+			counter--;
+		}
+		dmonb2_case6_end:
+		
+		// UP_RIGHT
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n <<= 7;
+			n &= UP_RIGHT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case7_end;
+			counter++;
+		} while (white & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n >>= 7;
+			newblack |= n;
+			counter--;
+		}
+		dmonb2_case7_end:
+		
+		// DOWN_LEFT
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n >>= 7;
+			n &= DOWN_LEFT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case8_end;
+			counter++;
+		} while (white & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n <<= 7;
+			newblack |= n;
+			counter--;
+		}
+		dmonb2_case8_end: ;
+	}
+	else {
+		// LEFT
+		counter = 0;
+		do {
+			n <<= 1;
+			n &= LEFT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case9_end;
+			counter++;
+		} while (black & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n >>= 1;
+			newblack ^= n;
+			counter--;
+		}
+		dmonb2_case9_end:
+		
+		// RIGHT
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n >>= 1;
+			n &= RIGHT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case10_end;
+			counter++;
+		} while (black & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n <<= 1;
+			newblack ^= n;
+			counter--;
+		}
+		dmonb2_case10_end:
+		
+		// DOWN
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n >>= 8;
+			n &= DOWN_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case11_end;
+			counter++;
+		} while (black & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n <<= 8;
+			newblack ^= n;
+			counter--;
+		}
+		dmonb2_case11_end:
+		
+		// UP
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n <<= 8;
+			n &= UP_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case12_end;
+			counter++;
+		} while (black & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n >>= 8;
+			newblack ^= n;
+			counter--;
+		}
+		dmonb2_case12_end:
+		
+		// UP_LEFT
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n <<= 9;
+			n &= UP_LEFT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case13_end;
+			counter++;
+		} while (black & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n >>= 9;
+			newblack ^= n;
+			counter--;
+		}
+		dmonb2_case13_end:
+		
+		// DOWN_RIGHT
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n >>= 9;
+			n &= DOWN_RIGHT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case14_end;
+			counter++;
+		} while (black & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n <<= 9;
+			newblack ^= n;
+			counter--;
+		}
+		dmonb2_case14_end:
+		
+		// UP_RIGHT
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n <<= 7;
+			n &= UP_RIGHT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case15_end;
+			counter++;
+		} while (black & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n >>= 7;
+			newblack ^= n;
+			counter--;
+		}
+		dmonb2_case15_end:
+		
+		// DOWN_LEFT
+		counter = 0;
+		n = SINGLE_BIT[index];
+		do {
+			n >>= 7;
+			n &= DOWN_LEFT_FILTER;
+			// Goto end of case if no capture will occur
+			if ((empty & n) || !n) goto dmonb2_case16_end;
+			counter++;
+		} while (black & n);
+		
+		// Run through in opposite direction to flip
+		while (counter > 1) {
+			n <<= 7;
+			newblack ^= n;
+			counter--;
+		}
+		dmonb2_case16_end: ;
+	}
+	
+	//cerr << "DoMoveOnNewBoard2: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
+	return Board(newtaken, newblack);
+}
+
 Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
+	return doMoveOnNewBoard2(X, Y, side);
+	//auto start = chrono::high_resolution_clock::now();
 	// A NULL move means pass.
     if (X == -1) return Board(taken, black);
 	
@@ -425,217 +1401,485 @@ Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
     int x, y, xx, yy;
     uint64_t newtakenCopy, newblackCopy;
     
-    dx = -1; dy = -1;
+    uint64_t bi = SINGLE_BIT[TO_INDEX(X, Y)];
     
-            x = X;
-            y = Y;
-            xx = X + dx;
-            yy = Y + dy;
-			
-			if (ON_BOARD(xx, yy) && !OCCUPIED(xx, yy, taken)) {
-				newblack |= BIT(TO_INDEX(xx, yy));
-			}
-            
-            newtakenCopy = newtaken;
-            newblackCopy = newblack;
-            
-            do {
-                x += dx;
-                y += dy;
-                if (!(ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black))) break;
-                PLACE_DISC(side, x, y, newtakenCopy, newblackCopy);
-            } while (true);
+    if (bi & ~EDGES) {
+		dx = -1; dy = -1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (!(taken & SINGLE_BIT[TO_INDEX(xx, yy)])) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case1_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case1_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
 
-            if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-                newtaken = newtakenCopy;
-                newblack = newblackCopy;
-			}
-			
-    dx = -1; dy = 1;
-    
-            x = X;
-            y = Y;
-            xx = X + dx;
-            yy = Y + dy;
-			
-			if (ON_BOARD(xx, yy) && !OCCUPIED(xx, yy, taken)) {
-				newblack |= BIT(TO_INDEX(xx, yy));
-			}
-            
-            newtakenCopy = newtaken;
-            newblackCopy = newblack;
-            
-            do {
-                x += dx;
-                y += dy;
-                if (!(ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black))) break;
-                PLACE_DISC(side, x, y, newtakenCopy, newblackCopy);
-            } while (true);
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case1_end:
+				
+		dx = -1; dy = 1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (!(taken & SINGLE_BIT[TO_INDEX(xx, yy)])) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case2_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case2_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
 
-            if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-                newtaken = newtakenCopy;
-                newblack = newblackCopy;
-			}
-			
-    dx = 1; dy = -1;
-    
-            x = X;
-            y = Y;
-            xx = X + dx;
-            yy = Y + dy;
-			
-			if (ON_BOARD(xx, yy) && !OCCUPIED(xx, yy, taken)) {
-				newblack |= BIT(TO_INDEX(xx, yy));
-			}
-            
-            newtakenCopy = newtaken;
-            newblackCopy = newblack;
-            
-            do {
-                x += dx;
-                y += dy;
-                if (!(ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black))) break;
-                PLACE_DISC(side, x, y, newtakenCopy, newblackCopy);
-            } while (true);
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case2_end:
+				
+		dx = 1; dy = -1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (!(taken & SINGLE_BIT[TO_INDEX(xx, yy)])) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case3_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case3_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
 
-            if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-                newtaken = newtakenCopy;
-                newblack = newblackCopy;
-			}
-			
-    dx = 1; dy = 1;
-    
-    
-            x = X;
-            y = Y;
-            xx = X + dx;
-            yy = Y + dy;
-			
-			if (ON_BOARD(xx, yy) && !OCCUPIED(xx, yy, taken)) {
-				newblack |= BIT(TO_INDEX(xx, yy));
-			}
-            
-            newtakenCopy = newtaken;
-            newblackCopy = newblack;
-            
-            do {
-                x += dx;
-                y += dy;
-                if (!(ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black))) break;
-                PLACE_DISC(side, x, y, newtakenCopy, newblackCopy);
-            } while (true);
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case3_end:
+				
+		dx = 1; dy = 1;
+		
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (!(taken & SINGLE_BIT[TO_INDEX(xx, yy)])) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case4_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case4_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
 
-            if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-                newtaken = newtakenCopy;
-                newblack = newblackCopy;
-			}
-			
-    dx = -1; dy = 0;
-    
-            x = X;
-            y = Y;
-            xx = X + dx;
-            yy = Y + dy;
-			
-			if (ON_BOARD(xx, yy) && !OCCUPIED(xx, yy, taken)) {
-				newblack |= BIT(TO_INDEX(xx, yy));
-			}
-            
-            newtakenCopy = newtaken;
-            newblackCopy = newblack;
-            
-            do {
-                x += dx;
-                y += dy;
-                if (!(ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black))) break;
-                PLACE_DISC(side, x, y, newtakenCopy, newblackCopy);
-            } while (true);
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case4_end:
+				
+		dx = -1; dy = 0;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (!(taken & SINGLE_BIT[TO_INDEX(xx, yy)])) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case5_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case5_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
 
-            if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-                newtaken = newtakenCopy;
-                newblack = newblackCopy;
-			}
-			
-    dx = 0; dy = -1;
-    
-    
-            x = X;
-            y = Y;
-            xx = X + dx;
-            yy = Y + dy;
-			
-			if (ON_BOARD(xx, yy) && !OCCUPIED(xx, yy, taken)) {
-				newblack |= BIT(TO_INDEX(xx, yy));
-			}
-            
-            newtakenCopy = newtaken;
-            newblackCopy = newblack;
-            
-            do {
-                x += dx;
-                y += dy;
-                if (!(ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black))) break;
-                PLACE_DISC(side, x, y, newtakenCopy, newblackCopy);
-            } while (true);
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case5_end:
+				
+		dx = 0; dy = -1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (!(taken & SINGLE_BIT[TO_INDEX(xx, yy)])) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case6_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case6_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
 
-            if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-                newtaken = newtakenCopy;
-                newblack = newblackCopy;
-			}
-			
-    dx = 1; dy = 0;
-    
-            x = X;
-            y = Y;
-            xx = X + dx;
-            yy = Y + dy;
-			
-			if (ON_BOARD(xx, yy) && !OCCUPIED(xx, yy, taken)) {
-				newblack |= BIT(TO_INDEX(xx, yy));
-			}
-            
-            newtakenCopy = newtaken;
-            newblackCopy = newblack;
-            
-            do {
-                x += dx;
-                y += dy;
-                if (!(ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black))) break;
-                PLACE_DISC(side, x, y, newtakenCopy, newblackCopy);
-            } while (true);
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case6_end:
+				
+		dx = 1; dy = 0;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (!(taken & SINGLE_BIT[TO_INDEX(xx, yy)])) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case7_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case7_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
 
-            if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-                newtaken = newtakenCopy;
-                newblack = newblackCopy;
-			}
-			
-    dx = 0; dy = 1;
-    
-            x = X;
-            y = Y;
-            xx = X + dx;
-            yy = Y + dy;
-			
-			if (ON_BOARD(xx, yy) && !OCCUPIED(xx, yy, taken)) {
-				newblack |= BIT(TO_INDEX(xx, yy));
-			}
-            
-            newtakenCopy = newtaken;
-            newblackCopy = newblack;
-            
-            do {
-                x += dx;
-                y += dy;
-                if (!(ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black))) break;
-                PLACE_DISC(side, x, y, newtakenCopy, newblackCopy);
-            } while (true);
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case7_end:
+				
+		dx = 0; dy = 1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (!(taken & SINGLE_BIT[TO_INDEX(xx, yy)])) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case8_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case8_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
 
-            if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-                newtaken = newtakenCopy;
-                newblack = newblackCopy;
-			}
-			
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case8_end: ;
+				
+	}
+    else {
+		dx = -1; dy = -1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (ON_BOARD(xx, yy) && !(taken & SINGLE_BIT[TO_INDEX(xx, yy)]) && !(bi & EDGES)) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case9_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case9_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
+
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case9_end:
+				
+		dx = -1; dy = 1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (ON_BOARD(xx, yy) && !(taken & SINGLE_BIT[TO_INDEX(xx, yy)]) && !(bi & EDGES)) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case10_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case10_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
+
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case10_end:
+				
+		dx = 1; dy = -1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (ON_BOARD(xx, yy) && !(taken & SINGLE_BIT[TO_INDEX(xx, yy)]) && !(bi & EDGES)) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case11_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case11_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
+
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case11_end: 
+				
+		dx = 1; dy = 1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (ON_BOARD(xx, yy) && !(taken & SINGLE_BIT[TO_INDEX(xx, yy)]) && !(bi & EDGES)) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case12_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case12_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
+
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case12_end:
+				
+		dx = -1; dy = 0;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (ON_BOARD(xx, yy) && !(taken & SINGLE_BIT[TO_INDEX(xx, yy)]) && !(bi & CORNERS) && !(bi & INNER_EDGE_RIGHT)) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case13_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case13_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
+
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case13_end:
+				
+		dx = 0; dy = -1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (ON_BOARD(xx, yy) && !(taken & SINGLE_BIT[TO_INDEX(xx, yy)]) && !(bi & CORNERS) && !(bi & INNER_EDGE_BOTTOM)) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case14_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case14_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
+
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case14_end:
+				
+		dx = 1; dy = 0;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (ON_BOARD(xx, yy) && !(taken & SINGLE_BIT[TO_INDEX(xx, yy)]) && !(bi & CORNERS) && !(bi & INNER_EDGE_LEFT)) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case15_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case15_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
+
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case15_end:
+				
+		dx = 0; dy = 1;
+		
+				x = X;
+				y = Y;
+				xx = X + dx;
+				yy = Y + dy;
+				
+				if (ON_BOARD(xx, yy) && !(taken & SINGLE_BIT[TO_INDEX(xx, yy)]) && !(bi & CORNERS) && !(bi & INNER_EDGE_TOP)) {
+					// newblack |= SINGLE_BIT[TO_INDEX(xx, yy)];
+					goto dmonb_case16_end;
+				}
+				
+				newtakenCopy = newtaken;
+				newblackCopy = newblack;
+				
+				do {
+					x += dx;
+					y += dy;
+					int index = TO_INDEX(x, y);
+					if (!(ON_BOARD(x, y)) || !(taken & SINGLE_BIT[index])) goto dmonb_case16_end;
+					else if (( black & SINGLE_BIT[index] ) == ( (side == BLACK) ? SINGLE_BIT[index] : 0 )) break;
+					{if (side == BLACK) newblackCopy |= SINGLE_BIT[index]; else newblackCopy &= ~SINGLE_BIT[index];}
+				} while (true);
+
+				
+				newtaken = newtakenCopy;
+				newblack = newblackCopy;
+				
+				dmonb_case16_end: ;
+	}			
     PLACE_DISC(side, X, Y, newtaken, newblack);
+    Board b2 = doMoveOnNewBoard2(X, Y, side);
+    if (b2.black != newblack) {
+		bitset<64> bs3(newtaken), bs(newblack), bs2(b2.black);
+		cerr << "---" << endl;
+		cerr << bs3 << endl << bs << endl << bs2 << endl;
+	}
+    //cerr << "DoMoveOnNewBoard: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
     return Board(newtaken, newblack);
 }
 
@@ -644,24 +1888,26 @@ Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
  * nonzero value.
  */
 int Board::evaluate() {
-	auto start = chrono::high_resolution_clock::now();
+	// auto start = chrono::high_resolution_clock::now();
 	
 	int greedyPoint = 60;
-	int totalCount = __builtin_popcount(taken >> 32) + __builtin_popcount(taken);
+	int totalCount = __builtin_popcountll(taken);
 	int blackPM, whitePM; // Potential mobility
 	
+	uint64_t b = taken & black;
+	uint64_t white = taken & ~black;
+	
 	// Game over if no discs left
-	if (totalCount == countBlack()) {
+	if (!white) {
 		evaluation = INT_MAX;
 		return evaluation;
 	}
-	else if (totalCount == countWhite()) {
+	else if (!b) {
 		evaluation = INT_MIN;
 		return evaluation;
 	}
 	
-	uint64_t b = taken & black;
-	uint64_t white = taken & ~black;
+	
 	if (totalCount < greedyPoint) {
 		// Constants to tweak
 		int mobilityWeight = 4;
@@ -669,15 +1915,16 @@ int Board::evaluate() {
 		int mobilityBoost = 5;
 		int penaltyWeight = 10;
 		//int edgePenalty = 5;
-		
+	//cerr << "Evaluation time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;	
 		// Computations
 		findLegalMoves(BLACK);
-		blackPM = potentialMobility;
-		int blackMoves = __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32);
+		//blackPM = potentialMobility;
+		int blackMoves = __builtin_popcountll(legalMoves);
 		findLegalMoves(WHITE);
-		whitePM = potentialMobility;
+		//whitePM = potentialMobility;
+	//auto start2 = chrono::high_resolution_clock::now();
 		// cerr << "Evaluation time LM + PM: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
-		int whiteMoves = __builtin_popcount(legalMoves) + __builtin_popcount(legalMoves >> 32);
+		int whiteMoves = __builtin_popcountll(legalMoves);
 		evaluation = 15 * mobilityWeight * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2); //Iago mobility evaluation //round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
 		if (abs(evaluation) > MOBILITY_CAP) evaluation = (evaluation > 0) ? MOBILITY_CAP : -MOBILITY_CAP; // Cap the influence of mobility
 		if (whiteMoves < 3 && blackMoves >= 5) evaluation += mobilityBoost;
@@ -687,10 +1934,12 @@ int Board::evaluate() {
 		if (blackMoves < 2) evaluation -= mobilityBoost;
 		if (blackMoves == 0) evaluation -= mobilityBoost;
 		
+		/*
 		// Potential mobility
 		int temp = 10 * potentialMobilityWeight * (blackPM - whitePM) / (blackPM + whitePM + 2);
 		if (abs(temp) > PM_CAP) temp = (temp > 0) ? PM_CAP : -PM_CAP;
 		evaluation += temp;
+		*/
 		
 		// Idea: There are exceptions where we don't want a penalty
 		// Penalty for risky squares if corner not filled
@@ -710,6 +1959,7 @@ int Board::evaluate() {
 			if (BIT(54) & b) evaluation -= penaltyWeight;
 			if (BIT(54) & white) evaluation += penaltyWeight;
 		}
+		
 		/*
 		if (totalCount < 45) {
 			// Edge penalties
@@ -726,8 +1976,8 @@ int Board::evaluate() {
 		*/
 		if (totalCount < 40) {
 			// Minimize discs early
-			int discdiff = (countWhite() - countBlack());
-		    if (abs(discdiff) > 15) discdiff = (discdiff > 0) ? 15 : -15;
+			int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(b));
+		    if (abs(discdiff) > 16) discdiff = (discdiff > 0) ? 16 : -16;
 		    evaluation += discdiff / 4;
 		}
 		if (totalCount > 20) {
@@ -820,18 +2070,20 @@ int Board::evaluate() {
 			bitset<16> bs(u16), bs2(u16_2);
 			cerr << bs << ' ' << bs2 << endl;*/
 			evaluation += EDGE_VALUES[u16];
+	
 		}
 	}
 	else {
 		// Become greedy in the end
 		evaluation = countBlack() - countWhite();
 	}
-	//if (totalCount > 20) cerr << "Evaluation time: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
+	//if (totalCount > 20) 
+	// cerr << "Evaluation time 2: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
 	return evaluation;
 }
 
 int Board::pos_evaluate() {
-	auto start = chrono::high_resolution_clock::now();
+	// auto start = chrono::high_resolution_clock::now();
 	int evaluation; // Don't touch the evaluation member variable here
 	
 	int greedyPoint = 60;
@@ -947,16 +2199,14 @@ int Board::count(Side side) {
  * Current count of black stones.
  */
 int Board::countBlack() {
-	uint64_t b = black & taken;
-    return __builtin_popcount(b >> 32) + __builtin_popcount(b);
+    return __builtin_popcountll(black & taken);
 }
 
 /*
  * Current count of white stones.
  */
 int Board::countWhite() {
-	uint64_t white = taken & ~black;
-    return __builtin_popcount(white >> 32) + __builtin_popcount(white);
+    return __builtin_popcountll(taken & ~black);
 }
 
 /*

@@ -14,16 +14,22 @@ unordered_map< BoardWithSide, int > *um3 = new unordered_map< BoardWithSide, int
 atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
 unordered_map<uint16_t, int> EDGE_VALUES;
+uint64_t SINGLE_BIT[64];
 // fstream fil("c.txt", ios_base::app);
 
-int main(int argc, char *argv[]) {   
+int main(int argc, char *argv[]) {
     // Read in side the player is on.
     if (argc != 2)  {
         cerr << "usage: " << argv[0] << " side" << endl;
         exit(-1);
     }
     Side side = (!strcmp(argv[1], "Black")) ? BLACK : WHITE;
-
+	
+	// Initialize SINGLE_BIT array
+	for (int i = 0; i < 64; i++) {
+		SINGLE_BIT[i] = BIT(i);
+	}
+	
     // Initialize player.
     Player *player = new Player(side);
     
