@@ -121,15 +121,15 @@ uint64_t Board::findLegalMoves2(Side side) {
 	return moves;
 }
 
-uint64_t Board::findLegalMoves3(Side side) {
-	//auto start = chrono::high_resolution_clock::now();
+uint64_t Board::findLegalMoves(Side side) {
+	//~ auto start = chrono::high_resolution_clock::now();
 	
 	uint64_t moves = 0;
 	//uint64_t b = black & taken;
 	uint64_t white = ~black & taken;
 	uint64_t empty = ~taken;
 	
-	uint64_t w, opp, own, tNew, t;
+	uint64_t w, opp, own, t;
 	
 	// Set opponent
 	if (side == BLACK) {
@@ -149,7 +149,7 @@ uint64_t Board::findLegalMoves3(Side side) {
 	t |= (w & (t >> 1));
 	t |= (w & (t >> 1));
 	t |= (w & (t >> 1));
-	t |= (w & (t >> 1));
+	//~ t |= (w & (t >> 1));
 	
 	moves |= empty & RIGHT_FILTER & (t >> 1);
 	
@@ -161,7 +161,7 @@ uint64_t Board::findLegalMoves3(Side side) {
 	t |= w & (t << 1);
 	t |= w & (t << 1);
 	t |= w & (t << 1);
-	t |= w & (t << 1);
+	//~ t |= w & (t << 1);
 	
 	moves |= empty & LEFT_FILTER & (t << 1);
 	
@@ -173,7 +173,7 @@ uint64_t Board::findLegalMoves3(Side side) {
 	t |= w & (t >> 8);
 	t |= w & (t >> 8);
 	t |= w & (t >> 8);
-	t |= w & (t >> 8);
+	//~ t |= w & (t >> 8);
 	
 	moves |= empty & DOWN_FILTER & (t >> 8);
 	
@@ -185,7 +185,7 @@ uint64_t Board::findLegalMoves3(Side side) {
 	t |= w & (t << 8);
 	t |= w & (t << 8);
 	t |= w & (t << 8);
-	t |= w & (t << 8);
+	//~ t |= w & (t << 8);
 	
 	moves |= empty & UP_FILTER & (t << 8);
 	
@@ -197,7 +197,7 @@ uint64_t Board::findLegalMoves3(Side side) {
 	t |= w & (t << 9);
 	t |= w & (t << 9);
 	t |= w & (t << 9);
-	t |= w & (t << 9);
+	//~ t |= w & (t << 9);
 	
 	moves |= empty & UP_LEFT_FILTER & (t << 9);
 	
@@ -209,7 +209,7 @@ uint64_t Board::findLegalMoves3(Side side) {
 	t |= w & (t >> 9);
 	t |= w & (t >> 9);
 	t |= w & (t >> 9);
-	t |= w & (t >> 9);
+	//~ t |= w & (t >> 9);
 	
 	moves |= empty & DOWN_RIGHT_FILTER & (t >> 9);
 	
@@ -221,7 +221,7 @@ uint64_t Board::findLegalMoves3(Side side) {
 	t |= w & (t << 7);
 	t |= w & (t << 7);
 	t |= w & (t << 7);
-	t |= w & (t << 7);
+	//~ t |= w & (t << 7);
 	
 	moves |= empty & UP_RIGHT_FILTER & (t << 7);
 	
@@ -233,17 +233,18 @@ uint64_t Board::findLegalMoves3(Side side) {
 	t |= w & (t >> 7);
 	t |= w & (t >> 7);
 	t |= w & (t >> 7);
-	t |= w & (t >> 7);
+	//~ t |= w & (t >> 7);
 	
 	moves |= empty & DOWN_LEFT_FILTER & (t >> 7);
 	
-	//cerr << "LM time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<< endl;
+	legalMoves = moves;
+	//~ cerr << "LM time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<< endl;
 	return moves;
 }
 
-uint64_t Board::findLegalMoves(Side side) {
-	legalMoves = findLegalMoves3(side);
-	return legalMoves;
+uint64_t Board::findLegalMoves3(Side side) {
+	//~ legalMoves = findLegalMoves3(side);
+	//~ return legalMoves;
 	//auto start = chrono::high_resolution_clock::now();
 	legalMoves = 0;
 	potentialMobility = 0;
@@ -1506,8 +1507,209 @@ Board Board::doMoveOnNewBoard2(int x, int y, Side side) {
 	return Board(newtaken, newblack);
 }
 
-Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
-	return doMoveOnNewBoard2(X, Y, side);
+Board Board::doMoveOnNewBoard(int x, int y, Side side) {
+	// Makes move on new board using bit operations
+	// This leads to no jumping when converted to assembly
+	// (once we branch into side == BLACK or side == WHITE)
+	
+	//~ auto start = chrono::high_resolution_clock::now();
+	//uint64_t b = black & taken; // Should be unnecessary now
+	uint64_t white = ~black & taken;
+	//~ uint64_t empty = ~taken;
+	
+	int index = TO_INDEX(x, y);
+	const uint64_t bi = SINGLE_BIT[index];
+	uint64_t n = bi;
+	
+	uint64_t newtaken = taken;
+	uint64_t newblack = black;
+	
+	newtaken |= n;
+	
+	if (side == BLACK) {
+		// LEFT
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		//~ n |= white & LEFT_FILTER & (n << 1);
+		if (black & LEFT_FILTER & (n << 1)) newblack |= n;
+		
+		// RIGHT
+		n = bi;
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		//~ n |= white & RIGHT_FILTER & (n >> 1);
+		if (black & RIGHT_FILTER & (n >> 1)) newblack |= n;
+		
+		// DOWN
+		n = bi;
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		//~ n |= white & DOWN_FILTER & (n >> 8);
+		if (black & DOWN_FILTER & (n >> 8)) newblack |= n;
+		
+		// UP
+		n = bi;
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		//~ n |= white & UP_FILTER & (n << 8);
+		if (black & UP_FILTER & (n << 8)) newblack |= n;
+		
+		// UP_LEFT
+		n = bi;
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		//~ n |= white & UP_LEFT_FILTER & (n << 9);
+		if (black & UP_LEFT_FILTER & (n << 9)) newblack |= n;
+		
+		// DOWN_RIGHT
+		n = bi;
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		//~ n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		if (black & DOWN_RIGHT_FILTER & (n >> 9)) newblack |= n;
+		
+		// UP_RIGHT
+		n = bi;
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		//~ n |= white & UP_RIGHT_FILTER & (n << 7);
+		if (black & UP_RIGHT_FILTER & (n << 7)) newblack |= n;
+		
+		// DOWN_LEFT
+		n = bi;
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		//~ n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		if (black & DOWN_LEFT_FILTER & (n >> 7)) newblack |= n;
+		
+	}
+	else {
+		// LEFT
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		//~ n |= black & LEFT_FILTER & (n << 1);
+		if (white & LEFT_FILTER & (n << 1)) newblack &= ~n;
+		
+		// RIGHT
+		n = bi;
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		//~ n |= black & RIGHT_FILTER & (n >> 1);
+		if (white & RIGHT_FILTER & (n >> 1)) newblack &= ~n;
+		
+		// DOWN
+		n = bi;
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		//~ n |= black & DOWN_FILTER & (n >> 8);
+		if (white & DOWN_FILTER & (n >> 8)) newblack &= ~n;
+		
+		// UP
+		n = bi;
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		//~ n |= black & UP_FILTER & (n << 8);
+		if (white & UP_FILTER & (n << 8)) newblack &= ~n;
+		
+		// UP_LEFT
+		n = bi;
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		//~ n |= black & UP_LEFT_FILTER & (n << 9);
+		if (white & UP_LEFT_FILTER & (n << 9)) newblack &= ~n;
+		
+		// DOWN_RIGHT
+		n = bi;
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		//~ n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		if (white & DOWN_RIGHT_FILTER & (n >> 9)) newblack &= ~n;
+		
+		// UP_RIGHT
+		n = bi;
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		//~ n |= black & UP_RIGHT_FILTER & (n << 7);
+		if (white & UP_RIGHT_FILTER & (n << 7)) newblack &= ~n;
+		
+		// DOWN_LEFT
+		n = bi;
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		//~ n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		if (white & DOWN_LEFT_FILTER & (n >> 7)) newblack &= ~n;
+	}
+	//~ cerr << "DoMoveOnNewBoard3: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
+	return Board(newtaken, newblack);
+}
+
+
+Board Board::doMoveOnNewBoard3(int X, int Y, Side side) {
+	return doMoveOnNewBoard3(X, Y, side);
 	//auto start = chrono::high_resolution_clock::now();
 	// A NULL move means pass.
     if (X == -1) return Board(taken, black);
@@ -1515,7 +1717,7 @@ Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
 	uint64_t newtaken = taken;
 	uint64_t newblack = black;
 	
-    Side other = (side == BLACK) ? WHITE : BLACK;
+    //~ Side other = (side == BLACK) ? WHITE : BLACK;
     
     int dx, dy;
     int x, y, xx, yy;
@@ -2008,109 +2210,130 @@ Board Board::doMoveOnNewBoard(int X, int Y, Side side) {
  * nonzero value.
  */
 int Board::evaluate() {
-	// auto start = chrono::high_resolution_clock::now();
-	
-	int greedyPoint = 60;
 	int totalCount = __builtin_popcountll(taken);
-	int blackPM, whitePM; // Potential mobility
+	//~ int blackPM, whitePM; // Potential mobility
 	
-	uint64_t b = taken & black;
+	//uint64_t b = taken & black;
 	uint64_t white = taken & ~black;
 	
 	// Game over if no discs left
 	if (!white) {
 		evaluation = INT_MAX;
-		return evaluation;
+		return INT_MAX;
 	}
-	else if (!b) {
+	else if (!black) {
 		evaluation = INT_MIN;
-		return evaluation;
+		return INT_MIN;
 	}
 	
+	int ee = 0;
 	
-	if (totalCount < greedyPoint) {
+	if (totalCount < 60) {
 		// Constants to tweak
 		int mobilityWeight = 4;
-		int potentialMobilityWeight = 1;
+		//~ int potentialMobilityWeight = 1;
 		int mobilityBoost = 5;
 		int penaltyWeight = 10;
 		//int edgePenalty = 5;
-	//cerr << "Evaluation time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;	
+		//cerr << "Evaluation time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;	
 		// Computations
 		findLegalMoves(BLACK);
 		//blackPM = potentialMobility;
 		int blackMoves = __builtin_popcountll(legalMoves);
 		findLegalMoves(WHITE);
 		//whitePM = potentialMobility;
-	//auto start2 = chrono::high_resolution_clock::now();
+		//auto start2 = chrono::high_resolution_clock::now();
 		// cerr << "Evaluation time LM + PM: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
 		int whiteMoves = __builtin_popcountll(legalMoves);
-		evaluation = 15 * mobilityWeight * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2); //Iago mobility evaluation //round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
-		if (abs(evaluation) > MOBILITY_CAP) evaluation = (evaluation > 0) ? MOBILITY_CAP : -MOBILITY_CAP; // Cap the influence of mobility
-		if (whiteMoves < 3 && blackMoves >= 5) evaluation += mobilityBoost;
-		if (whiteMoves < 2) evaluation += mobilityBoost;
-		if (whiteMoves == 0) evaluation += mobilityBoost;
-		if (blackMoves < 3 && whiteMoves >= 5) evaluation -= mobilityBoost;
-		if (blackMoves < 2) evaluation -= mobilityBoost;
-		if (blackMoves == 0) evaluation -= mobilityBoost;
+		
+		ee = 15 * mobilityWeight * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2); //Iago mobility ee //round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
+		if (abs(ee) > MOBILITY_CAP) ee = (ee > 0) ? MOBILITY_CAP : -MOBILITY_CAP; // Cap the influence of mobility
+		if (whiteMoves < 3 && blackMoves >= 5) ee += mobilityBoost;
+		if (whiteMoves < 2) ee += mobilityBoost;
+		if (whiteMoves == 0) ee += mobilityBoost;
+		if (blackMoves < 3 && whiteMoves >= 5) ee -= mobilityBoost;
+		if (blackMoves < 2) ee -= mobilityBoost;
+		if (blackMoves == 0) ee -= mobilityBoost;
 		
 		/*
 		// Potential mobility
 		int temp = 10 * potentialMobilityWeight * (blackPM - whitePM) / (blackPM + whitePM + 2);
 		if (abs(temp) > PM_CAP) temp = (temp > 0) ? PM_CAP : -PM_CAP;
-		evaluation += temp;
+		ee += temp;
 		*/
 		
 		// Idea: There are exceptions where we don't want a penalty
 		// Penalty for risky squares if corner not filled
 		if (!(taken & CORNER_TL)) {
-			if (BIT(9) & b) evaluation -= penaltyWeight;
-			if (BIT(9) & white) evaluation += penaltyWeight;
+			if (BIT(9) & black) ee -= penaltyWeight;
+			if (BIT(9) & white) ee += penaltyWeight;
 		}
 		if (!(taken & CORNER_TR)) {
-			if (BIT(14) & b) evaluation -= penaltyWeight;
-			if (BIT(14) & white) evaluation += penaltyWeight;
+			if (BIT(14) & black) ee -= penaltyWeight;
+			if (BIT(14) & white) ee += penaltyWeight;
 		}
 		if (!(taken & CORNER_BL)) {
-			if (BIT(49) & b) evaluation -= penaltyWeight;
-			if (BIT(49) & white) evaluation += penaltyWeight;
+			if (BIT(49) & black) ee -= penaltyWeight;
+			if (BIT(49) & white) ee += penaltyWeight;
 		}
 		if (!(taken & CORNER_BR)) {
-			if (BIT(54) & b) evaluation -= penaltyWeight;
-			if (BIT(54) & white) evaluation += penaltyWeight;
+			if (BIT(54) & black) ee -= penaltyWeight;
+			if (BIT(54) & white) ee += penaltyWeight;
 		}
 		
 		/*
 		if (totalCount < 45) {
 			// Edge penalties
-			if ((INNER_EDGE_TOP & b) != 0) evaluation -= edgePenalty;
-			if ((INNER_EDGE_BOTTOM & b) != 0) evaluation -= edgePenalty;
-			if ((INNER_EDGE_LEFT & b) != 0) evaluation -= edgePenalty;
-			if ((INNER_EDGE_RIGHT & b) != 0) evaluation -= edgePenalty;
+			if ((INNER_EDGE_TOP & b) != 0) ee -= edgePenalty;
+			if ((INNER_EDGE_BOTTOM & b) != 0) ee -= edgePenalty;
+			if ((INNER_EDGE_LEFT & b) != 0) ee -= edgePenalty;
+			if ((INNER_EDGE_RIGHT & b) != 0) ee -= edgePenalty;
 			
-			if ((INNER_EDGE_TOP & white) != 0) evaluation += edgePenalty;
-			if ((INNER_EDGE_BOTTOM & white) != 0) evaluation += edgePenalty;
-			if ((INNER_EDGE_LEFT & white) != 0) evaluation += edgePenalty;
-			if ((INNER_EDGE_RIGHT & white) != 0) evaluation += edgePenalty;
+			if ((INNER_EDGE_TOP & white) != 0) ee += edgePenalty;
+			if ((INNER_EDGE_BOTTOM & white) != 0) ee += edgePenalty;
+			if ((INNER_EDGE_LEFT & white) != 0) ee += edgePenalty;
+			if ((INNER_EDGE_RIGHT & white) != 0) ee += edgePenalty;
 		}
 		*/
 		if (totalCount < 40) {
 			// Minimize discs early
-			int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(b));
+			int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
 		    if (abs(discdiff) > 16) discdiff = (discdiff > 0) ? 16 : -16;
-		    evaluation += discdiff / 4;
+		    ee += discdiff / 4;
 		}
-		if (totalCount > 20) {
+		//~ auto start = chrono::high_resolution_clock::now();
+		
+		//~ if (totalCount > 20) {
 			// Get top edge into uint16
-			uint16_t u16 = ((taken >> 56) << 8) | (b >> 56);
-			evaluation += EDGE_VALUES[u16];
+			uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
+			ee += EDGE_VALUES[u16];
 			
-			u16 = ((taken << 56) >> 48) | ((b << 56) >> 56);
-			evaluation += EDGE_VALUES[u16];
-			
+			u16 = ((taken << 56) >> 48) | ((black << 56) >> 56);
+			ee += EDGE_VALUES[u16];
+		//~ cerr << "Evaluation time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;	
 			// Get left edge
 			uint64_t tempTaken = taken & EDGE_LEFT;
-			uint64_t tempB = b & EDGE_LEFT;
+			uint64_t tempB = black & EDGE_LEFT;
+			tempTaken >>= 7;
+			tempB >>= 7;
+			// Now same as right edge
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB &= EDGE_BOTTOM;
+			
+			/*
 			tempTaken = tempTaken >> 7;
 			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x3333333333333333ull;
 			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x0f0f0f0f0f0f0f0full;
@@ -2137,6 +2360,7 @@ int Board::evaluate() {
 			tempB = (tempB | (tempB >> 1)) & 0x0000000000003333ull;
 			tempB = (tempB | (tempB >> 2)) & 0x0000000000000f0full;
 			tempB = (tempB | (tempB >> 4)) & 0x00000000000000ffull;
+			*/
 			u16 = (tempTaken << 8) | tempB;
 			
 			/*
@@ -2144,16 +2368,33 @@ int Board::evaluate() {
 			for (unsigned int i = 0; i < 64; i+=8) {
 				if ((taken & BIT(i)) == BIT(i)) {
 					u16_2 |= EDGE_BIT(i >> 3);
-					if ((b & BIT(i)) == BIT(i)) u16_2 |= EDGE_BIT(8 + i / 8);
+					if ((black & BIT(i)) == BIT(i)) u16_2 |= EDGE_BIT(8 + i / 8);
 				}
 			}
 			bitset<16> bs(u16), bs2(u16_2);
-			cerr << bs << ' ' << bs2 << endl;*/
-			evaluation += EDGE_VALUES[u16];
+			if (u16 != u16_2) cerr << bs << ' ' << bs2 << endl;*/
+			ee += EDGE_VALUES[u16];
 			
 			// Get right edge
 			tempTaken = taken & EDGE_RIGHT;
-			tempB = b & EDGE_RIGHT;
+			tempB = black & EDGE_RIGHT;
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB &= EDGE_BOTTOM;
+			
+			/*
 			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x3333333333333333ull;
 			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x0f0f0f0f0f0f0f0full;
 			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x00ff00ff00ff00ffull;
@@ -2178,7 +2419,9 @@ int Board::evaluate() {
 			tempB = (tempB | (tempB >> 1)) & 0x0000000000003333ull;
 			tempB = (tempB | (tempB >> 2)) & 0x0000000000000f0full;
 			tempB = (tempB | (tempB >> 4)) & 0x00000000000000ffull;
+			*/
 			u16 = (tempTaken << 8) | tempB;
+			
 			/*
 			uint16_t u16_2 = 0;
 			for (unsigned int i = 7; i < 64; i+=8) {
@@ -2189,17 +2432,18 @@ int Board::evaluate() {
 			}
 			bitset<16> bs(u16), bs2(u16_2);
 			cerr << bs << ' ' << bs2 << endl;*/
-			evaluation += EDGE_VALUES[u16];
+			ee += EDGE_VALUES[u16];
 	
-		}
+		//~ }
+		
 	}
 	else {
 		// Become greedy in the end
-		evaluation = countBlack() - countWhite();
+		ee = countBlack() - countWhite();
 	}
 	//if (totalCount > 20) 
-	// cerr << "Evaluation time 2: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
-	return evaluation;
+	evaluation = ee;
+	return ee;
 }
 
 int Board::pos_evaluate() {

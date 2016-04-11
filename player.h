@@ -55,7 +55,7 @@ extern unordered_map<int, double> sigma;
 extern unordered_map<int, double> constant_terms;
 extern unordered_map<int, double> coefficients;
 
-extern unordered_map<uint16_t, int> EDGE_VALUES;
+extern int *EDGE_VALUES;
 
 // To avoid um getting too big
 #define MAX_HASH_SIZE 3000000

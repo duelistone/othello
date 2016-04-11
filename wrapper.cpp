@@ -13,7 +13,7 @@ unordered_map< BoardWithSide, int > *um2 = new unordered_map< BoardWithSide, int
 unordered_map< BoardWithSide, int > *um3 = new unordered_map< BoardWithSide, int >;
 atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
-unordered_map<uint16_t, int> EDGE_VALUES;
+int *EDGE_VALUES;
 uint64_t SINGLE_BIT[64];
 // fstream fil("c.txt", ios_base::app);
 
@@ -29,6 +29,9 @@ int main(int argc, char *argv[]) {
 	for (int i = 0; i < 64; i++) {
 		SINGLE_BIT[i] = BIT(i);
 	}
+	
+	// Allocate for EDGE_VALUES
+	EDGE_VALUES = (int *) malloc(sizeof(int) * (1 << 16));
 	
     // Initialize player.
     Player *player = new Player(side);

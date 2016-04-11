@@ -66,7 +66,7 @@
 
 using namespace std;
 
-extern unordered_map<uint16_t, int> EDGE_VALUES;
+extern int *EDGE_VALUES;
 extern uint64_t SINGLE_BIT[64];
 
 class Board {
@@ -100,6 +100,7 @@ public:
     void doMove(int x, int y, Side side);
     Board doMoveOnNewBoard(int x, int y, Side side);
     Board doMoveOnNewBoard2(int x, int y, Side side);
+    Board doMoveOnNewBoard3(int x, int y, Side side);
     int count(Side side);
     int countBlack();
     int countWhite();

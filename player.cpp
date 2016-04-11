@@ -846,8 +846,8 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     if (opponentsMove != NULL) {
 		currBoard = currBoard.doMoveOnNewBoard(opponentsMove->x, opponentsMove->y, OTHER_SIDE(side));
 	}
-    currBoard.findLegalMoves(side);
-    if (currBoard.legalMoves == 0) return NULL;
+    
+    if (currBoard.findLegalMoves(side) == 0) return NULL;
     
     //int pm_black, pm_white;
     //currBoard.findLegalMoves(BLACK);
@@ -855,9 +855,9 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     //currBoard.findLegalMoves(WHITE);
     //pm_white = currBoard.potentialMobility;
 	//cerr << "Potential mobility: " << pm_black << ' ' << pm_white << endl;
-	currBoard.findLegalMoves(side);
+	//currBoard.findLegalMoves(side);
     
-    int totalCount = currBoard.countBlack() + currBoard.countWhite();
+    int totalCount = __builtin_popcountll(currBoard.taken);
     if (totalCount == 4) {
 		// Move e6 without thinking
 		currBoard = currBoard.doMoveOnNewBoard(4, 5, side);
