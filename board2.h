@@ -114,6 +114,8 @@ public:
 	
 	BoardWithSide(uint64_t t, uint64_t b, Side s) : taken(t), black(b), side(s) {}
 	BoardWithSide(const BoardWithSide& bws) : taken(bws.taken), black(bws.black), side(bws.side) {}
+	
+	int count() const {return __builtin_popcountll(taken);}
 };
 
 bool operator==(const BoardWithSide&, const BoardWithSide&);

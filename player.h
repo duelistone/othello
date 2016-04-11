@@ -24,7 +24,7 @@
 #define MIN(x, y) ((x) <= (y) ? (x) : (y))
 
 #define PERCENTILE (1.5)
-#define SIGMA 4
+#define SIGMA 3
 #define PROB_CUT_DEPTH1 4
 #define PROB_CUT_DEPTH2 8
 
