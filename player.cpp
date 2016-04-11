@@ -195,7 +195,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			v = MAX(v, val);
 			alpha = MAX(v, alpha);
 		}
-		if (depth > 2) (*um)[bws] = besti;
+		if (depth > 3) (*um)[bws] = besti;
 		return alpha;
 	}
 	else {
@@ -217,7 +217,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			v = MIN(v, val);
 			beta = MIN(v, beta);
 		}
-		if (depth > 2) (*um)[bws] = besti;
+		if (depth > 3) (*um)[bws] = besti;
 		return beta;
 	}
 	
@@ -905,7 +905,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     int besti = -1;
     pair<int, int> p;
     if (depth != INT_MAX) {
-		BoardWithSide bws(currBoard.taken, currBoard.black, side);
+		//BoardWithSide bws(currBoard.taken, currBoard.black, side);
 		//if (um->count(bws) > 0) besti = (*um)[bws];
 		p = main_minimax_aw(currBoard, side, depth, besti);
 		besti = p.first;
@@ -951,9 +951,8 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     // Output some useful info and return (remove for more speed)
     cerr << totalCount + 1 << " eval: " << eval << endl;
 	if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount << ' ' << dmonb << endl;
-	if (um->size() > MAX_HASH_SIZE) um->clear(); // Don't want to lose due to too much memory!
-	cerr << "Alphabeta 4: " << main_minimax(currBoard, side, 4).second << endl;
-	cerr << "Alphabeta 8: " << main_minimax(currBoard, side, 8).second << endl;
+	// if (um->size() > MAX_HASH_SIZE) um->clear(); // Don't want to lose due to too much memory!
+	
 	// Make move
 	string letters = "abcdefgh";
 	// cerr << ((side == BLACK) ? "Black " : "White ") << "tentative move: " << letters[FROM_INDEX_X(besti)] << ' ' << FROM_INDEX_Y(besti) + 1 << endl; 
