@@ -6,6 +6,13 @@
 
 typedef int Side;
 
+typedef struct {
+	int eval;
+	int best;
+	int alpha;
+	int beta;
+} um_data;
+
 class Move {
    
 public:

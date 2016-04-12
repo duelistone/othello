@@ -1,5 +1,14 @@
 #include "board2.h"
 
+um_data make_hash_data(int eval, int best, int alpha, int beta) {
+	um_data data;
+	data.eval = eval;
+	data.best = best;
+	data.alpha = alpha;
+	data.beta = beta;
+	return data;
+}
+
 /*
  * Make a standard 8x8 othello board and initialize it to the standard setup.
  */
@@ -16,7 +25,194 @@ Board::Board() : taken(0), black(0) {
  */
 Board::Board(uint64_t t, uint64_t b) : taken(t), black(b) {}
 
-uint64_t Board::findLegalMoves2(Side side) {
+uint64_t doMove(uint64_t taken, uint64_t black, Side side, int index) {
+	uint64_t white = ~black & taken;
+	//~ uint64_t empty = ~taken;
+	
+	const uint64_t bi = SINGLE_BIT[index];
+	uint64_t n = bi;
+	
+	if (side == BLACK) {
+		// LEFT
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		//~ n |= white & LEFT_FILTER & (n << 1);
+		if (black & LEFT_FILTER & (n << 1)) black |= n;
+		
+		// RIGHT
+		n = bi;
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		//~ n |= white & RIGHT_FILTER & (n >> 1);
+		if (black & RIGHT_FILTER & (n >> 1)) black |= n;
+		
+		// DOWN
+		n = bi;
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		//~ n |= white & DOWN_FILTER & (n >> 8);
+		if (black & DOWN_FILTER & (n >> 8)) black |= n;
+		
+		// UP
+		n = bi;
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		//~ n |= white & UP_FILTER & (n << 8);
+		if (black & UP_FILTER & (n << 8)) black |= n;
+		
+		// UP_LEFT
+		n = bi;
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		//~ n |= white & UP_LEFT_FILTER & (n << 9);
+		if (black & UP_LEFT_FILTER & (n << 9)) black |= n;
+		
+		// DOWN_RIGHT
+		n = bi;
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		//~ n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		if (black & DOWN_RIGHT_FILTER & (n >> 9)) black |= n;
+		
+		// UP_RIGHT
+		n = bi;
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		//~ n |= white & UP_RIGHT_FILTER & (n << 7);
+		if (black & UP_RIGHT_FILTER & (n << 7)) black |= n;
+		
+		// DOWN_LEFT
+		n = bi;
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		//~ n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		if (black & DOWN_LEFT_FILTER & (n >> 7)) black |= n;
+		
+	}
+	else {
+		// LEFT
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		//~ n |= black & LEFT_FILTER & (n << 1);
+		if (white & LEFT_FILTER & (n << 1)) black &= ~n;
+		
+		// RIGHT
+		n = bi;
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		//~ n |= black & RIGHT_FILTER & (n >> 1);
+		if (white & RIGHT_FILTER & (n >> 1)) black &= ~n;
+		
+		// DOWN
+		n = bi;
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		//~ n |= black & DOWN_FILTER & (n >> 8);
+		if (white & DOWN_FILTER & (n >> 8)) black &= ~n;
+		
+		// UP
+		n = bi;
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		//~ n |= black & UP_FILTER & (n << 8);
+		if (white & UP_FILTER & (n << 8)) black &= ~n;
+		
+		// UP_LEFT
+		n = bi;
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		//~ n |= black & UP_LEFT_FILTER & (n << 9);
+		if (white & UP_LEFT_FILTER & (n << 9)) black &= ~n;
+		
+		// DOWN_RIGHT
+		n = bi;
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		//~ n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		if (white & DOWN_RIGHT_FILTER & (n >> 9)) black &= ~n;
+		
+		// UP_RIGHT
+		n = bi;
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		//~ n |= black & UP_RIGHT_FILTER & (n << 7);
+		if (white & UP_RIGHT_FILTER & (n << 7)) black &= ~n;
+		
+		// DOWN_LEFT
+		n = bi;
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		//~ n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		if (white & DOWN_LEFT_FILTER & (n >> 7)) black &= ~n;
+	}
+	return black;
+}
+
+uint64_t Board::findLegalMoves2(Side side) /*const*/ {
 	//auto start = chrono::high_resolution_clock::now();
 	
 	uint64_t moves = 0;
@@ -121,7 +317,7 @@ uint64_t Board::findLegalMoves2(Side side) {
 	return moves;
 }
 
-uint64_t Board::findLegalMoves(Side side) {
+uint64_t Board::findLegalMoves(Side side) /*const*/ {
 	//~ auto start = chrono::high_resolution_clock::now();
 	
 	uint64_t moves = 0;
@@ -241,7 +437,8 @@ uint64_t Board::findLegalMoves(Side side) {
 	return moves;
 }
 
-uint64_t Board::findLegalMoves3(Side side) {
+#if 0
+uint64_t Board::findLegalMoves3(Side side) const {
 	//~ legalMoves = findLegalMoves3(side);
 	//~ return legalMoves;
 	//auto start = chrono::high_resolution_clock::now();
@@ -608,7 +805,7 @@ uint64_t Board::findLegalMoves3(Side side) {
 	return legalMoves;
 }
 
-uint64_t Board::onlyFindLegalMoves(Side side) {
+uint64_t Board::onlyFindLegalMoves(Side side) const {
 	uint64_t legalMoves = findLegalMoves2(side);
 	return legalMoves;
 	
@@ -947,7 +1144,7 @@ uint64_t Board::onlyFindLegalMoves(Side side) {
 
 }
 
-#if 0
+
 bool Board::hasLegalMoves(Side side) {
 	//auto start = chrono::high_resolution_clock::now();
 	uint64_t legalMoves = 0;
@@ -1082,27 +1279,26 @@ bool Board::hasLegalMoves(Side side) {
 	}
 	return false;
 }
-#endif
 
 /*
  * Returns true if the game is finished; false otherwise. The game is finished 
  * if neither side has a legal move.
  */
-bool Board::isDone() {
+bool Board::isDone() const {
     return !(hasMoves(BLACK) || hasMoves(WHITE));
 }
 
 /*
  * Returns true if there are legal moves for the given side.
  */
-bool Board::hasMoves(Side side) {
+bool Board::hasMoves(Side side) const {
 	return findLegalMoves(side);
 }
 
 /*
  * Returns true if a move is legal for the given side; false otherwise.
  */
-bool Board::checkMove(int X, int Y, Side side) {
+bool Board::checkMove(int X, int Y, Side side) const {
     // Passing is only legal if you have no moves.
     if (X == -1) return !hasMoves(side);
 
@@ -1131,7 +1327,7 @@ bool Board::checkMove(int X, int Y, Side side) {
     }
     return false;
 }
-
+#endif
 /*
  * Modifies the board to reflect the specified move.
  */
@@ -1176,7 +1372,7 @@ void Board::doMove(int X, int Y, Side side) {
     PLACE_DISC(side, X, Y, taken, black);
 }
 
-Board Board::doMoveOnNewBoard2(int x, int y, Side side) {
+Board Board::doMoveOnNewBoard2(int x, int y, Side side) /*const*/ {
 	// Makes move on new board using bit operations
 	
 	// auto start = chrono::high_resolution_clock::now();
@@ -1505,7 +1701,7 @@ Board Board::doMoveOnNewBoard2(int x, int y, Side side) {
 	return Board(newtaken, newblack);
 }
 
-Board Board::doMoveOnNewBoard(int x, int y, Side side) {
+Board Board::doMoveOnNewBoard(int x, int y, Side side) /*const*/ {
 	// Makes move on new board using bit operations
 	// This leads to no jumping when converted to assembly
 	// (once we branch into side == BLACK or side == WHITE)
@@ -1705,8 +1901,206 @@ Board Board::doMoveOnNewBoard(int x, int y, Side side) {
 	return Board(newtaken, newblack);
 }
 
+Board Board::doMoveOnNewBoard(int index, Side side) /*const*/ {
+	// Makes move on new board using bit operations
+	// This leads to no jumping when converted to assembly
+	// (once we branch into side == BLACK or side == WHITE)
+	
+	//~ auto start = chrono::high_resolution_clock::now();
+	//uint64_t b = black & taken; // Should be unnecessary now
+	uint64_t white = ~black & taken;
+	//~ uint64_t empty = ~taken;
+	
+	const uint64_t bi = SINGLE_BIT[index];
+	uint64_t n = bi;
+	
+	uint64_t newtaken = taken;
+	uint64_t newblack = black;
+	
+	newtaken |= n;
+	
+	if (side == BLACK) {
+		// LEFT
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		n |= white & LEFT_FILTER & (n << 1);
+		//~ n |= white & LEFT_FILTER & (n << 1);
+		if (black & LEFT_FILTER & (n << 1)) newblack |= n;
+		
+		// RIGHT
+		n = bi;
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		n |= white & RIGHT_FILTER & (n >> 1);
+		//~ n |= white & RIGHT_FILTER & (n >> 1);
+		if (black & RIGHT_FILTER & (n >> 1)) newblack |= n;
+		
+		// DOWN
+		n = bi;
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		n |= white & DOWN_FILTER & (n >> 8);
+		//~ n |= white & DOWN_FILTER & (n >> 8);
+		if (black & DOWN_FILTER & (n >> 8)) newblack |= n;
+		
+		// UP
+		n = bi;
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		n |= white & UP_FILTER & (n << 8);
+		//~ n |= white & UP_FILTER & (n << 8);
+		if (black & UP_FILTER & (n << 8)) newblack |= n;
+		
+		// UP_LEFT
+		n = bi;
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		n |= white & UP_LEFT_FILTER & (n << 9);
+		//~ n |= white & UP_LEFT_FILTER & (n << 9);
+		if (black & UP_LEFT_FILTER & (n << 9)) newblack |= n;
+		
+		// DOWN_RIGHT
+		n = bi;
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		//~ n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+		if (black & DOWN_RIGHT_FILTER & (n >> 9)) newblack |= n;
+		
+		// UP_RIGHT
+		n = bi;
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		n |= white & UP_RIGHT_FILTER & (n << 7);
+		//~ n |= white & UP_RIGHT_FILTER & (n << 7);
+		if (black & UP_RIGHT_FILTER & (n << 7)) newblack |= n;
+		
+		// DOWN_LEFT
+		n = bi;
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		//~ n |= white & DOWN_LEFT_FILTER & (n >> 7);
+		if (black & DOWN_LEFT_FILTER & (n >> 7)) newblack |= n;
+		
+	}
+	else {
+		// LEFT
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		n |= black & LEFT_FILTER & (n << 1);
+		//~ n |= black & LEFT_FILTER & (n << 1);
+		if (white & LEFT_FILTER & (n << 1)) newblack &= ~n;
+		
+		// RIGHT
+		n = bi;
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		n |= black & RIGHT_FILTER & (n >> 1);
+		//~ n |= black & RIGHT_FILTER & (n >> 1);
+		if (white & RIGHT_FILTER & (n >> 1)) newblack &= ~n;
+		
+		// DOWN
+		n = bi;
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		n |= black & DOWN_FILTER & (n >> 8);
+		//~ n |= black & DOWN_FILTER & (n >> 8);
+		if (white & DOWN_FILTER & (n >> 8)) newblack &= ~n;
+		
+		// UP
+		n = bi;
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		n |= black & UP_FILTER & (n << 8);
+		//~ n |= black & UP_FILTER & (n << 8);
+		if (white & UP_FILTER & (n << 8)) newblack &= ~n;
+		
+		// UP_LEFT
+		n = bi;
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		n |= black & UP_LEFT_FILTER & (n << 9);
+		//~ n |= black & UP_LEFT_FILTER & (n << 9);
+		if (white & UP_LEFT_FILTER & (n << 9)) newblack &= ~n;
+		
+		// DOWN_RIGHT
+		n = bi;
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		//~ n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+		if (white & DOWN_RIGHT_FILTER & (n >> 9)) newblack &= ~n;
+		
+		// UP_RIGHT
+		n = bi;
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		n |= black & UP_RIGHT_FILTER & (n << 7);
+		//~ n |= black & UP_RIGHT_FILTER & (n << 7);
+		if (white & UP_RIGHT_FILTER & (n << 7)) newblack &= ~n;
+		
+		// DOWN_LEFT
+		n = bi;
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		//~ n |= black & DOWN_LEFT_FILTER & (n >> 7);
+		if (white & DOWN_LEFT_FILTER & (n >> 7)) newblack &= ~n;
+	}
+	//~ cerr << "DoMoveOnNewBoard3: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
+	return Board(newtaken, newblack);
+}
 
-Board Board::doMoveOnNewBoard3(int X, int Y, Side side) {
+Board Board::doMoveOnNewBoard3(int X, int Y, Side side) /*const*/ {
 	return doMoveOnNewBoard3(X, Y, side);
 	//auto start = chrono::high_resolution_clock::now();
 	// A NULL move means pass.
@@ -2207,7 +2601,7 @@ Board Board::doMoveOnNewBoard3(int X, int Y, Side side) {
  * Evaluation function. findLegalMoves must be called first to get a 
  * nonzero value.
  */
-int Board::evaluate() {
+int Board::evaluate() /*const*/ {
 	int totalCount = __builtin_popcountll(taken);
 	//~ int blackPM, whitePM; // Potential mobility
 	
@@ -2444,7 +2838,7 @@ int Board::evaluate() {
 	return ee;
 }
 
-int Board::pos_evaluate() {
+int Board::pos_evaluate() /*const*/ {
 	// auto start = chrono::high_resolution_clock::now();
 	int evaluation; // Don't touch the evaluation member variable here
 	
@@ -2545,7 +2939,7 @@ int Board::pos_evaluate() {
 /*
  * Pure greedy evaluation for test
  */
-int Board::evaluateTest() {
+int Board::evaluateTest() /*const*/ {
 	int evaluation = countBlack() - countWhite();
 	return evaluation;
 }
@@ -2553,21 +2947,21 @@ int Board::evaluateTest() {
 /*
  * Current count of given side's stones.
  */
-int Board::count(Side side) {
+int Board::count(Side side) /*const*/ {
     return (side == BLACK) ? countBlack() : countWhite();
 }
 
 /*
  * Current count of black stones.
  */
-int Board::countBlack() {
+int Board::countBlack() /*const*/ {
     return __builtin_popcountll(black & taken);
 }
 
 /*
  * Current count of white stones.
  */
-int Board::countWhite() {
+int Board::countWhite() /*const*/ {
     return __builtin_popcountll(taken & ~black);
 }
 

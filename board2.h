@@ -71,6 +71,9 @@ extern "C" int other_side(int);
 extern int *EDGE_VALUES;
 extern uint64_t SINGLE_BIT[64];
 
+um_data make_hash_data(int, int, int, int);
+uint64_t doMove(uint64_t taken, uint64_t black, Side side, int index);
+
 class Board {
    
 private:
@@ -83,26 +86,26 @@ public:
     Board();
     Board(uint64_t, uint64_t);
     
-    uint64_t findLegalMoves(Side side);
+    uint64_t findLegalMoves(Side side) ;
     uint64_t findLegalMoves2(Side side);
-    uint64_t findLegalMoves3(Side side);
-    uint64_t onlyFindLegalMoves(Side side);
-    int evaluate();
+    //~ uint64_t findLegalMoves3(Side side) const;
+    //~ uint64_t onlyFindLegalMoves(Side side) const;
+    int evaluate() ;
     int pos_evaluate();
     int evaluateTest();
      
-    // TODO: Add const
-    bool isDone();
-    bool hasMoves(Side side);
+    //~ bool isDone() const;
+    //~ bool hasMoves(Side side) const;
     //bool hasLegalMoves(Side side);
-    bool checkMove(int x, int y, Side side);
+    //~ bool checkMove(int x, int y, Side side) const;
     void doMove(int x, int y, Side side);
     Board doMoveOnNewBoard(int x, int y, Side side);
+    Board doMoveOnNewBoard(int index, Side side);
     Board doMoveOnNewBoard2(int x, int y, Side side);
     Board doMoveOnNewBoard3(int x, int y, Side side);
-    int count(Side side);
-    int countBlack();
-    int countWhite();
+    int count (Side side) ;
+    int countBlack() ;
+    int countWhite() ;
 
     void setBoard(char data[]);
 };

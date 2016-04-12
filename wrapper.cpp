@@ -8,7 +8,7 @@ using namespace std;
 
 // Global variables...I'll get rid of these if I have time
 long long globalEndgameNodeCount = 0;
-unordered_map< BoardWithSide, int > *um = new unordered_map< BoardWithSide, int >;
+unordered_map< BoardWithSide, um_data > *um = new unordered_map< BoardWithSide, um_data >;
 unordered_map< BoardWithSide, int > *um2 = new unordered_map< BoardWithSide, int >;
 unordered_map< BoardWithSide, int > *um3 = new unordered_map< BoardWithSide, int >;
 atomic_bool abortEndgameMinimax;
