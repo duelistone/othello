@@ -20,6 +20,10 @@
 #include <vector>
 #include <fstream>
 
+
+extern "C" int min(int x, int y);
+extern "C" int max(int x, int y);
+
 #define MAX(x, y) ((x) >= (y) ? (x) : (y))
 #define MIN(x, y) ((x) <= (y) ? (x) : (y))
 

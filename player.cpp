@@ -132,6 +132,8 @@ Player::Player(Side s) : side(s), currBoard(Board()) {
 Player::~Player() {
 }
 
+int abCalls = 0;
+
 int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
 /*	
 	int totalCount = __builtin_popcountll(b.taken);
@@ -154,70 +156,90 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 		}
 	}
 */
-	uint64_t legalMoves = b.findLegalMoves(s);
+	abCalls++;
+	//~ auto start = chrono::high_resolution_timer::now();
 	
 	if (depth <= 0) {
 		// Parity
 		// int parityWeight = 0;
 		return b.evaluate();// + ( totalCount % 2 ? ( s == BLACK ? parityWeight : -parityWeight) : ( s == BLACK ? -parityWeight : parityWeight ) );
 	}
+
+	uint64_t legalMoves = b.findLegalMoves(s);
 	
-	BoardWithSide bws(b.taken, b.black, s);
 	// bool saveResult = (beta - alpha > 1) ? true : false;
 	
 	// Special case
-	if (legalMoves == 0) {
+	if (!legalMoves) {
 		if (prevPass) {
 			int blacks = b.countBlack();
 			int whites = b.countWhite();
 			return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
 		}
-		return alphabeta(b, depth - 1, OTHER_SIDE(s), alpha, beta, true);
+		return alphabeta(b, depth - 1, other_side(s), alpha, beta, true);
 	}
+
+	BoardWithSide bws(b.taken, b.black, s);
 	
 	int besti = -1;
-	if (s == BLACK) {
+	if (s) {
 		int v = INT_MIN;
-		if (um->count(bws) > 0) {
+		if (depth > 5 && um->count(bws)) {
 			int guess = (*um)[bws];
-			legalMoves &= ~BIT(guess);
+			legalMoves &= ~SINGLE_BIT[guess];
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta(b2, depth - 1, OTHER_SIDE(s), alpha, beta);
+			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
 			besti = guess;
-			alpha = MAX(v, alpha);
+			alpha = max(v, alpha);
+		}
+		else {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
+			int v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			besti = index;
+			alpha = max(v, alpha);
 		}
 		while (legalMoves && alpha < beta) {	
 			int index = __builtin_clzl(legalMoves);
 			legalMoves &= ~SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta(b2, depth - 1, OTHER_SIDE(s), alpha, beta);
-			if (val > v || besti == -1) besti = index;
-			v = MAX(v, val);
-			alpha = MAX(v, alpha);
+			int val = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			if (val > v) besti = index;
+			v = max(v, val);
+			alpha = max(v, alpha);
 		}
-		if (depth > 3) (*um)[bws] = besti;
+		if (depth > 4) (*um)[bws] = besti;
 		return alpha;
 	}
 	else {
 		int v = INT_MAX;
-		if (um->count(bws) > 0) {
+		if (depth > 5 && um->count(bws)) {
 			int guess = (*um)[bws];
-			legalMoves &= ~BIT(guess);
+			legalMoves &= ~SINGLE_BIT[guess];
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta(b2, depth - 1, OTHER_SIDE(s), alpha, beta);
+			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
 			besti = guess;
-			beta = MIN(v, beta);
+			beta = min(v, beta);
+		}
+		else {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
+			int v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			besti = index;
+			beta = min(v, beta);
 		}
 		while (legalMoves && alpha < beta) {
 			int index = __builtin_clzl(legalMoves);
 			legalMoves &= ~SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta(b2, depth - 1, OTHER_SIDE(s), alpha, beta);
-			if (val < v || besti == -1) besti = index;
-			v = MIN(v, val);
-			beta = MIN(v, beta);
+			int val = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			if (val < v) besti = index;
+			v = min(v, val);
+			beta = min(v, beta);
 		}
-		if (depth > 3) (*um)[bws] = besti;
+		if (depth > 4) (*um)[bws] = besti;
 		return beta;
 	}
 	
@@ -284,18 +306,18 @@ int alphabeta2(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_M
 			int guess = (*um3)[bws];
 			legalMoves &= ~BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta2(b2, depth - 1, OTHER_SIDE(s), alpha, beta, otherDepth + 1);
+			v = alphabeta2(b2, depth - 1, other_side(s), alpha, beta, otherDepth + 1);
 			besti = guess;
-			alpha = MAX(v, alpha);
+			alpha = max(v, alpha);
 		}
 		while (legalMoves != 0 && alpha < beta) {	
 			int index = __builtin_clzl(legalMoves);
 			legalMoves &= ~SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta2(b2, depth - 1, OTHER_SIDE(s), alpha, beta, otherDepth + 1);
+			int val = alphabeta2(b2, depth - 1, other_side(s), alpha, beta, otherDepth + 1);
 			if (val > v || besti == -1) besti = index;
-			v = MAX(v, val);
-			alpha = MAX(v, alpha);
+			v = max(v, val);
+			alpha = max(v, alpha);
 		}
 		if (depth > 5) (*um3)[bws] = besti;
 		return alpha;
@@ -306,18 +328,18 @@ int alphabeta2(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_M
 			int guess = (*um3)[bws];
 			legalMoves &= ~BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta2(b2, depth - 1, OTHER_SIDE(s), alpha, beta, otherDepth + 1);
+			v = alphabeta2(b2, depth - 1, other_side(s), alpha, beta, otherDepth + 1);
 			besti = guess;
-			beta = MIN(v, beta);
+			beta = min(v, beta);
 		}
 		while (legalMoves != 0 && alpha < beta) {
 			int index = __builtin_clzl(legalMoves);
 			legalMoves &= ~SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta2(b2, depth - 1, OTHER_SIDE(s), alpha, beta, otherDepth + 1);
+			int val = alphabeta2(b2, depth - 1, other_side(s), alpha, beta, otherDepth + 1);
 			if (val < v || besti == -1) besti = index;
-			v = MIN(v, val);
-			beta = MIN(v, beta);
+			v = min(v, val);
+			beta = min(v, beta);
 		}
 		if (depth > 5) (*um3)[bws] = besti;
 		return beta;
@@ -338,7 +360,7 @@ pair<int, int> main_minimax(Board b, Side s, int depth, int guess = -1) {
 		if (guess >= 0) {
 			legalMoves &= ~BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta(b2, depth - 1, OTHER_SIDE(s));
+			v = alphabeta(b2, depth - 1, other_side(s));
 			besti = guess;
 		}
 		while (legalMoves != 0) {
@@ -351,7 +373,7 @@ pair<int, int> main_minimax(Board b, Side s, int depth, int guess = -1) {
 			legalMoves &= ~SINGLE_BIT[index];
 			
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta(b2, depth - 1, OTHER_SIDE(s), v, INT_MAX);
+			int val = alphabeta(b2, depth - 1, other_side(s), v, INT_MAX);
 			if (val > v || besti == -1) {
 				besti = index;
 				v = val;
@@ -364,7 +386,7 @@ pair<int, int> main_minimax(Board b, Side s, int depth, int guess = -1) {
 		if (guess >= 0) {
 			legalMoves &= ~BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta(b2, depth - 1, OTHER_SIDE(s));
+			v = alphabeta(b2, depth - 1, other_side(s));
 			besti = guess;
 		}
 		while (legalMoves != 0) {
@@ -377,7 +399,7 @@ pair<int, int> main_minimax(Board b, Side s, int depth, int guess = -1) {
 			legalMoves &= ~SINGLE_BIT[index];
 			
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta(b2, depth - 1, OTHER_SIDE(s), INT_MIN, v);
+			int val = alphabeta(b2, depth - 1, other_side(s), INT_MIN, v);
 			if (val < v || besti == -1) {
 				besti = index;
 				v = val;
@@ -389,8 +411,8 @@ pair<int, int> main_minimax(Board b, Side s, int depth, int guess = -1) {
 
 pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int lower, int upper) {
 	// Depth must be greater than or equal to 1
-	uint64_t legalMoves = b.findLegalMoves2(s);
-	if (legalMoves == 0) return make_pair(-1, -100); // Evaluation here has no meaning
+	uint64_t legalMoves = b.findLegalMoves(s);
+	if (!legalMoves) return make_pair(-1, -100); // Evaluation here has no meaning
 	
 	int besti = -1;
 	if (s == BLACK) {
@@ -398,20 +420,15 @@ pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int
 		if (guess >= 0) {
 			legalMoves &= ~BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta(b2, depth - 1, OTHER_SIDE(s), lower, upper);
+			v = alphabeta(b2, depth - 1, other_side(s), lower, upper);
 			besti = guess;
 		}
-		while (legalMoves != 0) {
-			//int secondsPast = chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - start).count();
-			// Questionable
-			//if (secondsPast >= 30 && depth > 10) depth--;
-			//if (secondsPast >= 60) break;
-			
+		while (legalMoves) {
 			int index = __builtin_clzl(legalMoves);
 			legalMoves &= ~SINGLE_BIT[index];
 			
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta(b2, depth - 1, OTHER_SIDE(s), MAX(v, lower), upper);
+			int val = alphabeta(b2, depth - 1, other_side(s), max(v, lower), upper);
 			if (val > v || besti == -1) {
 				besti = index;
 				v = val;
@@ -424,20 +441,15 @@ pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int
 		if (guess >= 0) {
 			legalMoves &= ~BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta(b2, depth - 1, OTHER_SIDE(s), lower, upper);
+			v = alphabeta(b2, depth - 1, other_side(s), lower, upper);
 			besti = guess;
 		}
-		while (legalMoves != 0) {
-			//int secondsPast = chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - start).count();
-			// Questionable
-			//if (secondsPast > 30 && depth > 10) {depth--;}
-			//if (secondsPast > 60) {break;}
-			
+		while (legalMoves) {
 			int index = __builtin_clzl(legalMoves);
 			legalMoves &= ~SINGLE_BIT[index];
 			
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta(b2, depth - 1, OTHER_SIDE(s), lower, MIN(v, upper));
+			int val = alphabeta(b2, depth - 1, other_side(s), lower, min(v, upper));
 			if (val < v || besti == -1) {
 				besti = index;
 				v = val;
@@ -450,7 +462,7 @@ pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int
 pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	// DEPTH CANNOT BE ZERO!
 	int besti, e;
-	pair<int, int> result = main_minimax(b, s, depth - 4);
+	pair<int, int> result = main_minimax_aw_helper(b, s, depth - 4, -1, INT_MIN, INT_MAX);
 	besti = result.first;
 	e = result.second;
 	cerr << "Finished depth " << depth - 4 << " search: " << e << endl;
@@ -510,7 +522,7 @@ pair<int, int> main_minimax2(Board b, Side s, int depth, int guess = -1) {
 		if (guess >= 0) {
 			legalMoves &= ~BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta2(b2, depth - 1, OTHER_SIDE(s));
+			v = alphabeta2(b2, depth - 1, other_side(s));
 			besti = guess;
 		}
 		while (legalMoves != 0) {		
@@ -518,7 +530,7 @@ pair<int, int> main_minimax2(Board b, Side s, int depth, int guess = -1) {
 			legalMoves &= ~SINGLE_BIT[index];
 			
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta2(b2, depth - 1, OTHER_SIDE(s), v, INT_MAX);
+			int val = alphabeta2(b2, depth - 1, other_side(s), v, INT_MAX);
 			if (val > v || besti == -1) {
 				besti = index;
 				v = val;
@@ -531,7 +543,7 @@ pair<int, int> main_minimax2(Board b, Side s, int depth, int guess = -1) {
 		if (guess >= 0) {
 			legalMoves &= ~BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta2(b2, depth - 1, OTHER_SIDE(s));
+			v = alphabeta2(b2, depth - 1, other_side(s));
 			besti = guess;
 		}
 		while (legalMoves != 0) {
@@ -539,7 +551,7 @@ pair<int, int> main_minimax2(Board b, Side s, int depth, int guess = -1) {
 			legalMoves &= ~SINGLE_BIT[index];
 			
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta2(b2, depth - 1, OTHER_SIDE(s), INT_MIN, v);
+			int val = alphabeta2(b2, depth - 1, other_side(s), INT_MIN, v);
 			if (val < v || besti == -1) {
 				besti = index;
 				v = val;
@@ -578,21 +590,21 @@ int mobility_minimax_with_depth(Board b, Side s, int depth, int threshold = THRE
 			
 				int pos_eval = b2.pos_evaluate();
 				if (s == BLACK && pos_eval > threshold && depth <= 8) {
-					uint64_t lm2 = b2.findLegalMoves(OTHER_SIDE(s));
+					uint64_t lm2 = b2.findLegalMoves(other_side(s));
 					if (__builtin_popcountll(lm2) <= numLegalMoves) {
 						return INT_MAX;
 					}
 				}
 				if (s == BLACK && pos_eval < -threshold) continue;
 				if (s == WHITE && pos_eval < -threshold && depth <= 8) {
-					uint64_t lm2 = b2.findLegalMoves(OTHER_SIDE(s));
+					uint64_t lm2 = b2.findLegalMoves(other_side(s));
 					if (__builtin_popcountll(lm2) <= numLegalMoves) {
 						return INT_MAX;
 					}
 				}
 				if (s == WHITE && pos_eval > threshold) continue;
 			
-			int eval = mobility_minimax_with_depth(b2, OTHER_SIDE(s), depth - 1);
+			int eval = mobility_minimax_with_depth(b2, other_side(s), depth - 1);
 			if (eval == INT_MAX) return INT_MAX;
 		}
 		return INT_MIN;
@@ -612,13 +624,13 @@ int mobility_minimax_with_depth(Board b, Side s, int depth, int threshold = THRE
 				
 				int pos_eval = b2.pos_evaluate();
 				if (s == BLACK && pos_eval > threshold && depth <= 8) {
-					uint64_t lm2 = b2.findLegalMoves(OTHER_SIDE(s));
+					uint64_t lm2 = b2.findLegalMoves(other_side(s));
 					if (__builtin_popcountll(lm2) <= numLegalMoves) {
 						return INT_MAX;
 					}
 				}
 				if (s == WHITE && pos_eval < -threshold && depth <= 8) {
-					uint64_t lm2 = b2.findLegalMoves(OTHER_SIDE(s));
+					uint64_t lm2 = b2.findLegalMoves(other_side(s));
 					if (__builtin_popcountll(lm2) <= numLegalMoves) {
 						return INT_MAX;
 					}
@@ -626,7 +638,7 @@ int mobility_minimax_with_depth(Board b, Side s, int depth, int threshold = THRE
 				if (s == BLACK && pos_eval < -threshold) continue;
 				if (s == WHITE && pos_eval > threshold) continue;
 				
-			int eval = mobility_minimax_with_depth(b2, OTHER_SIDE(s), depth - 1);
+			int eval = mobility_minimax_with_depth(b2, other_side(s), depth - 1);
 			if (eval == INT_MIN) return INT_MIN;
 		}
 		return INT_MAX;
@@ -650,7 +662,7 @@ int pure_mobility_minimax_with_depth(Board b, Side s, int depth) {
 			int index = __builtin_clzl(lm);
 			lm &= ~SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int eval = pure_mobility_minimax_with_depth(b2, OTHER_SIDE(s), depth - 1);
+			int eval = pure_mobility_minimax_with_depth(b2, other_side(s), depth - 1);
 			if (eval == INT_MAX) return INT_MAX;
 		}
 		return INT_MIN;
@@ -662,7 +674,7 @@ int pure_mobility_minimax_with_depth(Board b, Side s, int depth) {
 			int index = __builtin_clzl(lm);
 			lm &= ~SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int eval = pure_mobility_minimax_with_depth(b2, OTHER_SIDE(s), depth - 1);
+			int eval = pure_mobility_minimax_with_depth(b2, other_side(s), depth - 1);
 			if (eval == INT_MIN) return INT_MIN;
 		}
 		return INT_MAX;
@@ -681,7 +693,7 @@ pair<int, int> mobility_minimax(Board b, Side s, int maxDepth = 15) {
 			lm &= ~SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
 			auto start = chrono::high_resolution_clock::now();
-			int eval = mobility_minimax_with_depth(b2, OTHER_SIDE(s), d - 1, THRESHOLD);
+			int eval = mobility_minimax_with_depth(b2, other_side(s), d - 1, THRESHOLD);
 			cerr << d - 1 << ' ' << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 			if (eval == INT_MAX) return make_pair(index, (s == BLACK) ? INT_MAX : INT_MIN);
 		}
@@ -719,10 +731,10 @@ int endgame_alphabeta(Board b, Side s, int alpha = INT_MIN, int beta = INT_MAX) 
 		else return 0;
 	}
 	
-	uint64_t legalMoves = b.onlyFindLegalMoves(s);
+	uint64_t legalMoves = b.findLegalMoves(s);
 	
 	if (legalMoves == 0) {
-		uint64_t legalMovesOther = b.onlyFindLegalMoves(OTHER_SIDE(s));
+		uint64_t legalMovesOther = b.findLegalMoves(other_side(s));
 		if (legalMovesOther == 0) {
 			globalEndgameNodeCount++;
 			//if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
@@ -733,7 +745,7 @@ int endgame_alphabeta(Board b, Side s, int alpha = INT_MIN, int beta = INT_MAX) 
 			else if (diff < 0) return INT_MIN;
 			else return 0;
 		}
-		int ret = endgame_alphabeta(b, OTHER_SIDE(s));
+		int ret = endgame_alphabeta(b, other_side(s));
 		if (um2->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD) {
 			(*um2)[bws] = ret;
 		}
@@ -747,9 +759,9 @@ int endgame_alphabeta(Board b, Side s, int alpha = INT_MIN, int beta = INT_MAX) 
 			legalMoves &= ~SINGLE_BIT[index];
 			dmonb++;
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = endgame_alphabeta(b2, OTHER_SIDE(s), alpha, beta);
-			v = MAX(v, val);
-			alpha = MAX(v, alpha);
+			int val = endgame_alphabeta(b2, other_side(s), alpha, beta);
+			v = max(v, val);
+			alpha = max(v, alpha);
 			if (beta <= alpha) break;
 		}
 	}
@@ -760,9 +772,9 @@ int endgame_alphabeta(Board b, Side s, int alpha = INT_MIN, int beta = INT_MAX) 
 			legalMoves &= ~SINGLE_BIT[index];
 			dmonb++;
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = endgame_alphabeta(b2, OTHER_SIDE(s), alpha, beta);
-			v = MIN(v, val);
-			beta = MIN(v, beta);
+			int val = endgame_alphabeta(b2, other_side(s), alpha, beta);
+			v = min(v, val);
+			beta = min(v, beta);
 			if (beta <= alpha) break;
 		}
 	}
@@ -775,7 +787,7 @@ int endgame_alphabeta(Board b, Side s, int alpha = INT_MIN, int beta = INT_MAX) 
 }
 
 pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
-	uint64_t legalMoves = b.onlyFindLegalMoves(s);
+	uint64_t legalMoves = b.findLegalMoves(s);
 	if (legalMoves == 0) return make_pair(-1, -10000); // Second value is meaningless here
 	
 	int besti = -1;
@@ -785,7 +797,7 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
 		if (guess > -1) {
 			legalMoves &= ~BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			int val = endgame_alphabeta(b2, OTHER_SIDE(s), v, INT_MAX);
+			int val = endgame_alphabeta(b2, other_side(s), v, INT_MAX);
 			besti = guess;
 			v = val;
 		}
@@ -794,7 +806,7 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
 			legalMoves &= ~SINGLE_BIT[index];
 			
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = endgame_alphabeta(b2, OTHER_SIDE(s), v, INT_MAX);
+			int val = endgame_alphabeta(b2, other_side(s), v, INT_MAX);
 			if (val > v) {
 				besti = index;
 				v = val;
@@ -806,7 +818,7 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
 		if (guess > -1) {
 			legalMoves &= ~BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			int val = endgame_alphabeta(b2, OTHER_SIDE(s), INT_MIN, v);
+			int val = endgame_alphabeta(b2, other_side(s), INT_MIN, v);
 			besti = guess;
 			v = val;
 		}
@@ -815,7 +827,7 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
 			legalMoves &= ~SINGLE_BIT[index];
 			
 			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = endgame_alphabeta(b2, OTHER_SIDE(s), INT_MIN, v);
+			int val = endgame_alphabeta(b2, other_side(s), INT_MIN, v);
 			if (val < v) {
 				besti = index;
 				v = val;
@@ -839,15 +851,16 @@ bool gameSolved = false;
  * The move returned must be legal; if there are no valid moves for your side,
  * return NULL.
  */
-Move *Player::doMove(Move *opponentsMove, int msLeft) {        
+Move *Player::doMove(Move *opponentsMove, int msLeft) {
     // Set minutesForMove to half the amount of time left
     if (msLeft > 0) minutesForMove = msLeft / 60.0 / 1000 / 2;
     
     if (opponentsMove != NULL) {
-		currBoard = currBoard.doMoveOnNewBoard(opponentsMove->x, opponentsMove->y, OTHER_SIDE(side));
+		currBoard = currBoard.doMoveOnNewBoard(opponentsMove->x, opponentsMove->y, other_side(side));
 	}
     
-    if (currBoard.findLegalMoves(side) == 0) return NULL;
+    uint64_t legalMoves = currBoard.findLegalMoves(side);
+    if (!legalMoves) return NULL;
     
     //int pm_black, pm_white;
     //currBoard.findLegalMoves(BLACK);
@@ -866,7 +879,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	}
 	else if (totalCount == 5) {
 		// Choose diagonal opening
-		int index = __builtin_clzl(currBoard.legalMoves & (BIT(18) | BIT(21) | BIT(42) | BIT(45)));
+		int index = __builtin_clzl(legalMoves & (BIT(18) | BIT(21) | BIT(42) | BIT(45)));
 		int x = FROM_INDEX_X(index);
 		int y = FROM_INDEX_Y(index);
 		if (x == -1) return NULL;
@@ -897,6 +910,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	
     // Set counter, reset abort variables
     globalEndgameNodeCount = 0;
+    abCalls = 0;
     abortEndgameMinimax = false;
     abortSide = side;
     
@@ -949,7 +963,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     
     // Output some useful info and return (remove for more speed)
-    cerr << totalCount + 1 << " eval: " << eval << endl;
+    cerr << totalCount + 1 << " eval: " << eval << ' ' << abCalls << endl;
 	if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount << ' ' << dmonb << endl;
 	// if (um->size() > MAX_HASH_SIZE) um->clear(); // Don't want to lose due to too much memory!
 	

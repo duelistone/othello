@@ -1,12 +1,12 @@
 CC          = g++
 CFLAGS      = -Wall -O3 -msse2 -march=corei7 -ansi -pedantic -ggdb -std=c++14 -pthread
-OBJS        = player.o board2.o
+OBJS        = player.o board2.o 
 PLAYERNAME  = duelist
 
 all: $(PLAYERNAME) testgame
 	
-$(PLAYERNAME): $(OBJS) wrapper.o
-	$(CC) -o $@ $^ -pthread
+$(PLAYERNAME): $(OBJS) wrapper.o 
+	$(CC) -o $@ math.o $^ -pthread
 
 testgame: testgame.o 
 	$(CC) -o $@ $^ -pthread

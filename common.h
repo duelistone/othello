@@ -1,9 +1,10 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
-enum Side { 
-    WHITE, BLACK
-};
+#define BLACK 1
+#define WHITE 0
+
+typedef int Side;
 
 class Move {
    

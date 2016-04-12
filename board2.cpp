@@ -3,7 +3,7 @@
 /*
  * Make a standard 8x8 othello board and initialize it to the standard setup.
  */
-Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), potentialMobility(0), evaluation(0) {
+Board::Board() : taken(0), black(0) {
     OCCUPY_WHITE(3 + 8 * 3, taken, black);
     OCCUPY_BLACK(3 + 8 * 4, taken, black);
     OCCUPY_BLACK(4 + 8 * 3, taken, black);
@@ -14,7 +14,7 @@ Board::Board() : taken(0), black(0), legalMovesComputed(false), legalMoves(0), p
 /*
  * Make a board given a taken and black uint64_t.
  */
-Board::Board(uint64_t t, uint64_t b) : taken(t), black(b), legalMovesComputed(false), legalMoves(0), potentialMobility(0), evaluation(0) {}
+Board::Board(uint64_t t, uint64_t b) : taken(t), black(b) {}
 
 uint64_t Board::findLegalMoves2(Side side) {
 	//auto start = chrono::high_resolution_clock::now();
@@ -237,7 +237,6 @@ uint64_t Board::findLegalMoves(Side side) {
 	
 	moves |= empty & DOWN_LEFT_FILTER & (t >> 7);
 	
-	legalMoves = moves;
 	//~ cerr << "LM time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<< endl;
 	return moves;
 }
@@ -246,8 +245,8 @@ uint64_t Board::findLegalMoves3(Side side) {
 	//~ legalMoves = findLegalMoves3(side);
 	//~ return legalMoves;
 	//auto start = chrono::high_resolution_clock::now();
-	legalMoves = 0;
-	potentialMobility = 0;
+	uint64_t legalMoves = 0;
+	int potentialMobility = 0;
 	uint64_t empty = black & ~taken;
 	uint64_t b = black & taken;
 	uint64_t white = ~black & taken;
@@ -605,12 +604,12 @@ uint64_t Board::findLegalMoves3(Side side) {
 		}
 	}
 	//cerr << "LM time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<< endl;
-	legalMovesComputed = true;
+	//~ legalMovesComputed = true;
 	return legalMoves;
 }
 
 uint64_t Board::onlyFindLegalMoves(Side side) {
-	legalMoves = findLegalMoves2(side);
+	uint64_t legalMoves = findLegalMoves2(side);
 	return legalMoves;
 	
 	//auto start = chrono::high_resolution_clock::now();
@@ -951,7 +950,7 @@ uint64_t Board::onlyFindLegalMoves(Side side) {
 #if 0
 bool Board::hasLegalMoves(Side side) {
 	//auto start = chrono::high_resolution_clock::now();
-	legalMoves = 0;
+	uint64_t legalMoves = 0;
 	uint64_t empty = black & ~taken;
 	
 	while (empty != 0) {
@@ -961,7 +960,7 @@ bool Board::hasLegalMoves(Side side) {
 		int Y = FROM_INDEX_Y(index);
 
 		// Else, check if legal move
-		Side other = OTHER_SIDE(side);
+		Side other = other_side(side);
 		
 		int dx, dy, x, y;
 		
@@ -1097,8 +1096,7 @@ bool Board::isDone() {
  * Returns true if there are legal moves for the given side.
  */
 bool Board::hasMoves(Side side) {
-	findLegalMoves(side);
-	return legalMoves != 0;
+	return findLegalMoves(side);
 }
 
 /*
@@ -2218,11 +2216,11 @@ int Board::evaluate() {
 	
 	// Game over if no discs left
 	if (!white) {
-		evaluation = INT_MAX;
+		//~ evaluation = INT_MAX;
 		return INT_MAX;
 	}
 	else if (!black) {
-		evaluation = INT_MIN;
+		//~ evaluation = INT_MIN;
 		return INT_MIN;
 	}
 	
@@ -2237,10 +2235,10 @@ int Board::evaluate() {
 		//int edgePenalty = 5;
 		//cerr << "Evaluation time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;	
 		// Computations
-		findLegalMoves(BLACK);
+		uint64_t legalMoves = findLegalMoves(BLACK);
 		//blackPM = potentialMobility;
 		int blackMoves = __builtin_popcountll(legalMoves);
-		findLegalMoves(WHITE);
+		legalMoves = findLegalMoves(WHITE);
 		//whitePM = potentialMobility;
 		//auto start2 = chrono::high_resolution_clock::now();
 		// cerr << "Evaluation time LM + PM: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
@@ -2442,7 +2440,7 @@ int Board::evaluate() {
 		ee = countBlack() - countWhite();
 	}
 	//if (totalCount > 20) 
-	evaluation = ee;
+	//~ evaluation = ee;
 	return ee;
 }
 
@@ -2548,7 +2546,7 @@ int Board::pos_evaluate() {
  * Pure greedy evaluation for test
  */
 int Board::evaluateTest() {
-	evaluation = countBlack() - countWhite();
+	int evaluation = countBlack() - countWhite();
 	return evaluation;
 }
 

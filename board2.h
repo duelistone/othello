@@ -26,7 +26,7 @@
 #define PLACE_DISC(side, x, y, t, b) {(t) |= BIT(TO_INDEX(x, y)); if ((side) == BLACK) (b) |= BIT(TO_INDEX(x, y)); else (b) &= ~BIT(TO_INDEX(x, y));}
 #define FROM_INDEX_X(index) ((index) % 8)
 #define FROM_INDEX_Y(index) ((index) / 8)
-#define OTHER_SIDE(side) (side == BLACK ? WHITE : BLACK)
+#define OTHER_SIDE(side) ((int) (!(side)))
 #define CORNER_TL (BIT(0))
 #define CORNER_TR (BIT(7))
 #define CORNER_BL (BIT(56))
@@ -66,6 +66,8 @@
 
 using namespace std;
 
+extern "C" int other_side(int);
+
 extern int *EDGE_VALUES;
 extern uint64_t SINGLE_BIT[64];
 
@@ -77,10 +79,6 @@ private:
 public:
     uint64_t taken;
 	uint64_t black;
-    bool legalMovesComputed;
-    uint64_t legalMoves;
-    int potentialMobility;
-    int evaluation;
     
     Board();
     Board(uint64_t, uint64_t);
@@ -93,6 +91,7 @@ public:
     int pos_evaluate();
     int evaluateTest();
      
+    // TODO: Add const
     bool isDone();
     bool hasMoves(Side side);
     //bool hasLegalMoves(Side side);
