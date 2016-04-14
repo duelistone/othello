@@ -346,7 +346,6 @@ uint64_t Board::findLegalMoves(Side side) /*const*/ {
 	t |= (w & (t >> 1));
 	t |= (w & (t >> 1));
 	//~ t |= (w & (t >> 1));
-	
 	moves |= empty & RIGHT_FILTER & (t >> 1);
 	
 	// LEFT
@@ -438,7 +437,7 @@ uint64_t Board::findLegalMoves(Side side) /*const*/ {
 }
 
 #if 0
-uint64_t Board::findLegalMoves3(Side side) const {
+uint64_t Board::findLegalMoves3(Side side) /*const*/ {
 	//~ legalMoves = findLegalMoves3(side);
 	//~ return legalMoves;
 	//auto start = chrono::high_resolution_clock::now();
@@ -1701,6 +1700,7 @@ Board Board::doMoveOnNewBoard2(int x, int y, Side side) /*const*/ {
 	return Board(newtaken, newblack);
 }
 
+#if 0
 Board Board::doMoveOnNewBoard(int x, int y, Side side) /*const*/ {
 	// Makes move on new board using bit operations
 	// This leads to no jumping when converted to assembly
@@ -1900,11 +1900,14 @@ Board Board::doMoveOnNewBoard(int x, int y, Side side) /*const*/ {
 	//~ cerr << "DoMoveOnNewBoard3: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
 	return Board(newtaken, newblack);
 }
+#endif
 
 Board Board::doMoveOnNewBoard(int index, Side side) /*const*/ {
 	// Makes move on new board using bit operations
 	// This leads to no jumping when converted to assembly
 	// (once we branch into side == BLACK or side == WHITE)
+	
+	//~ assert(SINGLE_BIT[index] & findLegalMoves(side));
 	
 	//~ auto start = chrono::high_resolution_clock::now();
 	//uint64_t b = black & taken; // Should be unnecessary now
@@ -2836,6 +2839,14 @@ int Board::evaluate() /*const*/ {
 	//if (totalCount > 20) 
 	//~ evaluation = ee;
 	return ee;
+}
+
+int Board::evaluate_mobility() {
+	uint64_t legalMoves = findLegalMoves(BLACK);
+	int blackMoves = __builtin_popcountll(legalMoves);
+	legalMoves = findLegalMoves(WHITE);
+	int whiteMoves = __builtin_popcountll(legalMoves);		
+	return 15 * 4 * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2);
 }
 
 int Board::pos_evaluate() /*const*/ {

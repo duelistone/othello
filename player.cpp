@@ -135,38 +135,225 @@ Player::~Player() {
 int abCalls = 0;
 
 int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
-/*	
-	int totalCount = __builtin_popcountll(b.taken);
-	int bound;
-	
-	if (depth == PROB_CUT_DEPTH2 && totalCount <= 50) {
-		if (beta < 500) {
-			bound = round(PERCENTILE * SIGMA + beta);
-			if (alphabeta(b, PROB_CUT_DEPTH1, s, bound - 1, bound) >= bound) {
-				return beta;
-			}
-		}
-		
-		if (alpha > -500) {
-			bound = round(-PERCENTILE * SIGMA + alpha);
-			if (alphabeta(b, PROB_CUT_DEPTH1, s, bound, bound + 1) <= bound) {
-				return alpha;
-			}
-		}
-	}
-*/
 	abCalls++;
-	//~ auto start = chrono::high_resolution_timer::now();
 	
 	if (depth <= 0) {
-		// Parity
-		// int parityWeight = 0;
-		return b.evaluate();// + ( totalCount % 2 ? ( s == BLACK ? parityWeight : -parityWeight) : ( s == BLACK ? -parityWeight : parityWeight ) );
+		return b.evaluate();
 	}
 
 	uint64_t legalMoves = b.findLegalMoves(s);
 	
-	// bool saveResult = (beta - alpha > 1) ? true : false;
+	BoardWithSide bws(b.taken, b.black, s);
+	// Special case
+	if (!legalMoves) {
+		if (prevPass) {
+			int blacks = b.countBlack();
+			int whites = b.countWhite();
+			return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
+		}
+		if (um4->count(bws) == 0) (*um4)[bws] = -1;
+		return alphabeta(b, depth - 1, other_side(s), alpha, beta, true);
+	}
+
+	
+	int besti = -1;
+	if (depth > 3 && s) {
+			//~ int origAlpha = alpha;
+			int v = INT_MIN;
+			if (um4->count(bws)) {
+				int guess = (*um4)[bws];
+				legalMoves ^= SINGLE_BIT[guess];
+				v = alphabeta(b.doMoveOnNewBoard(guess, s), depth - 1, other_side(s), alpha, beta);
+				besti = -1;
+				alpha = max(v, alpha);
+			}
+			else {
+				int index = __builtin_clzl(legalMoves);
+				legalMoves ^= SINGLE_BIT[index];
+				v = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta);
+				besti = index;
+				alpha = max(v, alpha);
+			}
+			while (legalMoves && alpha < beta) {	
+				int index = __builtin_clzl(legalMoves);
+				legalMoves ^= SINGLE_BIT[index];
+				int val = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta);
+				besti = (val > v) ? index : besti;
+				v = max(v, val);
+				alpha = max(v, alpha);
+			}
+			if (besti != -1) {
+				(*um4)[bws] = besti;
+			}
+			return alpha;
+	}
+	else if (depth > 3) {
+			//~ int origBeta = beta;
+			int v = INT_MAX;
+			if (um4->count(bws)) {
+				int guess = (*um4)[bws];
+				legalMoves ^= SINGLE_BIT[guess];
+				v = alphabeta(b.doMoveOnNewBoard(guess, s), depth - 1, other_side(s), alpha, beta);
+				besti = -1;
+				beta = min(v, beta);
+			}
+			else {
+				int index = __builtin_clzl(legalMoves);
+				legalMoves ^= SINGLE_BIT[index];
+				v = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta);
+				besti = index;
+				beta = min(v, beta);
+			}
+			while (legalMoves && alpha < beta) {
+				int index = __builtin_clzl(legalMoves);
+				legalMoves ^= SINGLE_BIT[index];
+				int val = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta);
+				besti = (val < v) ? index : besti;
+				v = min(v, val);
+				beta = min(v, beta);
+			}
+			if (besti != -1) {
+				(*um4)[bws] = besti;
+			}
+			return beta;
+	}
+	else if (s) {
+			int v = INT_MIN;
+			int index = __builtin_clzl(legalMoves);
+			legalMoves ^= SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			alpha = max(v, alpha);
+			while (legalMoves && alpha < beta) {	
+				int index = __builtin_clzl(legalMoves);
+				legalMoves ^= SINGLE_BIT[index];
+				v = max(v, alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta));
+				alpha = max(v, alpha);
+			}
+			return alpha;
+	}
+	else {
+			//~ int origBeta = beta;
+			int v = INT_MAX;
+			int index = __builtin_clzl(legalMoves);
+			legalMoves ^= SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			beta = min(v, beta);			
+			while (legalMoves && alpha < beta) {
+				int index = __builtin_clzl(legalMoves);
+				legalMoves ^= SINGLE_BIT[index];
+				v = min(v, alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta));
+				beta = min(v, beta);
+			}
+			return beta;
+	}
+}
+
+int alphabeta_odd(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
+	abCalls++;
+	//~ auto start = chrono::high_resolution_timer::now();
+	
+	if (depth <= 0) {
+		return b.evaluate();
+	}
+
+	uint64_t legalMoves = b.findLegalMoves(s);
+	
+	BoardWithSide bws(b.taken, b.black, s);
+	// Special case
+	if (!legalMoves) {
+		if (prevPass) {
+			int blacks = b.countBlack();
+			int whites = b.countWhite();
+			return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
+		}
+		(*um3)[bws] = -1;
+		return alphabeta(b, depth - 1, other_side(s), alpha, beta, true);
+	}
+
+	
+	int besti = -1;
+	if (s) {
+		//~ int origAlpha = alpha;
+		int v = INT_MIN;
+		if (um3->count(bws)) {
+			int guess = (*um3)[bws];
+			legalMoves &= ~SINGLE_BIT[guess];
+			Board b2 = b.doMoveOnNewBoard(guess, s);
+			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			besti = guess;
+			alpha = max(v, alpha);
+		}
+		else {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			besti = index;
+			alpha = max(v, alpha);
+		}
+		while (legalMoves && alpha < beta) {	
+			int index = __builtin_clzl(legalMoves);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			int val = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			if (val > v) besti = index;
+			if (val > v && depth == 13) cerr << besti << endl;
+			v = max(v, val);
+			alpha = max(v, alpha);
+		}
+		if (depth > 3) {
+			(*um3)[bws] = besti;
+		}
+		return alpha;
+	}
+	else {
+		//~ int origBeta = beta;
+		int v = INT_MAX;
+		if (um3->count(bws)) {
+			int guess = (*um3)[bws];
+			legalMoves &= ~SINGLE_BIT[guess];
+			Board b2 = b.doMoveOnNewBoard(guess, s);
+			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			besti = guess;
+			beta = min(v, beta);
+		}
+		else {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			besti = index;
+			beta = min(v, beta);
+		}
+		while (legalMoves && alpha < beta) {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			int val = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			if (val < v) besti = index;
+			if (val < v && depth == 13) cerr << besti << endl;
+			v = min(v, val);
+			beta = min(v, beta);
+		}
+		if (depth > 3) {
+			(*um3)[bws] = besti;
+		}
+		return beta;
+	}
+	
+}
+
+int alphabeta_wide(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
+	abCalls++;
+	
+	if (depth <= 0) {
+		//~ if (b.evaluate() == INT_MIN) cerr << INT_MIN << endl;
+		return b.evaluate();
+	}
+
+	uint64_t legalMoves = b.findLegalMoves(s);
 	
 	// Special case
 	if (!legalMoves) {
@@ -175,7 +362,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			int whites = b.countWhite();
 			return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
 		}
-		return alphabeta(b, depth - 1, other_side(s), alpha, beta, true);
+		return alphabeta_wide(b, depth - 1, other_side(s), alpha, beta, true);
 	}
 
 	BoardWithSide bws(b.taken, b.black, s);
@@ -186,31 +373,34 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 		int v = INT_MIN;
 		if (depth > 5 && um->count(bws)) {
 			int guess = (*um)[bws].best;
+			//~ assert(SINGLE_BIT[guess] & b.findLegalMoves(s));
 			legalMoves &= ~SINGLE_BIT[guess];
-			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			Board b2 = b.doMoveOnNewBoard(guess, s);
+			v = alphabeta_wide(b2, depth - 1, other_side(s), (alpha != INT_MIN) ? alpha - 1 : alpha, beta);
 			besti = guess;
 			alpha = max(v, alpha);
 		}
 		else {
 			int index = __builtin_clzl(legalMoves);
+			//~ assert(SINGLE_BIT[index] & b.findLegalMoves(s));
 			legalMoves &= ~SINGLE_BIT[index];
-			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			v = alphabeta_wide(b2, depth - 1, other_side(s), (alpha != INT_MIN) ? alpha - 1 : alpha, beta);
 			besti = index;
 			alpha = max(v, alpha);
 		}
 		while (legalMoves && alpha < beta) {	
 			int index = __builtin_clzl(legalMoves);
+			//~ assert(SINGLE_BIT[index] & b.findLegalMoves(s));
 			legalMoves &= ~SINGLE_BIT[index];
-			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			int val = alphabeta_wide(b2, depth - 1, other_side(s), (alpha != INT_MIN) ? alpha - 1 : alpha, beta);
 			if (val > v) besti = index;
 			v = max(v, val);
 			alpha = max(v, alpha);
 		}
-		if (depth > 4) {
-			(*um)[bws] = make_hash_data(alpha, besti, origAlpha, beta);
+		if (depth > 3) {
+			(*um)[bws] = make_hash_data(alpha, besti, (origAlpha != INT_MIN) ? origAlpha - 1 : origAlpha, beta);
 		}
 		return alpha;
 	}
@@ -219,79 +409,214 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 		int v = INT_MAX;
 		if (depth > 5 && um->count(bws)) {
 			int guess = (*um)[bws].best;
+			//~ assert(SINGLE_BIT[guess] & b.findLegalMoves(s));
 			legalMoves &= ~SINGLE_BIT[guess];
-			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(guess), FROM_INDEX_Y(guess), s);
-			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			Board b2 = b.doMoveOnNewBoard(guess, s);
+			v = alphabeta_wide(b2, depth - 1, other_side(s), alpha, (beta != INT_MAX) ? beta + 1 : beta);
 			besti = guess;
 			beta = min(v, beta);
 		}
 		else {
 			int index = __builtin_clzl(legalMoves);
+			//~ assert(SINGLE_BIT[index] & b.findLegalMoves(s));
 			legalMoves &= ~SINGLE_BIT[index];
-			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			v = alphabeta_wide(b2, depth - 1, other_side(s), alpha, (beta != INT_MAX) ? beta + 1 : beta);
 			besti = index;
 			beta = min(v, beta);
 		}
 		while (legalMoves && alpha < beta) {
 			int index = __builtin_clzl(legalMoves);
+			//~ assert(SINGLE_BIT[index] & b.findLegalMoves(s));
 			legalMoves &= ~SINGLE_BIT[index];
-			Board b2 = b.doMoveOnNewBoard(FROM_INDEX_X(index), FROM_INDEX_Y(index), s);
-			int val = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			int val = alphabeta_wide(b2, depth - 1, other_side(s), alpha, (beta != INT_MAX) ? beta + 1 : beta);
 			if (val < v) besti = index;
 			v = min(v, val);
 			beta = min(v, beta);
 		}
-		if (depth > 4) {
-			(*um)[bws] = make_hash_data(alpha, besti, alpha, origBeta);
+		if (depth > 3) {
+			(*um)[bws] = make_hash_data(beta, besti, alpha, (origBeta != INT_MAX) ? origBeta + 1 : origBeta);
 		}
 		return beta;
 	}
 	
 }
 
-
-int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
-	
-	//~ bool betterMove = false;
-/*	
-	int totalCount = __builtin_popcountll(b.taken);
-
-	int bound;
-	
-	if (depth == PROB_CUT_DEPTH2 && totalCount <= 50) {
-		if (beta < 500) {
-			bound = round(PERCENTILE * SIGMA + beta);
-			if (pvs(b, PROB_CUT_DEPTH1, s, bound - 1, bound) >= bound) {
-				return beta;
-			}
-		}
-		
-		if (alpha > -500) {
-			bound = round(-PERCENTILE * SIGMA + alpha);
-			if (pvs(b, PROB_CUT_DEPTH1, s, bound, bound + 1) <= bound) {
-				return alpha;
-			}
-		}
-	}
-*/
+int alphabeta_pure(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
 	abCalls++;
-	//~ int origAlpha = alpha;
-	//~ int origBeta = beta;
-	//~ auto start = chrono::high_resolution_clock::now();
-	
+	//~ cerr << depth << endl;
 	if (depth <= 0) {
-		// Parity
-		// int parityWeight = 0;
-		return b.evaluate();// + ( totalCount % 2 ? ( s == BLACK ? parityWeight : -parityWeight) : ( s == BLACK ? -parityWeight : parityWeight ) );
+		return b.evaluate();
 	}
 
 	uint64_t legalMoves = b.findLegalMoves(s);
-	uint64_t legalMoves2 = legalMoves;
 	
+	// Special case
+	if (!legalMoves) {
+		if (prevPass) {
+			int blacks = b.countBlack();
+			int whites = b.countWhite();
+			return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
+		}
+		return alphabeta_pure(b, depth - 1, other_side(s), alpha, beta, true);
+	}
+
+	BoardWithSide bws(b.taken, b.black, s);
 	
-	// bool saveResult = (beta - alpha > 1) ? true : false;
+	if (s) {
+		int v;
+		if (depth > 5 && um->count(bws)) {
+			int guess = (*um)[bws].best;
+			//~ assert(legalMoves & SINGLE_BIT[guess]);
+			legalMoves &= ~SINGLE_BIT[guess];
+			Board b2 = b.doMoveOnNewBoard(guess, BLACK);
+			v = alphabeta_pure(b2, depth - 1, WHITE, alpha, beta);
+			//~ cerr << "v is INT_MIN" << endl;
+			alpha = max(v, alpha);
+		}
+		else {
+			int index = __builtin_clzl(legalMoves);
+			//~ assert(legalMoves & SINGLE_BIT[index]);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, BLACK);
+			v = alphabeta_pure(b2, depth - 1, WHITE, alpha, beta);
+			//~ cerr << "v is INT_MIN" << endl;
+			alpha = max(v, alpha);
+		}
+		while (legalMoves && alpha < beta) {	
+			int index = __builtin_clzl(legalMoves);
+			//~ assert(legalMoves & SINGLE_BIT[index]);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, BLACK);
+			int val = alphabeta_pure(b2, depth - 1, WHITE, alpha, beta);
+			v = max(v, val);
+			alpha = max(v, alpha);
+		}
+		//~ if (alpha == INT_MIN) {
+			//~ cerr << "alpha is INT_MIN" << endl;
+		//~ }
+		return alpha;
+	}
+	else {
+		int v;
+		if (depth > 5 && um->count(bws)) {
+			int guess = (*um)[bws].best;
+			//~ assert(legalMoves & SINGLE_BIT[guess]);
+			legalMoves &= ~SINGLE_BIT[guess];
+			Board b2 = b.doMoveOnNewBoard(guess, WHITE);
+			v = alphabeta_pure(b2, depth - 1, BLACK, alpha, beta);
+			beta = min(v, beta);
+		}
+		else {
+			int index = __builtin_clzl(legalMoves);
+			//~ assert(legalMoves & SINGLE_BIT[index]);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, WHITE);
+			v = alphabeta_pure(b2, depth - 1, BLACK, alpha, beta);
+			beta = min(v, beta);
+		}
+		while (legalMoves && alpha < beta) {
+			int index = __builtin_clzl(legalMoves);
+			//~ assert(legalMoves & SINGLE_BIT[index]);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, WHITE);
+			int val = alphabeta_pure(b2, depth - 1, BLACK, alpha, beta);
+			v = min(v, val);
+			beta = min(v, beta);
+		}
+		return beta;
+	}
 	
+}
+
+pair<int, int> alphabeta_mobility(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
+	abCalls++;
+	//~ cerr << depth << endl;
+	if (depth <= 0) {
+		return make_pair(-2, b.evaluate_mobility());
+	}
+
+	uint64_t legalMoves = b.findLegalMoves(s);
+	
+	// Special case
+	if (!legalMoves) {
+		if (prevPass) {
+			int blacks = b.countBlack();
+			int whites = b.countWhite();
+			return make_pair(-1, (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0));
+		}
+		return alphabeta_mobility(b, depth - 1, other_side(s), alpha, beta, true);
+	}
+	
+	int besti;
+	if (s) {
+		int v;
+		int index = __builtin_clzl(legalMoves);
+		//~ assert(legalMoves & SINGLE_BIT[index]);
+		legalMoves &= ~SINGLE_BIT[index];
+		besti = index;
+		Board b2 = b.doMoveOnNewBoard(index, BLACK);
+		v = alphabeta_mobility(b2, depth - 1, WHITE, alpha, beta).second;
+		//~ cerr << "v is INT_MIN" << endl;
+		alpha = max(v, alpha);
+		
+		while (legalMoves && alpha < beta) {	
+			int index = __builtin_clzl(legalMoves);
+			//~ assert(legalMoves & SINGLE_BIT[index]);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, BLACK);
+			int val = alphabeta_mobility(b2, depth - 1, WHITE, alpha, beta).second;
+			if (val > v) besti = index;
+			v = max(v, val);
+			alpha = max(v, alpha);
+		}
+		if (alpha == INT_MIN) {
+			//~ cerr << "alpha is INT_MIN" << endl;
+		}
+		return make_pair(besti, alpha);
+	}
+	else {
+		int v;
+		int index = __builtin_clzl(legalMoves);
+		//~ assert(legalMoves & SINGLE_BIT[index]);
+		legalMoves &= ~SINGLE_BIT[index];
+		besti = index;
+		Board b2 = b.doMoveOnNewBoard(index, WHITE);
+		v = alphabeta_mobility(b2, depth - 1, BLACK, alpha, beta).second;
+		beta = min(v, beta);
+		
+		while (legalMoves && alpha < beta) {
+			int index = __builtin_clzl(legalMoves);
+			//~ assert(legalMoves & SINGLE_BIT[index]);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, WHITE);
+			int val = alphabeta_mobility(b2, depth - 1, BLACK, alpha, beta).second;
+			if (val < v) besti = index;
+			v = min(v, val);
+			beta = min(v, beta);
+		}
+		return make_pair(besti, beta);
+	}
+	
+}
+
+
+int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
+	abCalls++;
+	
+	// 10: 11.5 sec
+	// 9: 9.9 sec
+	// 8: 9.2 sec
+	// 7: 8.3 sec
+	// 6: 8.6 sec
+	// 5: 8.6 sec
+	if (depth < 7) {
+		return alphabeta_pure(b, depth, s, alpha, beta, prevPass);
+	}
+
+	uint64_t legalMoves = b.findLegalMoves(s);
+		
 	// Special case
 	if (!legalMoves) {
 		if (prevPass) {
@@ -304,140 +629,189 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 
 	BoardWithSide bws(b.taken, b.black, s);
 	
-	int v;
-	int index = -1;
-	//~ int besti = -1;
+	int v, index, besti;
 	if (s) {
-		if (depth > 5 && um->count(bws)) {
-			um_data data = (*um)[bws];
-			if (data.alpha > alpha && data.beta < beta) {
-				// No guess
-				index = (*um)[bws].best;
-				goto pvs_label1;
-			}
-			// We have a guess for best move
-			index = (*um)[bws].best;
-			legalMoves ^= SINGLE_BIT[index];
-			Board b2 = b.doMoveOnNewBoard(index, s);
-			v = pvs(b2, depth - 1, other_side(s), alpha, beta);
-			alpha = max(alpha, v);
-			if (alpha >= beta) {
-				return alpha;
-			}
-			
-			// Prove that it is indeed the best move
+		bool isRandom = false;
+		if (um4->count(bws)) {
+			index = (*um4)[bws];
+			besti = -1; // No need to replace same value
+		}
+		else {
+			// Random
+			isRandom = true;
+			index = __builtin_clzl(legalMoves);
+			besti = index;
+		}
+		legalMoves ^= SINGLE_BIT[index];
+		Board b2 = b.doMoveOnNewBoard(index, s);
+		v = pvs(b2, depth - 1, other_side(s), alpha, beta);
+		alpha = max(alpha, v);
+		if (alpha >= beta) {
+			return alpha;
+		}
+		
+		// Prove that it is indeed the best move
+		if (!isRandom) {
 			while (legalMoves && alpha < beta) {	
 				index = __builtin_clzl(legalMoves);
 				legalMoves ^= SINGLE_BIT[index];
 				Board b2 = b.doMoveOnNewBoard(index, s);
-				//~ auto start2 = chrono::high_resolution_clock::now();
 				v = pvs(b2, depth - 1, other_side(s), alpha, alpha + 1);
-				//~ if (depth == 6) cerr << "null window " << depth - 1 << ' ' << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start2).count() << endl;
-				if (v == alpha + 1) {
-					//~ cerr << "Better move" << endl; betterMove = true;
+				if (v >= alpha + 1) {
 					v = pvs(b2, depth - 1, other_side(s), v, beta);
-					//~ besti = index;
+					besti = index;
+					alpha = v;
 				}
-				alpha = max(alpha, v);
+				//~ alpha = max(alpha, v);
 			}
-			//~ if (!betterMove) {
-				//~ int secondsPast = chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count();
-				//~ cerr << "used best move " << depth << ' ' << secondsPast << endl;
-			//~ }
-			//~ else {
-				//~ cerr << "found better move " << depth << ' ' << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-			//~ }
-			//~ if (depth > 2 && alpha > origAlpha && alpha < origBeta) (*um)[bws] = besti;
-			return alpha;
 		}
-		pvs_label1:
-		if (index < 0) index = __builtin_clzl(legalMoves2);
-		legalMoves2 ^= SINGLE_BIT[index];
-		Board b2 = b.doMoveOnNewBoard(index, s);
-		v = pvs(b2, depth - 1, other_side(s), alpha, beta);
-		//~ besti = index;
-		alpha = max(v, alpha);
-
-		while (legalMoves2 && alpha < beta) {	
-			int index = __builtin_clzl(legalMoves2);
-			legalMoves2 ^= SINGLE_BIT[index];
-			Board b2 = b.doMoveOnNewBoard(index, s);
-			int val = pvs(b2, depth - 1, other_side(s), alpha, beta);
-			//~ if (val > v) besti = index;
-			v = max(v, val);
-			alpha = max(v, alpha);
+		else {
+			while (legalMoves && alpha < beta) {	
+				index = __builtin_clzl(legalMoves);
+				legalMoves ^= SINGLE_BIT[index];
+				Board b2 = b.doMoveOnNewBoard(index, s);
+				v = pvs(b2, depth - 1, other_side(s), alpha, beta);
+				if (v > alpha) {
+					besti = index;
+					alpha = v;
+				}
+				//~ alpha = max(alpha, v);
+			}
 		}
-		//~ if (depth == 6) cerr << "no best move " << depth << ' ' << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		//~ if (depth > 2 && alpha > origAlpha && alpha < origBeta) (*um)[bws] = besti;
+		if (besti != -1) (*um4)[bws] = besti;
 		return alpha;
 	}
 	else {
-		if (depth > 5 && um->count(bws)) {
-			um_data data = (*um)[bws];
-			if (data.alpha > alpha && data.beta < beta) {
-				// No guess
-				index = (*um)[bws].best;
-				goto pvs_label2;
-			}
-			// We have a guess for best move
-			index = (*um)[bws].best;
-			legalMoves ^= SINGLE_BIT[index];
-			Board b2 = b.doMoveOnNewBoard(index, s);
-			v = pvs(b2, depth - 1, other_side(s), alpha, beta);
-			beta = min(v, beta);
-			if (alpha >= beta) {
-				return beta;
-			}
-			
-			// Prove that it is indeed the best move
+		bool isRandom = false;
+		if (um4->count(bws)) {
+			index = (*um4)[bws];
+			besti = -1;
+		}
+		else {
+			// Random
+			isRandom = true;
+			index = __builtin_clzl(legalMoves);
+			besti = index;
+		}
+		legalMoves ^= SINGLE_BIT[index];
+		Board b2 = b.doMoveOnNewBoard(index, s);
+		v = pvs(b2, depth - 1, other_side(s), alpha, beta);
+		beta = min(v, beta);
+		besti = index;
+		if (alpha >= beta) {
+			return beta;
+		}
+		
+		// Prove that it is indeed the best move
+		if (!isRandom) {
 			while (legalMoves && alpha < beta) {	
 				index = __builtin_clzl(legalMoves);
 				legalMoves ^= SINGLE_BIT[index];
 				Board b2 = b.doMoveOnNewBoard(index, s);
-				//~ auto start2 = chrono::high_resolution_clock::now();
 				v = pvs(b2, depth - 1, other_side(s), beta - 1, beta);
-				//~ cerr << "null window " << depth - 1 << ' ' << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start2).count() << endl;
-				//~ if (v == beta) {
-					//~ cerr << "Still best move" << endl;
-				//~ }
-				if (v == beta - 1) {
-					//~ cerr << "Better move" << endl; betterMove = true;
+				if (v <= beta - 1) {
 					v = pvs(b2, depth - 1, other_side(s), alpha, v);
-					//~ besti = index;
+					besti = index;
+					beta = v;
 				}
-				beta = min(v, beta);
+				//~ beta = min(v, beta);
 			}
-			//~ if (!betterMove) {
-				//~ int secondsPast = chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count();
-				//~ cerr << "used best move " << depth << ' ' << secondsPast << endl;
-			//~ }
-			//~ else {
-				//~ cerr << "found better move " << depth << ' ' << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-			//~ }
-			//~ if (beta > origAlpha && beta < origBeta) (*um)[bws] = besti;
-			return beta;
 		}
-		pvs_label2:
-		if (index < 0) index = __builtin_clzl(legalMoves2);
+		else {
+			while (legalMoves && alpha < beta) {	
+				index = __builtin_clzl(legalMoves);
+				legalMoves ^= SINGLE_BIT[index];
+				Board b2 = b.doMoveOnNewBoard(index, s);
+				v = pvs(b2, depth - 1, other_side(s), alpha, beta);
+				if (v < beta) {
+					besti = index;
+					beta = v;
+				}
+				//~ beta = min(beta, v);
+			}
+		}
+		if (besti != -1) (*um4)[bws] = besti;
+		return beta;
+		/*
+		// Check um4
+		if (um4->count(bws)) {
+			index = (*um4)[bws];
+		}
+		else index = __builtin_clzl(legalMoves2);
+		besti = index;
 		legalMoves2 ^= SINGLE_BIT[index];
 		Board b2 = b.doMoveOnNewBoard(index, s);
 		v = pvs(b2, depth - 1, other_side(s), alpha, beta);
-		//~ besti = index;
 		beta = min(v, beta);
 		while (legalMoves2 && alpha < beta) {
 			int index = __builtin_clzl(legalMoves2);
 			legalMoves2 ^= SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(index, s);
 			int val = pvs(b2, depth - 1, other_side(s), alpha, beta);
-			//~ if (val < v) besti = index;
+			if (val < v) besti = index;
 			v = min(v, val);
 			beta = min(v, beta);
 		}
-		//~ if (depth > 5) cerr << "no best move " << depth << ' ' << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		//~ if (depth > 2 && beta > origAlpha && beta < origBeta) (*um)[bws] = besti;
-		return beta;
+		if (depth > 4) (*um4)[bws] = besti;
+		return beta;*/
 	}
 	
+}
+
+int minimax_pure(Board b, Side s, int depth, bool prevPass = false) {
+	// Pure minimax algorithm that stores results in the hash table
+	
+	if (depth <= 0) {
+		return b.evaluate();
+	}
+	uint64_t legalMoves = b.findLegalMoves(s);
+	// Special case
+	if (!legalMoves) {
+		if (prevPass) {
+			int blacks = b.countBlack();
+			int whites = b.countWhite();
+			return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
+		}
+		int result = (depth > 3) ? minimax_pure(b, other_side(s), depth - 1, true) : alphabeta_pure(b, depth - 1, other_side(s), INT_MIN, INT_MAX, true);
+		return result;
+	}
+	BoardWithSide bws(b.taken, b.black, s);
+	int besti = -1;
+	if (s == BLACK) {
+		int v = INT_MIN;
+		while (legalMoves) {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves ^= SINGLE_BIT[index];
+			
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			int val = (depth > 3) ? minimax_pure(b2, other_side(s), depth - 1) : alphabeta_pure(b2, depth - 1, other_side(s));
+			if (val > v || besti == -1) {
+				besti = index;
+				v = val;
+			}
+		}
+		
+		if (depth >= 3) {
+			(*um)[bws] = make_hash_data(v, besti, INT_MIN, INT_MAX);
+		}
+		return v;
+	}
+	else {
+		int v = INT_MAX;
+		while (legalMoves) {		
+			int index = __builtin_clzl(legalMoves);
+			legalMoves ^= SINGLE_BIT[index];
+			
+			Board b2 = b.doMoveOnNewBoard(index, s);
+			int val = (depth > 3) ? minimax_pure(b2, other_side(s), depth - 1) :  alphabeta_pure(b2, depth - 1, other_side(s));
+			if (val < v || besti == -1) {
+				besti = index;
+				v = val;
+			}
+		}
+		if (depth >= 3) (*um)[bws] = make_hash_data(v, besti, INT_MIN, INT_MAX);
+		return v;
+	}
 }
 
 int alphabeta2(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, int otherDepth = 0, bool prevPass = false) {
@@ -604,7 +978,7 @@ pair<int, int> main_minimax(Board b, Side s, int depth, int guess = -1) {
 	}		
 }
 
-pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int lower, int upper, bool use_pvs = false) {
+pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int lower, int upper) {
 	// Depth must be greater than or equal to 1
 	uint64_t legalMoves = b.findLegalMoves(s);
 	if (!legalMoves) return make_pair(-1, -100); // Evaluation here has no meaning
@@ -615,9 +989,9 @@ pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int
 		if (guess >= 0) {
 			legalMoves ^= BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(guess, s);
-			if (use_pvs) v = pvs(b2, depth - 1, other_side(s), lower, upper);
-			else v = alphabeta(b2, depth - 1, other_side(s), lower, upper);
+			v = pvs(b2, depth - 1, other_side(s), lower, upper);
 			besti = guess;
+			lower = max(v, lower);
 		}
 		while (legalMoves) {
 			int index = __builtin_clzl(legalMoves);
@@ -625,23 +999,26 @@ pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int
 			
 			Board b2 = b.doMoveOnNewBoard(index, s);
 			int val;
-			if (use_pvs) val = pvs(b2, depth - 1, other_side(s), max(v, lower), upper); 
-			else val = alphabeta(b2, depth - 1, other_side(s), max(v, lower), upper);
+			val = pvs(b2, depth - 1, other_side(s), v, v + 1); 
+			if (val >= v + 1) {
+				val = pvs(b2, depth - 1, other_side(s), v + 1, upper);
+			}
 			if (val > v || besti == -1) {
 				besti = index;
 				v = val;
 			}
+			lower = max(lower, v);
 		}
-		return make_pair(besti, v);
+		return make_pair(besti, lower);
 	}
 	else {
 		int v = INT_MAX;
 		if (guess >= 0) {
 			legalMoves ^= BIT(guess);
 			Board b2 = b.doMoveOnNewBoard(guess, s);
-			if (use_pvs) v = pvs(b2, depth - 1, other_side(s), lower, upper);
-			else v = alphabeta(b2, depth - 1, other_side(s), lower, upper);
+			v = pvs(b2, depth - 1, other_side(s), lower, upper);
 			besti = guess;
+			upper = min(v, upper);
 		}
 		while (legalMoves) {
 			int index = __builtin_clzl(legalMoves);
@@ -649,66 +1026,108 @@ pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int
 			
 			Board b2 = b.doMoveOnNewBoard(index, s);
 			int val;
-			if (use_pvs) val = pvs(b2, depth - 1, other_side(s), lower, min(v, upper));
-			else val = alphabeta(b2, depth - 1, other_side(s), lower, min(v, upper));
+			val = pvs(b2, depth - 1, other_side(s), v - 1, v);
+			if (val <= v - 1) val = pvs(b2, depth - 1, other_side(s), lower, upper);
 			if (val < v || besti == -1) {
 				besti = index;
 				v = val;
 			}
+			upper = min(upper, v);
 		}
-		return make_pair(besti, v);
+		return make_pair(besti, upper);
 	}
 }
 
 pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
+	// Best time: 2:13
 	// DEPTH CANNOT BE ZERO!
-	int besti, e;
-	pair<int, int> result = main_minimax_aw_helper(b, s, depth - 4, -1, INT_MIN, INT_MAX);
-	besti = result.first;
-	e = result.second;
-	cerr << "Finished depth " << depth - 4 << " search: " << e << endl;
-	int lower = e - 2;
-	int upper = e + 2;
-	int counter = 0;
-	try_again:
-	result = main_minimax_aw_helper(b, s, depth - 2, besti, lower, upper);
-	if (result.second <= lower && lower != INT_MIN) {
-		cerr << "Recalculating (failed low)" << endl;
-		lower -= 4;
+	auto start = chrono::high_resolution_clock::now();
+	int d = 2;
+	int besti, e, lower, upper, counter;
+	e = alphabeta(b, depth - 4, s);
+	cerr << "Finished depth " << depth - 4 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+	//~ ee = alphabeta_odd(b, depth - 3, s);
+	//~ cerr << "Finished depth " << depth - 3 << " search: " << ee << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+	// Denominator 15: 2:21
+	// Denominator 17: 2:21
+	// Denominator 12: 2:21
+	// Denominator 20: 2:21
+	// Denominator 25: 2:28
+	// Denominator 10: 2:14!
+	// Denominator 8: 2:13!
+	// Denominator 7: 2:13 
+	// Denominator 6: 2:13
+	// Denominator 5: 2:14
+	d = abs(e) / 8 + 3;
+	lower = e - d;
+	upper = e + d;
+	counter = 1;
+	try_again3:
+	e = alphabeta(b, depth - 2, s, lower, upper);
+	// Using 2 * counter: 2:27
+	// Using 4: 2:29
+	// Using d * counter: 2:28
+	// Using (d - 1) * counter: 2:27
+	// Using (d - 2) * counter: 2:25
+	if (e <= lower && lower != INT_MIN) {
+		cerr << "Recalculating (failed low)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+		lower -= (d - 2) * counter;
 		counter++;
 		if (counter > 3) lower = INT_MIN;
-		goto try_again;
+		goto try_again3;
 	}
-	else if (result.second >= upper && upper != INT_MAX) {
-		cerr << "Recalculating (failed high)" << endl;
-		upper += 4;
+	else if (e >= upper && upper != INT_MAX) {
+		cerr << "Recalculating (failed high)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+		upper += (d - 2) * counter;
 		counter++;
 		if (counter > 3) upper = INT_MAX;
-		goto try_again;
+		goto try_again3;
 	}
-	besti = result.first;
-	e = result.second;
-	cerr << "Finished depth " << depth - 2 << " search: " << e << endl;
-	lower = e - 2;
-	upper = e + 2;
-	counter = 0;
-	try_again2:
-	result = main_minimax_aw_helper(b, s, depth, besti, lower, upper, true);
-	if (result.second <= lower && lower != INT_MIN) {
-		cerr << "Recalculating (failed low)" << endl;
-		lower -= 4;
-		counter++;
-		if (counter > 3) lower = INT_MIN;
-		goto try_again2;
-	}
-	else if (result.second >= upper && upper != INT_MAX) {
-		cerr << "Recalculating (failed high)" << endl;
-		upper += 4;
-		counter++;
-		if (counter > 3) upper = INT_MAX;
-		goto try_again2;
-	}
+	cerr << "Finished depth " << depth - 2 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+	//~ lower = ee - d;
+	//~ upper = ee + d;
+	//~ counter = 1;
+	//~ try_again:
+	//~ ee = alphabeta_odd(b, depth - 1, s, lower, upper); 
+	//~ if (ee <= lower && lower != INT_MIN) {
+		//~ cerr << "Recalculating (failed low)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+		//~ lower -= 2 * counter;
+		//~ counter++;
+		//~ if (counter > 3) lower = INT_MIN;
+		//~ goto try_again;
+	//~ }
+	//~ else if (ee >= upper && upper != INT_MAX) {
+		//~ cerr << "Recalculating (failed high)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+		//~ upper += 2 * counter;
+		//~ counter++;
+		//~ if (counter > 3) upper = INT_MAX;
+		//~ goto try_again;
+	//~ }
+	//~ cerr << "Finished depth " << depth - 1 << " search: " << ee << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 	
+	//~ e = ee;
+	lower = e - d;
+	upper = e + d;
+	counter = 1;
+	besti = (*um4)[BoardWithSide(b.taken, b.black, s)];
+	try_again2:
+	pair<int, int> result;
+	result = main_minimax_aw_helper(b, s, depth, besti, lower, upper);
+	if (result.second <= lower && lower != INT_MIN) {
+		cerr << "Recalculating (failed low)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+		lower -= (d - 2) * counter;
+		counter++;
+		if (counter > 3) lower = INT_MIN;
+		goto try_again2;
+	}
+	else if (result.second >= upper && upper != INT_MAX) {
+		cerr << "Recalculating (failed high)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+		upper += (d - 2) * counter;
+		counter++;
+		if (counter > 3) upper = INT_MAX;
+		goto try_again2;
+	}
+	cerr << "Finished depth " << depth << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 	return result;
 }
 
@@ -1053,11 +1472,18 @@ bool gameSolved = false;
  * return NULL.
  */
 Move *Player::doMove(Move *opponentsMove, int msLeft) {
+	/*Board board(0b0000000000000000000000000001110000011000000010000000000000000000ull, 
+				0b0000000000000000000000000000000000011000000010000000000000000000ull);
+	              
+	cerr << bitset<64>(board.findLegalMoves(BLACK)) << endl;
+	exit(1);
+*/
+	//~ assert(alphabeta_pure(currBoard, 4, side) == minimax_pure(currBoard, side, 4));
     // Set minutesForMove to half the amount of time left
     if (msLeft > 0) minutesForMove = msLeft / 60.0 / 1000 / 2;
     
     if (opponentsMove != NULL) {
-		currBoard = currBoard.doMoveOnNewBoard(opponentsMove->x, opponentsMove->y, other_side(side));
+		currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(opponentsMove->x, opponentsMove->y), other_side(side));
 	}
     
     uint64_t legalMoves = currBoard.findLegalMoves(side);
@@ -1074,7 +1500,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     int totalCount = __builtin_popcountll(currBoard.taken);
     if (totalCount == 4) {
 		// Move e6 without thinking
-		currBoard = currBoard.doMoveOnNewBoard(4, 5, side);
+		currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(4, 5), side);
 		Move *move = new Move(4, 5);
 		return move;
 	}
@@ -1084,7 +1510,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 		int x = FROM_INDEX_X(index);
 		int y = FROM_INDEX_Y(index);
 		if (x == -1) return NULL;
-		currBoard = currBoard.doMoveOnNewBoard(x, y, side);
+		currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
 		Move *move = new Move(x, y);
 		return move;
 	}
@@ -1179,7 +1605,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	int x = FROM_INDEX_X(besti);
 	int y = FROM_INDEX_Y(besti);
 	cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << endl;
-	currBoard = currBoard.doMoveOnNewBoard(x, y, side);
+	currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
     //bitset<64> bsTaken(currBoard.taken), bsBlack(currBoard.black);
     //cerr << bsTaken << endl << bsBlack << endl;
     Move *move = new Move(x, y);

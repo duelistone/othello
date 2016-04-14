@@ -52,6 +52,7 @@ extern std::mutex um2_lock;
 extern std::unordered_map< BoardWithSide, um_data > *um;
 extern std::unordered_map< BoardWithSide, int > *um2;
 extern std::unordered_map< BoardWithSide, int > *um3;
+extern std::unordered_map< BoardWithSide, int > *um4;
 
 extern fstream fil;
 

@@ -88,9 +88,10 @@ public:
     
     uint64_t findLegalMoves(Side side) ;
     uint64_t findLegalMoves2(Side side);
-    //~ uint64_t findLegalMoves3(Side side) const;
+    //~ uint64_t findLegalMoves3(Side side);
     //~ uint64_t onlyFindLegalMoves(Side side) const;
-    int evaluate() ;
+    int evaluate();
+    int evaluate_mobility();
     int pos_evaluate();
     int evaluateTest();
      
@@ -99,7 +100,7 @@ public:
     //bool hasLegalMoves(Side side);
     //~ bool checkMove(int x, int y, Side side) const;
     void doMove(int x, int y, Side side);
-    Board doMoveOnNewBoard(int x, int y, Side side);
+    //~ Board doMoveOnNewBoard(int x, int y, Side side);
     Board doMoveOnNewBoard(int index, Side side);
     Board doMoveOnNewBoard2(int x, int y, Side side);
     Board doMoveOnNewBoard3(int x, int y, Side side);
