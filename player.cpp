@@ -156,7 +156,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 		// Constants to tweak
 		int mobilityWeight = 4;
 		//~ int potentialMobilityWeight = 1;
-		int mobilityBoost = 5;
+		//~ int mobilityBoost = 5;
 		int penaltyWeight = 10;
 		// Computations
 		uint64_t legalMoves = b.findLegalMoves(BLACK);
@@ -266,9 +266,19 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 		return ee;
 	}
 
+	BoardWithSide bws(b.taken, b.black, s);/*
+	bool hashed = um3->count(bws);
+	if (hashed & s) {
+		int e = (*um3)[bws];
+		if (beta != INT_MAX && e > beta + 10) return beta;
+	}
+	else if (hashed) {
+		int e = (*um3)[bws];
+		if (alpha != INT_MIN && e < alpha - 10) return alpha; 
+	}*/
+	
 	uint64_t legalMoves = b.findLegalMoves(s);
 	
-	BoardWithSide bws(b.taken, b.black, s);
 	// Special case
 	if (!legalMoves) {
 		if (prevPass) {
@@ -284,7 +294,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 	int besti = -1;
 	if (depth > 3 && s && um4->count(bws)) {
 			//~ int origAlpha = alpha;
-			int v = INT_MIN;
+			int v;
 			int guess = (*um4)[bws];
 			legalMoves ^= SINGLE_BIT[guess];
 			v = alphabeta(b.doMoveOnNewBoard(guess, s), depth - 1, other_side(s), alpha, beta);
@@ -300,6 +310,9 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			}
 			if (besti != -1) {
 				(*um4)[bws] = besti;
+			}
+			if (alpha < beta) {
+				(*um3)[bws] = alpha;
 			}
 			return alpha;
 	}
@@ -320,26 +333,20 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			}
 			if (besti != -1) {
 				(*um4)[bws] = besti;
-			}
+			}/*
+			if (alpha < beta) {
+				(*um3)[bws] = alpha;
+			}*/
 			return alpha;
 	}
-	else if (depth > 3) {
-			//~ int origBeta = beta;
-			int v = INT_MAX;
-			if (um4->count(bws)) {
-				int guess = (*um4)[bws];
-				legalMoves ^= SINGLE_BIT[guess];
-				v = alphabeta(b.doMoveOnNewBoard(guess, s), depth - 1, other_side(s), alpha, beta);
-				besti = -1;
-				beta = (v < beta) ? v : beta;
-			}
-			else {
-				int index = __builtin_clzl(legalMoves);
-				legalMoves ^= SINGLE_BIT[index];
-				v = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta);
-				besti = index;
-				beta = (v < beta) ? v : beta;
-			}
+	else if (depth > 3 && um4->count(bws)) {
+			// White & um4
+			int v;
+			int guess = (*um4)[bws];
+			legalMoves ^= SINGLE_BIT[guess];
+			v = alphabeta(b.doMoveOnNewBoard(guess, s), depth - 1, other_side(s), alpha, beta);
+			besti = -1;
+			beta = (v < beta) ? v : beta;
 			while (legalMoves && alpha < beta) {
 				int index = __builtin_clzl(legalMoves);
 				legalMoves ^= SINGLE_BIT[index];
@@ -350,7 +357,35 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			}
 			if (besti != -1) {
 				(*um4)[bws] = besti;
+			}/*
+			if (alpha < beta) {
+				(*um3)[bws] = beta;
+			}*/
+			return beta;
+	}
+	else if (depth > 3) {
+			// White & no um4
+			//~ int origBeta = beta;
+			int v = INT_MAX;
+			int index = __builtin_clzl(legalMoves);
+			legalMoves ^= SINGLE_BIT[index];
+			v = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta);
+			besti = index;
+			beta = (v < beta) ? v : beta;
+			while (legalMoves && alpha < beta) {
+				int index = __builtin_clzl(legalMoves);
+				legalMoves ^= SINGLE_BIT[index];
+				int val = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta);
+				besti = (val < v) ? index : besti;
+				v = (v < val) ? v : val;
+				beta = (v < beta) ? v : beta;
 			}
+			if (besti != -1) {
+				(*um4)[bws] = besti;
+			}/*
+			if (alpha < beta) {
+				(*um3)[bws] = beta;
+			}*/
 			return beta;
 	}
 	else if (s) {
@@ -585,7 +620,132 @@ int alphabeta_pure(Board b, int depth, Side s, int alpha = INT_MIN, int beta = I
 	abCalls++;
 	//~ cerr << depth << endl;
 	if (depth <= 0) {
-		return b.evaluate();
+		//~ int totalCount = __builtin_popcountll(b.taken);
+		uint64_t white = b.taken & ~b.black;
+		
+		// Game over if no discs left
+		if (!white) {
+			//~ evaluation = INT_MAX;
+			return INT_MAX;
+		}
+		else if (!b.black) {
+			//~ evaluation = INT_MIN;
+			return INT_MIN;
+		}
+		
+		int ee = 0;
+		
+		// Constants to tweak
+		int mobilityWeight = 4;
+		//~ int potentialMobilityWeight = 1;
+		//~ int mobilityBoost = 5;
+		int penaltyWeight = 10;
+		// Computations
+		uint64_t legalMoves = b.findLegalMoves(BLACK);
+		int blackMoves = __builtin_popcountll(legalMoves);
+		legalMoves = b.findLegalMoves(WHITE);
+		int whiteMoves = __builtin_popcountll(legalMoves);
+		
+		ee = 15 * mobilityWeight * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2); //Iago mobility ee //round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
+		
+		/*
+		//~ if (ee > MOBILITY_CAP || ee < -MOBILITY_CAP) ee = (ee > 0) ? MOBILITY_CAP : -MOBILITY_CAP; // Cap the influence of mobility
+		ee = (ee > MOBILITY_CAP) ? MOBILITY_CAP : ee;
+		ee = (ee < -MOBILITY_CAP) ? -MOBILITY_CAP : ee;
+		*/
+		// Mobility boosts
+		// With:2:08
+		// Without:2:03
+		/*
+		ee += (whiteMoves < 3 && blackMoves >= 5) ? mobilityBoost : 0;
+		ee += (whiteMoves < 2) ? mobilityBoost : 0;
+		ee += (whiteMoves == 0) ? mobilityBoost : 0;
+		ee -= (blackMoves < 3 && whiteMoves >= 5) ? mobilityBoost : 0;
+		ee -= (blackMoves < 2) ? mobilityBoost : 0;
+		ee -= (blackMoves == 0) ? mobilityBoost : 0;
+		*/
+		
+		// Idea: There are exceptions where we don't want a penalty
+		// Penalty for risky squares if corner not filled
+		if (!(b.taken & CORNER_TL)) {
+			ee -= (BIT(9) & b.black) ? penaltyWeight : 0;
+			ee += (BIT(9) & white) ? penaltyWeight : 0;
+		}
+		if (!(b.taken & CORNER_TR)) {
+			ee -= (BIT(14) & b.black) ? penaltyWeight : 0;
+			ee += (BIT(14) & white) ? penaltyWeight : 0;
+		}
+		if (!(b.taken & CORNER_BL)) {
+			ee -= (BIT(49) & b.black) ? penaltyWeight : 0;
+			ee += (BIT(49) & white) ? penaltyWeight : 0;
+		}
+		if (!(b.taken & CORNER_BR)) {
+			ee -= (BIT(54) & b.black) ? penaltyWeight : 0;
+			ee += (BIT(54) & white) ? penaltyWeight : 0;
+		}
+		
+		
+		// Minimize discs early
+		int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(b.black));
+		discdiff = (discdiff > 16) ? 16 : discdiff;
+		discdiff = (discdiff < -16) ? -16 : discdiff;
+		//~ (discdiff > 16 || discdiff < 16) ? ((discdiff > 0) ? 16 : -16) : discdiff;
+		ee += discdiff / 4;
+
+		// Get top edge into uint16
+		uint16_t u16 = ((b.taken >> 56) << 8) | (b.black >> 56);
+		ee += EDGE_VALUES[u16];
+		
+		u16 = ((b.taken << 56) >> 48) | ((b.black << 56) >> 56);
+		ee += EDGE_VALUES[u16];
+		// Get left edge
+		uint64_t tempTaken = b.taken & EDGE_LEFT;
+		uint64_t tempB = b.black & EDGE_LEFT;
+		tempTaken >>= 7;
+		tempB >>= 7;
+		// Now same as right edge
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB &= EDGE_BOTTOM;
+		
+		u16 = (tempTaken << 8) | tempB;
+		ee += EDGE_VALUES[u16];
+		
+		// Get right edge
+		tempTaken = b.taken & EDGE_RIGHT;
+		tempB = b.black & EDGE_RIGHT;
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB &= EDGE_BOTTOM;
+		
+		u16 = (tempTaken << 8) | tempB;
+		
+		ee += EDGE_VALUES[u16];
+		return ee;
 	}
 
 	uint64_t legalMoves = b.findLegalMoves(s);
@@ -602,6 +762,74 @@ int alphabeta_pure(Board b, int depth, Side s, int alpha = INT_MIN, int beta = I
 
 	BoardWithSide bws(b.taken, b.black, s);
 	
+	int v;
+	if (s && depth > 3 && um->count(bws)) {
+		int guess = (*um)[bws].best;
+		legalMoves &= ~SINGLE_BIT[guess];
+		Board b2 = b.doMoveOnNewBoard(guess, BLACK);
+		v = alphabeta_pure(b2, depth - 1, WHITE, alpha, beta);
+		alpha = (v > alpha) ? v : alpha;
+		while (legalMoves && alpha < beta) {	
+			int index = __builtin_clzl(legalMoves);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, BLACK);
+			int val = alphabeta_pure(b2, depth - 1, WHITE, alpha, beta);
+			v = (v > val) ? v : val;
+			alpha = (v > alpha) ? v : alpha;
+		}
+		return alpha;
+	}
+	else if (s) {
+		int index = __builtin_clzl(legalMoves);
+		legalMoves &= ~SINGLE_BIT[index];
+		Board b2 = b.doMoveOnNewBoard(index, BLACK);
+		v = alphabeta_pure(b2, depth - 1, WHITE, alpha, beta);
+		alpha = (v > alpha) ? v : alpha;
+		while (legalMoves && alpha < beta) {	
+			int index = __builtin_clzl(legalMoves);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, BLACK);
+			int val = alphabeta_pure(b2, depth - 1, WHITE, alpha, beta);
+			v = (v > val) ? v : val;
+			alpha = (v > alpha) ? v : alpha;
+		}
+		return alpha;
+	}
+	else if (depth > 3 && um->count(bws)) {
+		// white & um
+		int guess = (*um)[bws].best;
+		legalMoves &= ~SINGLE_BIT[guess];
+		Board b2 = b.doMoveOnNewBoard(guess, WHITE);
+		v = alphabeta_pure(b2, depth - 1, BLACK, alpha, beta);
+		beta = (v < beta) ? v : beta;		
+		while (legalMoves && alpha < beta) {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, WHITE);
+			int val = alphabeta_pure(b2, depth - 1, BLACK, alpha, beta);
+			v = (v < val) ? v : val;
+			beta = (v < beta) ? v : beta;
+		}
+		return beta;
+	}
+	else {
+		// white & !um
+		int index = __builtin_clzl(legalMoves);
+		legalMoves &= ~SINGLE_BIT[index];
+		Board b2 = b.doMoveOnNewBoard(index, WHITE);
+		v = alphabeta_pure(b2, depth - 1, BLACK, alpha, beta);
+		beta = (v < beta) ? v : beta;
+		while (legalMoves && alpha < beta) {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves &= ~SINGLE_BIT[index];
+			Board b2 = b.doMoveOnNewBoard(index, WHITE);
+			int val = alphabeta_pure(b2, depth - 1, BLACK, alpha, beta);
+			v = (v < val) ? v : val;
+			beta = (v < beta) ? v : beta;
+		}
+		return beta;
+	}
+	/*
 	if (s) {
 		int v;
 		if (depth > 5 && um->count(bws)) {
@@ -665,7 +893,7 @@ int alphabeta_pure(Board b, int depth, Side s, int alpha = INT_MIN, int beta = I
 		}
 		return beta;
 	}
-	
+	*/
 }
 
 pair<int, int> alphabeta_mobility(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
