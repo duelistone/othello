@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include "timer.h"
 
 
 extern "C" int min(int x, int y);
@@ -38,6 +39,8 @@ extern "C" int max(int x, int y);
 
 #define THRESHOLD 15
 #define NO_MOVES_LEFT_BONUS 25
+
+#define SOMETHING_VALUE 0
 
 // Global counter for how many final nodes endgameMinimax is searching
 extern long long globalEndgameNodeCount;
@@ -61,6 +64,7 @@ extern unordered_map<int, double> constant_terms;
 extern unordered_map<int, double> coefficients;
 
 extern int *EDGE_VALUES;
+extern int ordered_moves[64][64];
 
 // To avoid um getting too big
 #define MAX_HASH_SIZE 3000000

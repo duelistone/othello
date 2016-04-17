@@ -15,6 +15,7 @@ unordered_map< BoardWithSide, int > *um4 = new unordered_map< BoardWithSide, int
 atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
 int *EDGE_VALUES;
+int ordered_moves[64][64];
 uint64_t SINGLE_BIT[64];
 // fstream fil("c.txt", ios_base::app);
 

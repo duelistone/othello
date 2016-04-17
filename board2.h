@@ -13,6 +13,7 @@
 #include <cmath>
 #include <atomic>
 #include <bitset>
+#include <boost/functional/hash.hpp>
 #include "common.h"
 
 #define BIT(x) ((uint64_t) 1 << (63 - (x)))
@@ -128,7 +129,10 @@ bool operator==(const BoardWithSide&, const BoardWithSide&);
 namespace std {	
 	template<> struct hash<BoardWithSide> {
 		size_t operator()(const BoardWithSide & b) const {
-			return hash<unsigned long long>()(b.black);
+			size_t seed = 0;
+			boost::hash_combine(seed, b.taken);
+			boost::hash_combine(seed, b.black);
+			return hash<unsigned long long>()(seed);
 		}
 	};
 }

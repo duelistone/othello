@@ -5,8 +5,8 @@ PLAYERNAME  = duelist
 
 all: $(PLAYERNAME) testgame
 	
-$(PLAYERNAME): $(OBJS) math.o wrapper.o 
-	$(CC) -o $@ $^ -pthread
+$(PLAYERNAME): $(OBJS) timer.o math.o wrapper.o 
+	$(CC) -o $@ $^ -lboost_system -pthread
 
 testgame: testgame.o 
 	$(CC) -o $@ $^ -pthread
@@ -28,6 +28,9 @@ wrapper.o: wrapper.cpp player.h
 
 testgame.o: testgame.cpp
 	$(CC) -c $(CFLAGS) testgame.cpp -pthread
+
+timer.o: timer.cpp timer.h
+	$(CC) -c $(CFLAGS) timer.cpp
 
 math.o: math.s
 	as -o math.o math.s
