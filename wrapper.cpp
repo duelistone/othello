@@ -12,6 +12,7 @@ unordered_map< BoardWithSide, um_data > *um = new unordered_map< BoardWithSide, 
 unordered_map< BoardWithSide, int > *um2 = new unordered_map< BoardWithSide, int >;
 unordered_map< BoardWithSide, int > *um3 = new unordered_map< BoardWithSide, int >;
 unordered_map< BoardWithSide, int > *um4 = new unordered_map< BoardWithSide, int >;
+unordered_map< BoardWithSide, int > *um5 = new unordered_map< BoardWithSide, int >;
 atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
 int *EDGE_VALUES;

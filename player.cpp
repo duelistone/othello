@@ -767,7 +767,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		if (beta < 500) {
 			bound = round(PERCENTILE * sigma + beta);
 			if (alphabeta_pure(b, 4, s, bound - 1, bound) >= bound) {
-				(*um2)[bws] = beta;
+				(*um5)[bws] = beta;
 				return beta;
 			}
 		}
@@ -776,14 +776,14 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			double sigma = SIGMA + totalDiscs / 10;
 			bound = round(-PERCENTILE * sigma + alpha);
 			if (alphabeta_pure(b, 4, s, bound, bound + 1) <= bound) {
-				(*um2)[bws] = alpha;
+				(*um5)[bws] = alpha;
 				return alpha;
 			}
 		}
 	}
 	
 	// Transposition table
-	if (um2->count(bws)) return (*um2)[bws];	
+	if (um5->count(bws)) return (*um5)[bws];	
 	
 	uint64_t legalMoves = b.findLegalMoves(s);
 		
@@ -806,7 +806,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		v = pvs(b2, depth - 1, other_side(s), alpha, beta);
 		alpha = (v > alpha) ? v : alpha;
 		if (alpha >= beta) {
-			(*um2)[bws] = alpha;
+			(*um5)[bws] = alpha;
 			return alpha;
 		}
 		
@@ -824,7 +824,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			//~ alpha = max(alpha, v);
 		}
 		if (besti != -1) (*um4)[bws] = besti;
-		(*um2)[bws] = alpha;
+		(*um5)[bws] = alpha;
 		return alpha;
 	}
 	else if (s) {
@@ -835,7 +835,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		v = pvs(b2, depth - 1, other_side(s), alpha, beta);
 		alpha = (v > alpha) ? v : alpha;
 		if (alpha >= beta) {
-			(*um2)[bws] = alpha;
+			(*um5)[bws] = alpha;
 			return alpha;
 		}
 		
@@ -849,7 +849,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			alpha = (v > alpha) ? v : alpha;
 		}
 		if (besti != -1) (*um4)[bws] = besti;
-		(*um2)[bws] = alpha;
+		(*um5)[bws] = alpha;
 		return alpha;
 	}
 	else if (um4->count(bws)) {
@@ -861,7 +861,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		beta = (v < beta) ? v : beta;
 		besti = index;
 		if (alpha >= beta) {
-			(*um2)[bws] = beta;
+			(*um5)[bws] = beta;
 			return beta;
 		}
 		
@@ -879,7 +879,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			//~ beta = (v < beta) ? v : beta;
 		}
 		if (besti != -1) (*um4)[bws] = besti;
-		(*um2)[bws] = beta;
+		(*um5)[bws] = beta;
 		return beta;
 	}
 	else {
@@ -891,7 +891,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		beta = (v < beta) ? v : beta;
 		besti = index;
 		if (alpha >= beta) {
-			(*um2)[bws] = beta;
+			(*um5)[bws] = beta;
 			return beta;
 		}
 		
@@ -905,7 +905,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			beta = (v < beta) ? v : beta;
 		}
 		if (besti != -1) (*um4)[bws] = besti;
-		(*um2)[bws] = beta;
+		(*um5)[bws] = beta;
 		return beta;
 	}
 	
@@ -1039,6 +1039,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	auto start = chrono::high_resolution_clock::now();
 	int d = 2;
 	int besti, e, lower, upper, counter;
+	um5->clear();
 	e = alphabeta(b, depth - 4, s);
 	cerr << "Finished depth " << depth - 4 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 	//~ ee = alphabeta_odd(b, depth - 3, s);
@@ -1058,6 +1059,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	upper = e + d;
 	counter = 1;
 	try_again3:
+	um5->clear();
 	e = alphabeta(b, depth - 2, s, lower, upper);
 	// Using 2 * counter: 2:27
 	// Using 4: 2:29
@@ -1106,6 +1108,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	counter = 1;
 	besti = (*um4)[BoardWithSide(b.taken, b.black, s)];
 	try_again2:
+	um5->clear();
 	pair<int, int> result;
 	result = main_minimax_aw_helper(b, s, depth, besti, lower, upper);
 	if (result.second <= lower && lower != INT_MIN) {
@@ -1346,7 +1349,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	else {
 		cerr << "Endgame search" << endl;
 		if (!gameSolved) {
-			pair<int, int> p2 = main_minimax_aw(currBoard, side, 13);
+			pair<int, int> p2 = main_minimax_aw(currBoard, side, 14);
 			p = endgame_minimax(currBoard, side, p2.first);
 			besti = p.first;
 			eval = p.second;

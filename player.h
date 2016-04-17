@@ -56,6 +56,7 @@ extern std::unordered_map< BoardWithSide, um_data > *um;
 extern std::unordered_map< BoardWithSide, int > *um2;
 extern std::unordered_map< BoardWithSide, int > *um3;
 extern std::unordered_map< BoardWithSide, int > *um4;
+extern std::unordered_map< BoardWithSide, int > *um5;
 
 extern fstream fil;
 
