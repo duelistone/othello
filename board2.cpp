@@ -2604,11 +2604,8 @@ Board Board::doMoveOnNewBoard3(int X, int Y, Side side) /*const*/ {
  * Evaluation function. findLegalMoves must be called first to get a 
  * nonzero value.
  */
-int Board::evaluate() /*const*/ {
-	int totalCount = __builtin_popcountll(taken);
-	//~ int blackPM, whitePM; // Potential mobility
-	
-	//uint64_t b = taken & black;
+int Board::evaluate(int blackMoves, int whiteMoves, int position) /*const*/ {
+	//~ int totalCount = __builtin_popcountll(b.taken);
 	uint64_t white = taken & ~black;
 	
 	// Game over if no discs left
@@ -2617,228 +2614,25 @@ int Board::evaluate() /*const*/ {
 		return INT_MAX;
 	}
 	else if (!black) {
-		//~ evaluation = INT_MIN;
 		return INT_MIN;
 	}
 	
 	int ee = 0;
 	
-	if (totalCount < 60) {
-		// Constants to tweak
-		int mobilityWeight = 4;
-		//~ int potentialMobilityWeight = 1;
-		int mobilityBoost = 5;
-		int penaltyWeight = 10;
-		//int edgePenalty = 5;
-		//cerr << "Evaluation time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;	
-		// Computations
-		uint64_t legalMoves = findLegalMoves(BLACK);
-		//blackPM = potentialMobility;
-		int blackMoves = __builtin_popcountll(legalMoves);
-		legalMoves = findLegalMoves(WHITE);
-		//whitePM = potentialMobility;
-		//auto start2 = chrono::high_resolution_clock::now();
-		// cerr << "Evaluation time LM + PM: " << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
-		int whiteMoves = __builtin_popcountll(legalMoves);
-		
-		ee = 15 * mobilityWeight * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2); //Iago mobility ee //round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
-		if (abs(ee) > MOBILITY_CAP) ee = (ee > 0) ? MOBILITY_CAP : -MOBILITY_CAP; // Cap the influence of mobility
-		if (whiteMoves < 3 && blackMoves >= 5) ee += mobilityBoost;
-		if (whiteMoves < 2) ee += mobilityBoost;
-		if (whiteMoves == 0) ee += mobilityBoost;
-		if (blackMoves < 3 && whiteMoves >= 5) ee -= mobilityBoost;
-		if (blackMoves < 2) ee -= mobilityBoost;
-		if (blackMoves == 0) ee -= mobilityBoost;
-		
-		/*
-		// Potential mobility
-		int temp = 10 * potentialMobilityWeight * (blackPM - whitePM) / (blackPM + whitePM + 2);
-		if (abs(temp) > PM_CAP) temp = (temp > 0) ? PM_CAP : -PM_CAP;
-		ee += temp;
-		*/
-		
-		// Idea: There are exceptions where we don't want a penalty
-		// Penalty for risky squares if corner not filled
-		if (!(taken & CORNER_TL)) {
-			if (BIT(9) & black) ee -= penaltyWeight;
-			if (BIT(9) & white) ee += penaltyWeight;
-		}
-		if (!(taken & CORNER_TR)) {
-			if (BIT(14) & black) ee -= penaltyWeight;
-			if (BIT(14) & white) ee += penaltyWeight;
-		}
-		if (!(taken & CORNER_BL)) {
-			if (BIT(49) & black) ee -= penaltyWeight;
-			if (BIT(49) & white) ee += penaltyWeight;
-		}
-		if (!(taken & CORNER_BR)) {
-			if (BIT(54) & black) ee -= penaltyWeight;
-			if (BIT(54) & white) ee += penaltyWeight;
-		}
-		
-		/*
-		if (totalCount < 45) {
-			// Edge penalties
-			if ((INNER_EDGE_TOP & b) != 0) ee -= edgePenalty;
-			if ((INNER_EDGE_BOTTOM & b) != 0) ee -= edgePenalty;
-			if ((INNER_EDGE_LEFT & b) != 0) ee -= edgePenalty;
-			if ((INNER_EDGE_RIGHT & b) != 0) ee -= edgePenalty;
-			
-			if ((INNER_EDGE_TOP & white) != 0) ee += edgePenalty;
-			if ((INNER_EDGE_BOTTOM & white) != 0) ee += edgePenalty;
-			if ((INNER_EDGE_LEFT & white) != 0) ee += edgePenalty;
-			if ((INNER_EDGE_RIGHT & white) != 0) ee += edgePenalty;
-		}
-		*/
-		if (totalCount < 40) {
-			// Minimize discs early
-			int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
-		    if (abs(discdiff) > 16) discdiff = (discdiff > 0) ? 16 : -16;
-		    ee += discdiff / 4;
-		}
-		//~ auto start = chrono::high_resolution_clock::now();
-		
-		//~ if (totalCount > 20) {
-			// Get top edge into uint16
-			uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
-			ee += EDGE_VALUES[u16];
-			
-			u16 = ((taken << 56) >> 48) | ((black << 56) >> 56);
-			ee += EDGE_VALUES[u16];
-		//~ cerr << "Evaluation time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;	
-			// Get left edge
-			uint64_t tempTaken = taken & EDGE_LEFT;
-			uint64_t tempB = black & EDGE_LEFT;
-			tempTaken >>= 7;
-			tempB >>= 7;
-			// Now same as right edge
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB &= EDGE_BOTTOM;
-			
-			/*
-			tempTaken = tempTaken >> 7;
-			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x3333333333333333ull;
-			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x0f0f0f0f0f0f0f0full;
-			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x00ff00ff00ff00ffull;
-			tempTaken = (tempTaken | (tempTaken >> 8)) & 0x0000ffff0000ffffull;
-			tempTaken = (tempTaken | (tempTaken >> 16)) & 0x00000000ffffffffull;
-			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x0000000033333333ull;
-			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x000000000f0f0f0full;
-			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x0000000000ff00ffull;
-			tempTaken = (tempTaken | (tempTaken >> 8)) & 0x000000000000ffffull;
-			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x0000000000003333ull;
-			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x0000000000000f0full;
-			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x00000000000000ffull;
-			tempB = tempB >> 7;
-			tempB = (tempB | (tempB >> 1)) & 0x3333333333333333ull;
-			tempB = (tempB | (tempB >> 2)) & 0x0f0f0f0f0f0f0f0full;
-			tempB = (tempB | (tempB >> 4)) & 0x00ff00ff00ff00ffull;
-			tempB = (tempB | (tempB >> 8)) & 0x0000ffff0000ffffull;
-			tempB = (tempB | (tempB >> 16)) & 0x00000000ffffffffull;
-			tempB = (tempB | (tempB >> 1)) & 0x0000000033333333ull;
-			tempB = (tempB | (tempB >> 2)) & 0x000000000f0f0f0full;
-			tempB = (tempB | (tempB >> 4)) & 0x0000000000ff00ffull;
-			tempB = (tempB | (tempB >> 8)) & 0x000000000000ffffull;
-			tempB = (tempB | (tempB >> 1)) & 0x0000000000003333ull;
-			tempB = (tempB | (tempB >> 2)) & 0x0000000000000f0full;
-			tempB = (tempB | (tempB >> 4)) & 0x00000000000000ffull;
-			*/
-			u16 = (tempTaken << 8) | tempB;
-			
-			/*
-			uint16_t u16_2 = 0;
-			for (unsigned int i = 0; i < 64; i+=8) {
-				if ((taken & BIT(i)) == BIT(i)) {
-					u16_2 |= EDGE_BIT(i >> 3);
-					if ((black & BIT(i)) == BIT(i)) u16_2 |= EDGE_BIT(8 + i / 8);
-				}
-			}
-			bitset<16> bs(u16), bs2(u16_2);
-			if (u16 != u16_2) cerr << bs << ' ' << bs2 << endl;*/
-			ee += EDGE_VALUES[u16];
-			
-			// Get right edge
-			tempTaken = taken & EDGE_RIGHT;
-			tempB = black & EDGE_RIGHT;
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempTaken |= (tempTaken >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB |= (tempB >> 7);
-			tempB &= EDGE_BOTTOM;
-			
-			/*
-			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x3333333333333333ull;
-			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x0f0f0f0f0f0f0f0full;
-			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x00ff00ff00ff00ffull;
-			tempTaken = (tempTaken | (tempTaken >> 8)) & 0x0000ffff0000ffffull;
-			tempTaken = (tempTaken | (tempTaken >> 16)) & 0x00000000ffffffffull;
-			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x0000000033333333ull;
-			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x000000000f0f0f0full;
-			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x0000000000ff00ffull;
-			tempTaken = (tempTaken | (tempTaken >> 8)) & 0x000000000000ffffull;
-			tempTaken = (tempTaken | (tempTaken >> 1)) & 0x0000000000003333ull;
-			tempTaken = (tempTaken | (tempTaken >> 2)) & 0x0000000000000f0full;
-			tempTaken = (tempTaken | (tempTaken >> 4)) & 0x00000000000000ffull;
-			tempB = (tempB | (tempB >> 1)) & 0x3333333333333333ull;
-			tempB = (tempB | (tempB >> 2)) & 0x0f0f0f0f0f0f0f0full;
-			tempB = (tempB | (tempB >> 4)) & 0x00ff00ff00ff00ffull;
-			tempB = (tempB | (tempB >> 8)) & 0x0000ffff0000ffffull;
-			tempB = (tempB | (tempB >> 16)) & 0x00000000ffffffffull;
-			tempB = (tempB | (tempB >> 1)) & 0x0000000033333333ull;
-			tempB = (tempB | (tempB >> 2)) & 0x000000000f0f0f0full;
-			tempB = (tempB | (tempB >> 4)) & 0x0000000000ff00ffull;
-			tempB = (tempB | (tempB >> 8)) & 0x000000000000ffffull;
-			tempB = (tempB | (tempB >> 1)) & 0x0000000000003333ull;
-			tempB = (tempB | (tempB >> 2)) & 0x0000000000000f0full;
-			tempB = (tempB | (tempB >> 4)) & 0x00000000000000ffull;
-			*/
-			u16 = (tempTaken << 8) | tempB;
-			
-			/*
-			uint16_t u16_2 = 0;
-			for (unsigned int i = 7; i < 64; i+=8) {
-				if ((taken & BIT(i)) == BIT(i)) {
-					u16_2 |= EDGE_BIT(i >> 3);
-					if ((b & BIT(i)) == BIT(i)) u16_2 |= EDGE_BIT(8 + (i >> 3));
-				}
-			}
-			bitset<16> bs(u16), bs2(u16_2);
-			cerr << bs << ' ' << bs2 << endl;*/
-			ee += EDGE_VALUES[u16];
+	// Constants to tweak
+	int mobilityWeight = 4;
+	//~ int potentialMobilityWeight = 1;
+	int mobilityBoost = 5;
+	// Computations
+	//~ uint64_t legalMoves = b.findLegalMoves(BLACK);
+	//~ int blackMoves = __builtin_popcountll(legalMoves);
+	//~ legalMoves = b.findLegalMoves(WHITE);
+	//~ int whiteMoves = __builtin_popcountll(legalMoves);
 	
-		//~ }
-		
-	}
-	else {
-		// Become greedy in the end
-		ee = countBlack() - countWhite();
-	}
-	//if (totalCount > 20) 
-	//~ evaluation = ee;
-	return ee;
+	ee = 15 * mobilityWeight * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + position; //Iago mobility ee //round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
+	
+	
+	
 }
 
 int Board::evaluate_mobility() {
@@ -2850,101 +2644,96 @@ int Board::evaluate_mobility() {
 }
 
 int Board::pos_evaluate() /*const*/ {
-	// auto start = chrono::high_resolution_clock::now();
-	int evaluation; // Don't touch the evaluation member variable here
-	
-	int greedyPoint = 60;
-	int totalCount = __builtin_popcount(taken >> 32) + __builtin_popcount(taken);
-	
-	// Game over if no discs left
-	if (totalCount == countBlack()) return INT_MAX;
-	else if (totalCount == countWhite()) return INT_MIN;
-	
-	uint64_t b = taken & black;
+	int ee = 0;
+	int penaltyWeight = 10;
 	uint64_t white = taken & ~black;
-	if (totalCount < greedyPoint) {
-		// Constants to tweak
-		int penaltyWeight = 10;
-		int edgePenalty = 5;
-		
-		// Computations
-		evaluation = 0;
-		
-		// Idea: There are exceptions where we don't want a penalty
-		// Penalty for risky squares if corner not filled
-		if (!(taken & CORNER_TL)) {
-			if (BIT(9) & b) evaluation -= penaltyWeight;
-			if (BIT(9) & white) evaluation += penaltyWeight;
-		}
-		if (!(taken & CORNER_TR)) {
-			if (BIT(14) & b) evaluation -= penaltyWeight;
-			if (BIT(14) & white) evaluation += penaltyWeight;
-		}
-		if (!(taken & CORNER_BL)) {
-			if (BIT(49) & b) evaluation -= penaltyWeight;
-			if (BIT(49) & white) evaluation += penaltyWeight;
-		}
-		if (!(taken & CORNER_BR)) {
-			if (BIT(54) & b) evaluation -= penaltyWeight;
-			if (BIT(54) & white) evaluation += penaltyWeight;
-		}
-		
-		if (totalCount < 45) {
-			// Edge penalties
-			if ((INNER_EDGE_TOP & b) != 0) evaluation -= edgePenalty;
-			if ((INNER_EDGE_BOTTOM & b) != 0) evaluation -= edgePenalty;
-			if ((INNER_EDGE_LEFT & b) != 0) evaluation -= edgePenalty;
-			if ((INNER_EDGE_RIGHT & b) != 0) evaluation -= edgePenalty;
-			
-			if ((INNER_EDGE_TOP & white) != 0) evaluation += edgePenalty;
-			if ((INNER_EDGE_BOTTOM & white) != 0) evaluation += edgePenalty;
-			if ((INNER_EDGE_LEFT & white) != 0) evaluation += edgePenalty;
-			if ((INNER_EDGE_RIGHT & white) != 0) evaluation += edgePenalty;
-		}
-		
-		if (totalCount < 40) {
-			// Minimize discs early
-			int discdiff = (countWhite() - countBlack());
-		    if (abs(discdiff) > 15) discdiff = (discdiff > 0) ? 15 : -15;
-		    evaluation += discdiff / 5;
-		}
-		if (totalCount > 20) {
-			// Get top edge into uint16
-			uint16_t u16 = ((taken >> 56) << 8) | (b >> 56);
-			if (taken & BIT(1)) assert(u16 & EDGE_BIT(1));
-			evaluation += EDGE_VALUES[u16];
-			
-			u16 = ((taken << 56) >> 48) | ((b << 56) >> 56);
-			evaluation += EDGE_VALUES[u16];
-			
-			// Get left edge
-			u16 = 0;
-			for (int i = 0; i < 64; i+=8) {
-				if ((taken | BIT(i)) == BIT(i)) {
-					u16 |= EDGE_BIT(i / 8);
-					if ((b | BIT(i)) == BIT(i)) u16 |= EDGE_BIT(8 + i / 8);
-				}
-			}
-			evaluation += EDGE_VALUES[u16];
-			
-			// Get right edge
-			u16 = 0;
-			for (int i = 7; i < 64; i+=8) {
-				if ((taken | BIT(i)) == BIT(i)) {
-					u16 |= EDGE_BIT(i / 8);
-					if ((b | BIT(i)) == BIT(i)) u16 |= EDGE_BIT(8 + i / 8);
-				}
-			}
-			evaluation += EDGE_VALUES[u16];
-		}
-	}
-	else {
-		// Become greedy in the end
-		evaluation = countBlack() - countWhite();
-	}
-	//cerr << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
 	
-	return evaluation;
+	// Penalty for risky squares if corner not filled
+	if (!(taken & CORNER_TL) && (BIT(9) & black)) {
+		ee -= penaltyWeight;
+	}
+	else if (!(taken & CORNER_TL) && (BIT(9) & white)) {
+		ee += penaltyWeight;
+	}
+	if (!(taken & CORNER_TR) && (BIT(14) & black)) {
+		ee -= penaltyWeight;
+	}
+	else if (!(taken & CORNER_TR) && (BIT(14) & white)) {
+		ee += penaltyWeight;
+	}
+	if (!(taken & CORNER_BL) && (BIT(49) & black)) {
+		ee -= penaltyWeight;
+	}
+	else if (!(taken & CORNER_BL) && (BIT(49) & white)) {
+		ee += penaltyWeight;
+	}
+	if (!(taken & CORNER_BR) && (BIT(54) & black)) {
+		ee -= penaltyWeight;
+	}
+	else if (!(taken & CORNER_BR) && (BIT(54) & white)) {
+		ee += penaltyWeight;
+	}
+	
+	// Minimize discs early
+	int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
+	discdiff = (discdiff > 16) ? 16 : discdiff;
+	discdiff = (discdiff < -16) ? -16 : discdiff;
+	ee += discdiff / 4;
+
+	// Get top edge into uint16
+	uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
+	ee += EDGE_VALUES[u16];
+	
+	u16 = ((taken << 56) >> 48) | ((black << 56) >> 56);
+	ee += EDGE_VALUES[u16];
+	// Get left edge
+	uint64_t tempTaken = taken & EDGE_LEFT;
+	uint64_t tempB = black & EDGE_LEFT;
+	tempTaken >>= 7;
+	tempB >>= 7;
+	// Now same as right edge
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB &= EDGE_BOTTOM;
+	
+	u16 = (tempTaken << 8) | tempB;
+	ee += EDGE_VALUES[u16];
+	
+	// Get right edge
+	tempTaken = taken & EDGE_RIGHT;
+	tempB = black & EDGE_RIGHT;
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempTaken |= (tempTaken >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB |= (tempB >> 7);
+	tempB &= EDGE_BOTTOM;
+	
+	u16 = (tempTaken << 8) | tempB;
+	
+	ee += EDGE_VALUES[u16];
+	return ee;
 }
 
 /*
