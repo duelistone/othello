@@ -2631,7 +2631,7 @@ int Board::evaluate(int blackMoves, int whiteMoves, int position) /*const*/ {
 	
 	ee = 15 * mobilityWeight * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + position; //Iago mobility ee //round(mobilityWeight * ((blackMoves + 1) / (double) (whiteMoves + 1) - (whiteMoves + 1) / (double) (blackMoves + 1)));
 	
-	
+	return ee;
 	
 }
 
@@ -2675,11 +2675,12 @@ int Board::pos_evaluate() /*const*/ {
 	}
 	
 	// Minimize discs early
-	int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
-	discdiff = (discdiff > 16) ? 16 : discdiff;
-	discdiff = (discdiff < -16) ? -16 : discdiff;
-	ee += discdiff / 4;
-
+	if (__builtin_popcountll(taken) < 40) {
+		int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
+		discdiff = (discdiff > 16) ? 16 : discdiff;
+		discdiff = (discdiff < -16) ? -16 : discdiff;
+		ee += discdiff / 4;
+	}
 	// Get top edge into uint16
 	uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
 	ee += EDGE_VALUES[u16];
