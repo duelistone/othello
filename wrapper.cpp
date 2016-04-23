@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
     Side side = (!strcmp(argv[1], "Black")) ? BLACK : WHITE;
-	
+		
 	// Initialize SINGLE_BIT array
 	for (int i = 0; i < 64; i++) {
 		SINGLE_BIT[i] = BIT(i);

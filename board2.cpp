@@ -346,7 +346,7 @@ uint64_t Board::findLegalMoves(Side side) /*const*/ {
 	t |= (w & (t >> 1));
 	t |= (w & (t >> 1));
 	//~ t |= (w & (t >> 1));
-	moves |= empty & RIGHT_FILTER & (t >> 1);
+	moves |= RIGHT_FILTER & (t >> 1);
 	
 	// LEFT
 	w = opp & LEFT_FILTER;
@@ -358,7 +358,7 @@ uint64_t Board::findLegalMoves(Side side) /*const*/ {
 	t |= w & (t << 1);
 	//~ t |= w & (t << 1);
 	
-	moves |= empty & LEFT_FILTER & (t << 1);
+	moves |= LEFT_FILTER & (t << 1);
 	
 	// DOWN
 	w = opp & DOWN_FILTER;
@@ -370,7 +370,7 @@ uint64_t Board::findLegalMoves(Side side) /*const*/ {
 	t |= w & (t >> 8);
 	//~ t |= w & (t >> 8);
 	
-	moves |= empty & DOWN_FILTER & (t >> 8);
+	moves |= DOWN_FILTER & (t >> 8);
 	
 	// UP
 	w = opp & UP_FILTER;
@@ -382,7 +382,7 @@ uint64_t Board::findLegalMoves(Side side) /*const*/ {
 	t |= w & (t << 8);
 	//~ t |= w & (t << 8);
 	
-	moves |= empty & UP_FILTER & (t << 8);
+	moves |= UP_FILTER & (t << 8);
 	
 	// UP_LEFT
 	w = opp & UP_LEFT_FILTER;
@@ -394,7 +394,7 @@ uint64_t Board::findLegalMoves(Side side) /*const*/ {
 	t |= w & (t << 9);
 	//~ t |= w & (t << 9);
 	
-	moves |= empty & UP_LEFT_FILTER & (t << 9);
+	moves |= UP_LEFT_FILTER & (t << 9);
 	
 	// DOWN_RIGHT
 	w = opp & DOWN_RIGHT_FILTER;
@@ -406,7 +406,7 @@ uint64_t Board::findLegalMoves(Side side) /*const*/ {
 	t |= w & (t >> 9);
 	//~ t |= w & (t >> 9);
 	
-	moves |= empty & DOWN_RIGHT_FILTER & (t >> 9);
+	moves |= DOWN_RIGHT_FILTER & (t >> 9);
 	
 	// UP_RIGHT
 	w = opp & UP_RIGHT_FILTER;
@@ -418,7 +418,7 @@ uint64_t Board::findLegalMoves(Side side) /*const*/ {
 	t |= w & (t << 7);
 	//~ t |= w & (t << 7);
 	
-	moves |= empty & UP_RIGHT_FILTER & (t << 7);
+	moves |= UP_RIGHT_FILTER & (t << 7);
 	
 	// DOWN_LEFT
 	w = opp & DOWN_LEFT_FILTER;
@@ -430,10 +430,10 @@ uint64_t Board::findLegalMoves(Side side) /*const*/ {
 	t |= w & (t >> 7);
 	//~ t |= w & (t >> 7);
 	
-	moves |= empty & DOWN_LEFT_FILTER & (t >> 7);
+	moves |= DOWN_LEFT_FILTER & (t >> 7);
 	
 	//~ cerr << "LM time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<< endl;
-	return moves;
+	return moves & empty;
 }
 
 #if 0
@@ -2622,7 +2622,7 @@ int Board::evaluate(int blackMoves, int whiteMoves, int position) /*const*/ {
 	// Constants to tweak
 	int mobilityWeight = 4;
 	//~ int potentialMobilityWeight = 1;
-	int mobilityBoost = 5;
+	//~ int mobilityBoost = 5;
 	// Computations
 	//~ uint64_t legalMoves = b.findLegalMoves(BLACK);
 	//~ int blackMoves = __builtin_popcountll(legalMoves);
