@@ -2644,8 +2644,10 @@ int Board::evaluate_mobility() {
 }
 
 int Board::pos_evaluate() /*const*/ {
+	//~ auto start = chrono::high_resolution_clock::now();
 	int ee = 0;
 	int penaltyWeight = 10;
+	int shiftRowCount = 48;
 	uint64_t white = taken & ~black;
 	
 	// Penalty for risky squares if corner not filled
@@ -2674,8 +2676,9 @@ int Board::pos_evaluate() /*const*/ {
 		ee += penaltyWeight;
 	}
 	
+	int totalCount = __builtin_popcountll(taken);
 	// Minimize discs early
-	if (__builtin_popcountll(taken) < 40) {
+	if (totalCount < 40) {
 		int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
 		discdiff = (discdiff > 16) ? 16 : discdiff;
 		discdiff = (discdiff < -16) ? -16 : discdiff;
@@ -2685,8 +2688,31 @@ int Board::pos_evaluate() /*const*/ {
 	uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
 	ee += EDGE_VALUES[u16];
 	
+	// If taken, treat next row as edge
+	if (totalCount > shiftRowCount) {
+		if (__builtin_popcount(u16 >> 8) == 8) {
+			u16 = (((taken << 8) >> 56) << 8) | ((black << 8) >> 56);
+			ee += EDGE_VALUES[u16];
+		}
+		if (__builtin_popcount(u16 >> 8) == 8) {
+			u16 = (((taken << 16) >> 56) << 8) | ((black << 16) >> 56);
+			ee += EDGE_VALUES[u16];
+		}
+	}
+	
 	u16 = ((taken << 56) >> 48) | ((black << 56) >> 56);
 	ee += EDGE_VALUES[u16];
+	// If taken, treat next row as edge
+	if (totalCount > shiftRowCount) {
+		if (__builtin_popcount(u16 >> 8) == 8) {
+			u16 = (((taken << 48) >> 56) << 8) | ((black << 48) >> 56);
+			ee += EDGE_VALUES[u16];
+		}
+		if (__builtin_popcount(u16 >> 8) == 8) {
+			u16 = (((taken << 40) >> 56) << 8) | ((black << 40) >> 56);
+			ee += EDGE_VALUES[u16];
+		}
+	}
 	// Get left edge
 	uint64_t tempTaken = taken & EDGE_LEFT;
 	uint64_t tempB = black & EDGE_LEFT;
@@ -2707,11 +2733,61 @@ int Board::pos_evaluate() /*const*/ {
 	tempB |= (tempB >> 7);
 	tempB |= (tempB >> 7);
 	tempB |= (tempB >> 7);
-	tempB &= EDGE_BOTTOM;
 	
 	u16 = (tempTaken << 8) | tempB;
 	ee += EDGE_VALUES[u16];
 	
+	if (totalCount > shiftRowCount) {
+		if (__builtin_popcount(u16 >> 8) == 8) {
+			uint64_t tempTaken = taken & EDGE_LEFT2;
+			uint64_t tempB = black & EDGE_LEFT2;
+			tempTaken >>= 6;
+			tempB >>= 6;
+			// Now same as right edge
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			
+			u16 = (tempTaken << 8) | tempB;
+			ee += EDGE_VALUES[u16];
+		}
+		if (__builtin_popcount(u16 >> 8) == 8) {
+			uint64_t tempTaken = taken & EDGE_LEFT3;
+			uint64_t tempB = black & EDGE_LEFT3;
+			tempTaken >>= 5;
+			tempB >>= 5;
+			// Now same as right edge
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+
+			u16 = (tempTaken << 8) | tempB;
+			ee += EDGE_VALUES[u16];
+		}
+	}
+
 	// Get right edge
 	tempTaken = taken & EDGE_RIGHT;
 	tempB = black & EDGE_RIGHT;
@@ -2729,11 +2805,60 @@ int Board::pos_evaluate() /*const*/ {
 	tempB |= (tempB >> 7);
 	tempB |= (tempB >> 7);
 	tempB |= (tempB >> 7);
-	tempB &= EDGE_BOTTOM;
 	
 	u16 = (tempTaken << 8) | tempB;
-	
 	ee += EDGE_VALUES[u16];
+	if (totalCount > shiftRowCount) {
+		if (__builtin_popcount(u16 >> 8) == 8) {
+			uint64_t tempTaken = taken & EDGE_RIGHT2;
+			uint64_t tempB = black & EDGE_RIGHT2;
+			tempTaken >>= 1;
+			tempB >>= 1;
+			// Now same as right edge
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			
+			u16 = (tempTaken << 8) | tempB;
+			ee += EDGE_VALUES[u16];
+		}
+		if (__builtin_popcount(u16 >> 8) == 8) {
+			uint64_t tempTaken = taken & EDGE_RIGHT3;
+			uint64_t tempB = black & EDGE_RIGHT3;
+			tempTaken >>= 2;
+			tempB >>= 2;
+			// Now same as right edge
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempTaken |= (tempTaken >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+			tempB |= (tempB >> 7);
+
+			u16 = (tempTaken << 8) | tempB;
+			ee += EDGE_VALUES[u16];
+		}
+	}
+	//~ cerr << "Positional evaluation: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
 	return ee;
 }
 

@@ -405,10 +405,34 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 	uint64_t legalMoves = b.findLegalMoves(s);
 	
 	// Prob cut
+	double sigma;
+	if (alpha == INT_MIN || beta == INT_MAX) goto skip_pc_ab;
 	int bound, secondDepth;
-	double sigma = SIGMA + totalDiscs / 15;
-	secondDepth = depth - 10;
+	sigma = SIGMA + totalDiscs / 15;
+	secondDepth = depth - 14;
 	if (secondDepth > 0) {
+		if (beta < 500) {
+			bound = round(PERCENTILE * (sigma + 6) + beta);
+			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+		}
+		if (alpha > -500) {
+			bound = round(-PERCENTILE * (sigma + 6) + alpha);
+			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+		}
+	}
+	secondDepth = depth - 12;
+	if (secondDepth > 0) {
+		if (beta < 500) {
+			bound = round(PERCENTILE * (sigma + 5) + beta);
+			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+		}
+		if (alpha > -500) {
+			bound = round(-PERCENTILE * (sigma + 5) + alpha);
+			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+		}
+	}
+	secondDepth = depth - 10;
+	if (depth <= 16 && secondDepth > 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 4) + beta);
 			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
@@ -418,8 +442,8 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
 		}
 	}
-	econdDepth = depth - 8;
-	if (secondDepth > 0) {
+	secondDepth = depth - 8;
+	if (depth <= 14 && secondDepth > 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 3) + beta);
 			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
@@ -430,7 +454,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 		}
 	}
 	secondDepth = depth - 6;
-	if (secondDepth > 0) {
+	if (depth <= 12 && secondDepth > 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 2) + beta);
 			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
@@ -441,7 +465,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 		}
 	}
 	secondDepth = depth - 4;
-	if (secondDepth > 0) {
+	if (depth <= 10 && secondDepth > 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 1) + beta);
 			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
@@ -452,7 +476,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 		}
 	}
 	secondDepth = depth - 2;
-	if (secondDepth > 0) {
+	if (depth <= 8 && secondDepth > 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma) + beta);
 			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
@@ -462,6 +486,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
 		}
 	}
+	skip_pc_ab:
 	
 
 	// Special case
@@ -492,10 +517,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			}
 			if (besti != -1) {
 				(*um4)[bws] = besti;
-			}/*
-			if (alpha < beta) {
-				(*um3)[bws] = alpha;
-			}*/
+			}
 			return alpha;
 	}
 	
@@ -516,10 +538,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			}
 			if (besti != -1) {
 				(*um4)[bws] = besti;
-			}/*
-			if (alpha < beta) {
-				(*um3)[bws] = alpha;
-			}*/
+			}
 			return alpha;
 	}
 	else if (depth > 3 && um4->count(bws)) {
@@ -540,15 +559,11 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			}
 			if (besti != -1) {
 				(*um4)[bws] = besti;
-			}/*
-			if (alpha < beta) {
-				(*um3)[bws] = beta;
-			}*/
+			}
 			return beta;
 	}
 	else if (depth > 3) {
 			// White & no um4
-			//~ int origBeta = beta;
 			int v = INT_MAX;
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= SINGLE_BIT[index];
@@ -565,10 +580,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			}
 			if (besti != -1) {
 				(*um4)[bws] = besti;
-			}/*
-			if (alpha < beta) {
-				(*um3)[bws] = beta;
-			}*/
+			}
 			return beta;
 	}
 	else if (s) {
@@ -588,7 +600,6 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			return alpha;
 	}
 	else {
-			//~ int origBeta = beta;
 			int v = INT_MAX;
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= SINGLE_BIT[index];
@@ -814,10 +825,6 @@ int alphabeta_pure(Board b, int depth, Side s, int alpha = INT_MIN, int beta = I
 	}
 }
 
-int mpc(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
-	return 0;
-}
-
 int pvsCalls = 0;
 int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
 	pvsCalls++;
@@ -838,9 +845,33 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 	
 	// Prob cut
 	int bound, secondDepth;
-	double sigma = SIGMA + totalDiscs / 15;
-	secondDepth = depth - 10;
+	double sigma;
+	if (alpha == INT_MIN || beta == INT_MAX) goto skip_pc;
+	sigma = SIGMA + totalDiscs / 15;
+	secondDepth = depth - 14;
 	if (secondDepth > 0) {
+		if (beta < 500) {
+			bound = round(PERCENTILE * (sigma + 6) + beta);
+			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+		}
+		if (alpha > -500) {
+			bound = round(-PERCENTILE * (sigma + 6) + alpha);
+			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+		}
+	}
+	secondDepth = depth - 12;
+	if (secondDepth > 0) {
+		if (beta < 500) {
+			bound = round(PERCENTILE * (sigma + 5) + beta);
+			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+		}
+		if (alpha > -500) {
+			bound = round(-PERCENTILE * (sigma + 5) + alpha);
+			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+		}
+	}
+	secondDepth = depth - 10;
+	if (depth <= 16 && secondDepth > 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 4) + beta);
 			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
@@ -851,7 +882,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		}
 	}
 	secondDepth = depth - 8;
-	if (secondDepth > 0) {
+	if (depth <= 14 && secondDepth > 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 3) + beta);
 			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
@@ -862,7 +893,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		}
 	}
 	secondDepth = depth - 6;
-	if (secondDepth > 0) {
+	if (depth <= 12 && secondDepth > 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 2) + beta);
 			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
@@ -873,7 +904,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		}
 	}
 	secondDepth = depth - 4;
-	if (secondDepth > 0) {
+	if (depth <= 10 && secondDepth > 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 1) + beta);
 			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
@@ -884,7 +915,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		}
 	}
 	secondDepth = depth - 2;
-	if (secondDepth > 0) {
+	if (depth <= 8 && secondDepth > 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma) + beta);
 			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
@@ -894,6 +925,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
 		}
 	}
+	skip_pc:
 	
 	// Transposition table
 	//~ if (um5->count(bws)) return (*um5)[bws];	
@@ -1061,68 +1093,6 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 	
 }
 
-pair<int, int> main_minimax(Board b, Side s, int depth, int guess = -1) {
-	auto start = chrono::high_resolution_clock::now();
-	
-	// Depth must be greater than or equal to 1
-	uint64_t legalMoves = b.findLegalMoves(s);
-	if (legalMoves == 0) return make_pair(-1, -100); // Evaluation here has no meaning
-	
-	int besti = -1;
-	if (s == BLACK) {
-		int v = INT_MIN;
-		if (guess >= 0) {
-			legalMoves ^= BIT(guess);
-			Board b2 = b.doMoveOnNewBoard(guess, s);
-			v = alphabeta(b2, depth - 1, other_side(s));
-			besti = guess;
-		}
-		while (legalMoves != 0) {
-			int secondsPast = chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - start).count();
-			// Questionable
-			if (secondsPast >= 30 && depth > 10) depth--;
-			if (secondsPast >= 60) break;
-			
-			int index = __builtin_clzl(legalMoves);
-			legalMoves ^= SINGLE_BIT[index];
-			
-			Board b2 = b.doMoveOnNewBoard(index, s);
-			int val = alphabeta(b2, depth - 1, other_side(s), v, INT_MAX);
-			if (val > v || besti == -1) {
-				besti = index;
-				v = val;
-			}
-		}
-		return make_pair(besti, v);
-	}
-	else {
-		int v = INT_MAX;
-		if (guess >= 0) {
-			legalMoves ^= BIT(guess);
-			Board b2 = b.doMoveOnNewBoard(guess, s);
-			v = alphabeta(b2, depth - 1, other_side(s));
-			besti = guess;
-		}
-		while (legalMoves != 0) {
-			int secondsPast = chrono::duration_cast<chrono::seconds>(chrono::high_resolution_clock::now() - start).count();
-			// Questionable
-			if (secondsPast > 30 && depth > 10) {depth--;}
-			if (secondsPast > 60) {break;}
-			
-			int index = __builtin_clzl(legalMoves);
-			legalMoves ^= SINGLE_BIT[index];
-			
-			Board b2 = b.doMoveOnNewBoard(index, s);
-			int val = alphabeta(b2, depth - 1, other_side(s), INT_MIN, v);
-			if (val < v || besti == -1) {
-				besti = index;
-				v = val;
-			}
-		}
-		return make_pair(besti, v);
-	}		
-}
-
 pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int lower, int upper) {
 	// Depth must be greater than or equal to 1
 	uint64_t legalMoves = b.findLegalMoves(s);
@@ -1188,11 +1158,11 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	// DEPTH CANNOT BE ZERO!
 	auto start = chrono::high_resolution_clock::now();
 	int d = 2;
-	int besti, e, lower, upper, counter;
+	int e, lower, upper, counter;
 	um5->clear();
 	//~ d = alphabeta(b, depth - 6, s);
 	//~ cerr << "Finished depth " << depth - 6 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-	e = alphabeta(b, depth - 4, s);
+	e = pvs(b, depth - 4, s);
 	cerr << "Finished depth " << depth - 4 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 	//~ ee = alphabeta_odd(b, depth - 3, s);
 	//~ cerr << "Finished depth " << depth - 3 << " search: " << ee << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
@@ -1212,7 +1182,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	counter = 1;
 	try_again3:
 	um5->clear();
-	e = alphabeta(b, depth - 2, s, lower, upper);
+	e = pvs(b, depth - 2, s, lower, upper);
 	// Using 2 * counter: 2:27
 	// Using 4: 2:29
 	// Using d * counter: 2:28
@@ -1236,7 +1206,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	lower = e - d; // Put bounds at -25, 25 too?
 	upper = e + d;
 	counter = 1;
-	besti = (*um4)[BoardWithSide(b.taken, b.black, s)];
+	//~ besti = (*um4)[BoardWithSide(b.taken, b.black, s)];
 	try_again2:
 	um5->clear();
 	pair<int, int> result;
@@ -1479,6 +1449,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     // Set depth according to how far into game
     int depth;
     if (totalCount <= 20) depth = MAX_DEPTH;
+    else if (totalCount <= 30) depth = MAX_DEPTH;
     else if (totalCount <= 41) depth = MAX_DEPTH;
     else depth = INT_MAX; // Search to end (much faster)
 	
