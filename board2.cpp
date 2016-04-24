@@ -2600,6 +2600,8 @@ Board Board::doMoveOnNewBoard3(int X, int Y, Side side) /*const*/ {
     return Board(newtaken, newblack);
 }
 
+
+// Currently useless
 /*
  * Evaluation function. findLegalMoves must be called first to get a 
  * nonzero value.
@@ -2680,9 +2682,9 @@ int Board::pos_evaluate() /*const*/ {
 	// Minimize discs early
 	if (totalCount < 40) {
 		int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
-		discdiff = (discdiff > 16) ? 16 : discdiff;
-		discdiff = (discdiff < -16) ? -16 : discdiff;
-		ee += discdiff / 4;
+		//~ discdiff = (discdiff > 16) ? 16 : discdiff;
+		//~ discdiff = (discdiff < -16) ? -16 : discdiff;
+		ee += discdiff / 2;
 	}
 	// Get top edge into uint16
 	uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
