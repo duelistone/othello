@@ -2680,8 +2680,6 @@ int Board::pos_evaluate() /*const*/ {
 	// Minimize discs early
 	if (totalCount < 40) {
 		int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
-		discdiff = (discdiff > 16) ? 16 : discdiff;
-		discdiff = (discdiff < -16) ? -16 : discdiff;
 		ee += discdiff / 2;
 	}
 	// Get top edge into uint16

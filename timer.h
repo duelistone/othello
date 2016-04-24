@@ -11,6 +11,9 @@ public:
 	Timer() {
 		start = chrono::high_resolution_clock::now();
 	}
+	int getms() {
+		return chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count();
+	}
 	void end(string message = "") {
 		cerr << message << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 	}

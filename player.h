@@ -30,8 +30,6 @@ extern "C" int max(int x, int y);
 #define MIN(x, y) ((x) <= (y) ? (x) : (y))
 
 #define PERCENTILE (1.5)
-// Wins against 14_working with SIGMA 5
-#define SIGMA 5
 #define PROB_CUT_DEPTH1 4
 #define PROB_CUT_DEPTH2 8
 
@@ -62,9 +60,9 @@ extern std::unordered_map< BoardWithSide, int > *um5;
 
 extern fstream fil;
 
-extern unordered_map<int, double> sigma;
-extern unordered_map<int, double> constant_terms;
-extern unordered_map<int, double> coefficients;
+//~ extern unordered_map<int, double> sigma;
+//~ extern unordered_map<int, double> constant_terms;
+//~ extern unordered_map<int, double> coefficients;
 
 extern int *EDGE_VALUES;
 extern int ordered_moves[64][64];
