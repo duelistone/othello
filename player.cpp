@@ -1,6 +1,6 @@
 #include "player.h"
 
-#define MAX_DEPTH 16
+#define MAX_DEPTH 18
 
 Side abortSide;
 
@@ -364,8 +364,8 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 	
 	if (depth <= 0) {
 		int position = b.pos_evaluate();
-		int mobilityWeight = 4;
-		int mobilityBoost = 5;
+		int mobilityWeight = MOBILITY_WEIGHT;
+		int mobilityBoost = MOBILITY_BOOST;
 		if (s == BLACK) {
 			uint64_t lm = b.findLegalMoves(BLACK);
 			int blackMoves = __builtin_popcountll(lm & SAFE_SQUARES);
@@ -403,91 +403,86 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 	BoardWithSide bws(b.taken, b.black, s);
 	int totalDiscs = __builtin_popcountll(b.taken);
 	uint64_t legalMoves = b.findLegalMoves(s);
-	
+	if (alpha != INT_MIN && beta != INT_MAX) {
+		int sigma = SIGMA + totalDiscs / 15;
+		int streak = 0;
+		for (int d = 0; d < depth; d += 2) {
+			if (alphabeta(b, d, s, alpha - sigma, alpha - sigma + 1) <= alpha - sigma) streak++;
+			else streak = 0;
+			if (streak == 3) return alpha;
+			if (d + 2 * (3 - streak) >= depth) break;
+		}
+		streak = 0;
+		for (int d = 0; d < depth; d += 2) {
+			if (alphabeta(b, d, s, beta + sigma - 1, beta + sigma) >= beta + sigma) streak++;
+			else streak = 0;
+			if (streak == 3) return beta;
+			if (d + 2 * (3 - streak) >= depth) break;
+		}
+	}
+	/*
 	// Prob cut
 	double sigma;
 	if (alpha == INT_MIN || beta == INT_MAX) goto skip_pc_ab;
 	int bound, secondDepth;
 	sigma = SIGMA + totalDiscs / 15;
 	secondDepth = depth - 14;
-	if (secondDepth > 0) {
+	if (secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 6) + beta);
-			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound && alphabeta(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 6) + alpha);
-			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound && alphabeta(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
 	}
 	secondDepth = depth - 12;
-	if (secondDepth > 0) {
+	if (secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 5) + beta);
-			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound && alphabeta(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 5) + alpha);
-			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound && alphabeta(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
 	}
 	secondDepth = depth - 10;
-	if (depth <= 16 && secondDepth > 0) {
+	if (depth <= 16 && secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 4) + beta);
-			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound && alphabeta(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 4) + alpha);
-			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound && alphabeta(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
 	}
 	secondDepth = depth - 8;
-	if (depth <= 14 && secondDepth > 0) {
+	if (depth <= 14 && secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 3) + beta);
-			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound && alphabeta(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 3) + alpha);
-			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound && alphabeta(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
 	}
 	secondDepth = depth - 6;
-	if (depth <= 12 && secondDepth > 0) {
+	if (depth <= 12 && secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 2) + beta);
-			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound && alphabeta(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 2) + alpha);
-			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
-		}
-	}
-	secondDepth = depth - 4;
-	if (depth <= 10 && secondDepth > 0) {
-		if (beta < 500) {
-			bound = round(PERCENTILE * (sigma + 1) + beta);
-			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
-		}
-		if (alpha > -500) {
-			bound = round(-PERCENTILE * (sigma + 1) + alpha);
-			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
-		}
-	}
-	secondDepth = depth - 2;
-	if (depth <= 8 && secondDepth > 0) {
-		if (beta < 500) {
-			bound = round(PERCENTILE * (sigma) + beta);
-			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
-		}
-		if (alpha > -500) {
-			bound = round(-PERCENTILE * (sigma) + alpha);
-			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (alphabeta(b, secondDepth, s, bound, bound + 1) <= bound && alphabeta(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
 	}
 	skip_pc_ab:
-	
+	*/
 
 	// Special case
 	if (!legalMoves) {
@@ -842,90 +837,107 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 	
 	int totalDiscs = __builtin_popcountll(b.taken);
 	BoardWithSide bws(b.taken, b.black, s);
-	
+	if (alpha != INT_MIN && beta != INT_MAX) {
+		int sigma = SIGMA + totalDiscs / 15;
+		int streak = 0;
+		for (int d = 0; d < depth; d += 2) {
+			if (pvs(b, d, s, alpha - sigma, alpha - sigma + 1) <= alpha - sigma) streak++;
+			else streak = 0;
+			if (streak == 3) return alpha;
+			if (d + 2 * (3 - streak) >= depth) break;
+		}
+		streak = 0;
+		for (int d = 0; d < depth; d += 2) {
+			if (pvs(b, d, s, beta + sigma - 1, beta + sigma) >= beta + sigma) streak++;
+			else streak = 0;
+			if (streak == 3) return beta;
+			if (d + 2 * (3 - streak) >= depth) break;
+		}
+	}
+	/*
 	// Prob cut
 	int bound, secondDepth;
 	double sigma;
 	if (alpha == INT_MIN || beta == INT_MAX) goto skip_pc;
 	sigma = SIGMA + totalDiscs / 15;
 	secondDepth = depth - 14;
-	if (secondDepth > 0) {
+	if (secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 6) + beta);
-			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound && pvs(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 6) + alpha);
-			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound && pvs(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
 	}
 	secondDepth = depth - 12;
-	if (secondDepth > 0) {
+	if (secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 5) + beta);
-			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound && pvs(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 5) + alpha);
-			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound && pvs(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
 	}
 	secondDepth = depth - 10;
-	if (depth <= 16 && secondDepth > 0) {
+	if (depth <= 16 && secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 4) + beta);
-			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound && pvs(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 4) + alpha);
-			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound && pvs(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
 	}
 	secondDepth = depth - 8;
-	if (depth <= 14 && secondDepth > 0) {
+	if (depth <= 14 && secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 3) + beta);
-			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound && pvs(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 3) + alpha);
-			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound && pvs(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
 	}
 	secondDepth = depth - 6;
-	if (depth <= 12 && secondDepth > 0) {
+	if (depth <= 12 && secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 2) + beta);
-			if (alphabeta(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound && pvs(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 2) + alpha);
-			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound && pvs(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
-	}
+	}*//*
 	secondDepth = depth - 4;
-	if (depth <= 10 && secondDepth > 0) {
+	if (depth <= 10 && secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma + 1) + beta);
-			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound && pvs(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma + 1) + alpha);
-			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound && pvs(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
 	}
 	secondDepth = depth - 2;
-	if (depth <= 8 && secondDepth > 0) {
+	if (depth <= 8 && secondDepth >= 0) {
 		if (beta < 500) {
 			bound = round(PERCENTILE * (sigma) + beta);
-			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound) return beta;
+			if (pvs(b, secondDepth, s, bound - 1, bound) >= bound && pvs(b, secondDepth + 4, s, beta - 1, beta) >= beta) return beta;
 		}
 		if (alpha > -500) {
 			bound = round(-PERCENTILE * (sigma) + alpha);
-			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound) return alpha;
+			if (pvs(b, secondDepth, s, bound, bound + 1) <= bound && pvs(b, secondDepth + 4, s, alpha, alpha + 1) <= alpha) return alpha;
 		}
-	}
-	skip_pc:
+	}*/
+	//~ skip_pc:
 	
 	// Transposition table
 	//~ if (um5->count(bws)) return (*um5)[bws];	

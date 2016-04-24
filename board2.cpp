@@ -2682,7 +2682,7 @@ int Board::pos_evaluate() /*const*/ {
 		int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
 		discdiff = (discdiff > 16) ? 16 : discdiff;
 		discdiff = (discdiff < -16) ? -16 : discdiff;
-		ee += discdiff / 4;
+		ee += discdiff / 2;
 	}
 	// Get top edge into uint16
 	uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
