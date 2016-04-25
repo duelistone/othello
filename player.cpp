@@ -1,6 +1,6 @@
 #include "player.h"
 
-#define MAX_DEPTH 16
+#define MAX_DEPTH 14
 
 Side abortSide;
 
@@ -354,7 +354,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 	int totalCount = __builtin_popcountll(b.taken);
 	if (depth <= 0) {
 		int position = b.pos_evaluate();
-		int mobilityWeight = (totalCount < 45) ? MOBILITY_WEIGHT : MOBILITY_WEIGHT - 5;
+		int mobilityWeight = (totalCount < 44) ? MOBILITY_WEIGHT : MOBILITY_WEIGHT + 10;
 		int mobilityBoost = MOBILITY_BOOST;
 		if (s == BLACK) {
 			uint64_t lm = b.findLegalMoves(BLACK);
@@ -393,14 +393,18 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 	}		
 
 	BoardWithSide bws(b.taken, b.black, s);
-	int totalDiscs = __builtin_popcountll(b.taken);
-	uint64_t legalMoves = b.findLegalMoves(s);
+	uint64_t legalMoves = b.findLegalMoves(s);/*
 	int sigma;
 	//~ Timer tim;
 	if (alpha != INT_MIN && beta != INT_MAX && usePC && depth >= 4 && noPC <= 0) {
 		int streak = 0;
 		for (int d = 0; d < 6; d += 2) {
-			sigma = (depth - d) / 2 + totalDiscs / 5;
+			// Denominator of 5 works well, but takes too long
+			sigma = (depth - d) / 2 + totalDiscs / 10;
+			if (totalDiscs > 44) {
+				sigma *= 6;
+				sigma /= 5;
+			}
 			//~ Timer tim;
 			if (alphabeta(b, d, s, alpha - sigma, alpha - sigma + 1, false, false) <= alpha - sigma) streak++;
 			else break;
@@ -410,7 +414,11 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 		}
 		streak = 0;
 		for (int d = 0; d < 6; d += 2) {
-			sigma = (depth - d) / 2 + totalDiscs / 5;
+			sigma = (depth - d) / 2 + totalDiscs / 10;
+			if (totalDiscs > 44) {
+				sigma *= 6;
+				sigma /= 5;
+			}
 			//~ Timer tim;
 			if (alphabeta(b, d, s, beta + sigma - 1, beta + sigma, false, false) >= beta + sigma) streak++;
 			else break;
@@ -418,7 +426,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			if (streak == 3) {return beta;}
 			//~ if (d + 2 * (3 - streak) >= depth) break;
 		}
-	}
+	}*/
 	
 	// Special case
 	if (!legalMoves) {
@@ -563,13 +571,18 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		return alphabeta(b, depth, s, alpha, beta, prevPass);
 	}
 	
-	int totalDiscs = __builtin_popcountll(b.taken);
 	BoardWithSide bws(b.taken, b.black, s);
+	/*
+	int totalDiscs = __builtin_popcountll(b.taken);
 	int sigma;
 	if (alpha != INT_MIN && beta != INT_MAX && usePC && depth >= 4 && noPC <= 0) {
 		int streak = 0;
 		for (int d = 0; d < 6; d += 2) {
-			sigma = (depth - d) / 2 + totalDiscs / 5;
+			sigma = (depth - d) / 2 + totalDiscs / 10;
+			if (totalDiscs > 44) {
+				sigma *= 6;
+				sigma /= 5;
+			}
 			//~ Timer tim;
 			if (pvs(b, d, s, alpha - sigma, alpha - sigma + 1, false, false) <= alpha - sigma) streak++;
 			else break;
@@ -579,7 +592,11 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		}
 		streak = 0;
 		for (int d = 0; d < 6; d += 2) {
-			sigma = (depth - d) / 2 + totalDiscs / 5;
+			sigma = (depth - d) / 2 + totalDiscs / 10;
+			if (totalDiscs > 44) {
+				sigma *= 6;
+				sigma /= 5;
+			}
 			//~ Timer tim;
 			if (pvs(b, d, s, beta + sigma - 1, beta + sigma, false, false) >= beta + sigma) streak++;
 			else break;
@@ -587,7 +604,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			if (streak == 3) {return beta;}
 			//~ if (d + 2 * (3 - streak) >= depth) break;
 		}
-	}
+	}*/
 	uint64_t legalMoves = b.findLegalMoves(s);
 		
 	// Special case
@@ -820,7 +837,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	um5->clear();
 	//~ d = alphabeta(b, depth - 6, s);
 	//~ cerr << "Finished depth " << depth - 6 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-	e = alphabeta(b, depth - 6, s, INT_MIN, INT_MAX, false, true, 6);
+	e = alphabeta(b, depth - 6, s, INT_MIN, INT_MAX, false, true, 4);
 	cerr << "Finished depth " << depth - 6 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 	//~ ee = alphabeta_odd(b, depth - 3, s);
 	//~ cerr << "Finished depth " << depth - 3 << " search: " << ee << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
@@ -840,7 +857,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	counter = 1;
 	try_again4:
 	um5->clear();
-	e = pvs(b, depth - 4, s, lower, upper, false, true, 6);
+	e = pvs(b, depth - 4, s, lower, upper, false, true, 4);
 	// Using 2 * counter: 2:27
 	// Using 4: 2:29
 	// Using d * counter: 2:28
@@ -866,7 +883,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	counter = 1;
 	try_again3:
 	um5->clear();
-	e = pvs(b, depth - 2, s, lower, upper, false, true, 6);
+	e = pvs(b, depth - 2, s, lower, upper, false, true, 4);
 	// Using 2 * counter: 2:27
 	// Using 4: 2:29
 	// Using d * counter: 2:28
@@ -894,7 +911,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	try_again2:
 	um5->clear();
 	pair<int, int> result;
-	e = pvs(b, depth, s, lower, upper, false, true, 6);
+	e = pvs(b, depth, s, lower, upper, false, true, 4);
 	// This is bound to segfault one day
 	result = make_pair((*um4)[BoardWithSide(b.taken, b.black, s)], e);
 	if (result.second <= lower && lower != INT_MIN) {
