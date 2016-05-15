@@ -1,6 +1,6 @@
 #include "player.h"
 
-#define MAX_DEPTH 14
+#define MAX_DEPTH 12
 
 Side abortSide;
 
@@ -47,11 +47,17 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 	
 	int count = __builtin_popcount(data >> 8);
 	
+	function<int(int)> f = [data] (int index) -> int {
+		if ((data & EDGE_BIT(index)) == 0) return -1;
+		else if (data & EDGE_BIT(index + 8)) return BLACK;
+		else return WHITE;
+	};
+	
 	for (int i = 0; i < 8; i++) {
 		// If empty, continue
-		if ((data & EDGE_BIT(i)) == 0) continue;
+		if (f(i) == -1) continue;
 		
-		Side s = (data & EDGE_BIT(8 + i)) ? BLACK : WHITE;
+		Side s = (f(i) == BLACK) ? BLACK : WHITE;
 		
 		if (i == 0 || i == 7) {
 			if (s == BLACK) eval += cornerWeight;
@@ -71,10 +77,8 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		
 		int x = i;
 		x--;
-		while (x >= 0 && ((data & EDGE_BIT(x)) == EDGE_BIT(x))) {
-			bool iset = ((data & EDGE_BIT(8 + i)) == EDGE_BIT(8 + i));
-			bool xset = ((data & EDGE_BIT(8 + x)) == EDGE_BIT(8 + x));
-			if ((iset && !xset) || ((!iset) && xset)) break;
+		while (x >= 0 && f(i) != -1) {
+			if (f(x) != f(i)) break;
 			x--;
 		}
 		if (x == -1) {
@@ -82,35 +86,18 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 			else eval -= stableWeight;
 			continue;
 		}
-		else if (i == 1 || i == 6) {
-			if (s == BLACK) eval += unstableWeightC;
-			else eval -= unstableWeightC;
-			continue;
-		}
 		
 		x = i;
 		x++;
-		while (x < 8 && ((data & EDGE_BIT(x)) == EDGE_BIT(x))) {
-			bool iset = ((data & EDGE_BIT(8 + i)) == EDGE_BIT(8 + i));
-			bool xset = ((data & EDGE_BIT(8 + x)) == EDGE_BIT(8 + x));
-			if ((iset && !xset) || ((!iset) && xset)) break;
+		while (x < 8 && f(i) != -1) {
+			if (f(x) != f(i)) break;
 			x++;
 		}
 		if (x == 8) {
 			if (s == BLACK) eval += stableWeight;
 			else eval -= stableWeight;
 		}
-		else if (i == 1 || i == 6) {
-			if (s == BLACK) eval += unstableWeightC;
-			else eval -= unstableWeightC;
-		}
 	}
-	
-	function<int(int)> f = [data] (int index) -> int {
-		if ((data & EDGE_BIT(index)) == 0) return -1;
-		else if (data & EDGE_BIT(index + 8)) return BLACK;
-		else return WHITE;
-	};
 	
 	// Wedges (these are complicated, maybe we shouldn't deal with
 	// them so generally.
@@ -160,6 +147,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		eval -= 2 * cornerWeight;
 		eval -= stableWeight * (emptySquares + 2);
 	}
+	cornerCapture = (f(i) == -1);
 	// BLACK advantage
 	if (f(i + 1) != WHITE) cornerCapture = false;
 	emptySquares = 0;
@@ -188,6 +176,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		eval -= 2 * cornerWeight;
 		eval -= stableWeight * (emptySquares + 2);
 	}
+	cornerCapture = (f(i) == -1);
 	// BLACK advantage
 	if (f(i - 1) != WHITE) cornerCapture = false;
 	emptySquares = 0;
@@ -218,6 +207,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		eval -= 2 * cornerWeight;
 		eval -= stableWeight * (emptySquares + 2);
 	}
+	cornerCapture = (f(i) == -1);
 	// BLACK advantage
 	if (f(i + 1) != WHITE) cornerCapture = false;
 	emptySquares = 0;
@@ -246,6 +236,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		eval -= 2 * cornerWeight;
 		eval -= stableWeight * (emptySquares + 2);
 	}
+	cornerCapture = (f(i) == -1);
 	// BLACK advantage
 	if (f(i - 1) != WHITE) cornerCapture = false;
 	emptySquares = 0;
@@ -318,6 +309,13 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 			 f(4) == -1 && f(5) == WHITE && f(6) == -1 && f(7) == -1) {
 		eval += unbalancedEdgeWeight;
 	}
+	string s;
+	for (int i = 0; i < 8; i++) {
+		if (f(i) == -1) s += "-";
+		else if (f(i) == BLACK) s += "X";
+		else s += "O";
+	}
+	fil << s << ' ' << eval << endl;
 	EDGE_VALUES[data] = eval;
 	
 	// ./testgame freezes when you uncomment this for who knows what reason
@@ -335,142 +333,79 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
  * within 30 seconds.
  */
 Player::Player(Side s) : side(s), currBoard(Board()) {
-    // Will be set to true in test_minimax.cpp.
-    testingMinimax = false;
-    
     playerConstructorHelper();
-}
-
-/*
- * Destructor for the player.
- */
-Player::~Player() {
 }
 
 int abCalls = 0;
 int timeWasted = 0;
-int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false, bool usePC = true, int noPC = 0) {
+Evaluation alphabeta(Board b, int depth, Side s, Evaluation alpha = Evaluation(INT_MIN, INT_MIN), Evaluation beta = Evaluation(INT_MAX, INT_MAX), bool prevPass = false) {
+	//~ cerr << "Calling ab with " << alpha << ' ' << beta << endl;
 	//~ abCalls++;
 	int totalCount = __builtin_popcountll(b.taken);
 	if (depth <= 0) {
-		int position = b.pos_evaluate();
-		int mobilityWeight = (totalCount < 44) ? MOBILITY_WEIGHT : MOBILITY_WEIGHT + 10;
-		int mobilityBoost = MOBILITY_BOOST;
-		if (s == BLACK) {
-			uint64_t lm = b.findLegalMoves(BLACK);
-			int blackMoves = __builtin_popcountll(lm & SAFE_SQUARES);
-			int v = INT_MAX;
-			int eval = INT_MIN;
-			while (lm && eval < beta) {
-				int index = __builtin_clzl(lm);
-				lm ^= SINGLE_BIT[index];
-				int val = __builtin_popcountll(b.doMoveOnNewBoard(index, BLACK).findLegalMoves(WHITE) & SAFE_SQUARES);
-				if (val < v) {
-					eval = mobilityWeight * (blackMoves - val) / (blackMoves + val + 2) + position + ((val == 0) ? mobilityBoost : 0);
-					v = val;
-				}
-			}
-			if (eval == INT_MIN) eval = -mobilityWeight + position - mobilityBoost;
-			return eval;
+		if (b.pos_evaluate() >= 50) {
+			cerr << b << endl;
 		}
-		else {
-			uint64_t lm = b.findLegalMoves(WHITE);
-			int whiteMoves = __builtin_popcountll(lm & SAFE_SQUARES);
-			int v = INT_MAX;
-			int eval = INT_MAX;
-			while (lm && eval > alpha) {
-				int index = __builtin_clzl(lm);
-				lm ^= SINGLE_BIT[index];
-				int val = __builtin_popcountll(b.doMoveOnNewBoard(index, WHITE).findLegalMoves(BLACK) & SAFE_SQUARES);
-				if (val < v) {
-					eval = mobilityWeight * (val - whiteMoves) / (whiteMoves + val + 2) + position - ((val == 0) ? mobilityBoost : 0);
-					v = val;
-				}
-			}
-			if (eval == INT_MAX) eval = mobilityWeight + position + mobilityBoost;
-			return eval;
-		}
+		return Evaluation(b.pos_evaluate(), b.mobilityScore());
 	}		
 
 	BoardWithSide bws(b.taken, b.black, s);
-	uint64_t legalMoves = b.findLegalMoves(s);/*
-	int sigma;
-	//~ Timer tim;
-	if (alpha != INT_MIN && beta != INT_MAX && usePC && depth >= 4 && noPC <= 0) {
-		int streak = 0;
-		for (int d = 0; d < 6; d += 2) {
-			// Denominator of 5 works well, but takes too long
-			sigma = (depth - d) / 2 + totalDiscs / 10;
-			if (totalDiscs > 44) {
-				sigma *= 6;
-				sigma /= 5;
-			}
-			//~ Timer tim;
-			if (alphabeta(b, d, s, alpha - sigma, alpha - sigma + 1, false, false) <= alpha - sigma) streak++;
-			else break;
-			//~ timeWasted += tim.getms();
-			if (streak == 3) {return alpha;}
-			//~ if (d + 2 * (3 - streak) >= depth) break;
-		}
-		streak = 0;
-		for (int d = 0; d < 6; d += 2) {
-			sigma = (depth - d) / 2 + totalDiscs / 10;
-			if (totalDiscs > 44) {
-				sigma *= 6;
-				sigma /= 5;
-			}
-			//~ Timer tim;
-			if (alphabeta(b, d, s, beta + sigma - 1, beta + sigma, false, false) >= beta + sigma) streak++;
-			else break;
-			//~ timeWasted += tim.getms();
-			if (streak == 3) {return beta;}
-			//~ if (d + 2 * (3 - streak) >= depth) break;
-		}
-	}*/
+	uint64_t legalMoves = b.findLegalMoves(s);
+	int totalDiscs = __builtin_popcountll(b.taken);
 	
 	// Special case
 	if (!legalMoves) {
 		if (prevPass) {
 			int blacks = b.countBlack();
 			int whites = b.countWhite();
-			return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
+			return (blacks > whites) ? Evaluation(INT_MAX, INT_MAX) : ((whites > blacks) ? Evaluation(INT_MIN, INT_MIN) : Evaluation(0, 0));
 		}
-		return alphabeta(b, depth - 1, other_side(s), alpha, beta, true, usePC, noPC - 1);
+		return alphabeta(b, depth - 1, other_side(s), alpha, beta, true);
+	}
+	
+	// Pruning
+	if (depth != MAX_DEPTH && s == main_side && depth > 4) {
+		int position = b.pos_evaluate();
+		if (s == BLACK && position < alpha.position) {
+			// Special search
+			if (alphabeta(b, 4, s, alpha, Evaluation(alpha.position, alpha.mobility + 1)) <= alpha) {
+				return alpha;
+			}
+			//~ cerr << "Sacrifice!" << endl;
+		}
+		else if (s == WHITE && position > beta.position) {
+			if (alphabeta(b, 4, s, Evaluation(beta.position, beta.mobility - 1), beta) >= beta) {
+				return beta;
+			}
+			//~ cerr << "Sacrifice!" << endl;
+		}
+		/*
+		int sMoves = __builtin_popcountll(legalMoves & ~X_SQUARES);
+		uint64_t otherMoves = b.findLegalMoves(other_side(s));
+		int othersMoves = __builtin_popcountll(otherMoves & ~X_SQUARES);
+		int mobility = MOBILITY_WEIGHT * (sMoves - othersMoves) / (sMoves + othersMoves + 2);
+		if (position < -10 && s == BLACK) return Evaluation(position, mobility);
+		else if (position > 10 && s == WHITE) return Evaluation(position, mobility);
+		if (s == WHITE) mobility *= -1;
+		if (mobility < -5 && s == BLACK) return Evaluation(position, mobility);
+		else if (mobility > 5 && s == WHITE) return Evaluation(position, mobility);*/
 	}
 	
 	int besti = -1;
-	if (depth > 3 && s && um4->count(bws)) {
-			int v;
+	if (depth > 5 && s && um4->count(bws)) {
 			int guess = (*um4)[bws];
 			legalMoves ^= SINGLE_BIT[guess];
-			v = alphabeta(b.doMoveOnNewBoard(guess, s), depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
+			Evaluation v(alphabeta(b.doMoveOnNewBoard(guess, s), depth - 1, other_side(s), alpha, beta));
+			if (v.mobility > -5 || v.position != INT_MIN) {v.position -= 10; v.mobility = INT_MIN;}
+			//~ cerr << v.position << endl;
 			besti = guess;
 			alpha = (v > alpha) ? v : alpha;
+			int index = guess;
 			while (legalMoves && alpha < beta) {	
-				int index = __builtin_clzl(legalMoves);
+				index = __builtin_clzl(legalMoves);
 				legalMoves ^= SINGLE_BIT[index];
-				int val = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
-				besti = (val > v) ? index : besti;
-				v = (v > val) ? v : val;
-				alpha = (v > alpha) ? v : alpha;
-			}
-			if (besti != -1) {
-				(*um4)[bws] = besti;
-			}
-			return alpha;
-	}
-	
-	else if (depth > 3 && s) {
-			int v = INT_MIN;
-			int index = __builtin_clzl(legalMoves);
-			legalMoves ^= SINGLE_BIT[index];
-			v = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
-			besti = index;
-			alpha = (v > alpha) ? v : alpha;
-			while (legalMoves && alpha < beta) {	
-				int index = __builtin_clzl(legalMoves);
-				legalMoves ^= SINGLE_BIT[index];
-				int val = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
+				Evaluation val(alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta));
+				if (val.mobility < -5) {val.position -= 10; val.mobility = INT_MIN;}
 				besti = (val > v) ? index : besti;
 				v = (val > v) ? val : v;
 				alpha = (v > alpha) ? v : alpha;
@@ -480,18 +415,43 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			}
 			return alpha;
 	}
-	else if (depth > 3 && um4->count(bws)) {
+	
+	else if (depth > 5 && s) {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves ^= SINGLE_BIT[index];
+			Evaluation v(alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta));
+			if (v.mobility > -5 || v.position != INT_MIN) {v.position -= 10; v.mobility = INT_MIN;}
+			//~ cerr << v.position << endl;
+			besti = index;
+			alpha = (v > alpha) ? v : alpha;
+			while (legalMoves && alpha < beta) {	
+				int index = __builtin_clzl(legalMoves);
+				legalMoves ^= SINGLE_BIT[index];
+				Evaluation val(alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta));
+				if (val.mobility < -5) {val.position -= 10; val.mobility = INT_MIN;}
+				besti = (val > v) ? index : besti;
+				v = (val > v) ? val : v;
+				alpha = (v > alpha) ? v : alpha;
+			}
+			if (besti != -1) {
+				(*um4)[bws] = besti;
+			}
+			return alpha;
+	}
+	else if (depth > 5 && um4->count(bws)) {
 			// White & um4
-			int v;
 			int guess = (*um4)[bws];
 			legalMoves ^= SINGLE_BIT[guess];
-			v = alphabeta(b.doMoveOnNewBoard(guess, s), depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
+			Evaluation v(alphabeta(b.doMoveOnNewBoard(guess, s), depth - 1, other_side(s), alpha, beta));
+			if (v.mobility > 5 || v.position != INT_MAX) {v.position += 10; v.mobility = INT_MAX;}
+			//~ cerr << v.position << endl;
 			besti = guess;
 			beta = (v < beta) ? v : beta;
 			while (legalMoves && alpha < beta) {
 				int index = __builtin_clzl(legalMoves);
 				legalMoves ^= SINGLE_BIT[index];
-				int val = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
+				Evaluation val(alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta));
+				if (val.mobility > 5) {val.position += 10; val.mobility = INT_MAX;}
 				besti = (val < v) ? index : besti;
 				v = (val < v) ? val : v;
 				beta = (v < beta) ? v : beta;
@@ -501,18 +461,20 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			}
 			return beta;
 	}
-	else if (depth > 3) {
+	else if (depth > 5) {
 			// White & no um4
-			int v = INT_MAX;
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= SINGLE_BIT[index];
-			v = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
+			Evaluation v(alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta));
+			if (v.mobility > 5 || v.position != INT_MAX) {v.position += 10; v.mobility = INT_MAX;}
+			//~ cerr << v.position << endl;
 			besti = index;
-			beta = (v < beta) ? v : beta;
+			beta = (v <= beta) ? v : beta;
 			while (legalMoves && alpha < beta) {
 				int index = __builtin_clzl(legalMoves);
 				legalMoves ^= SINGLE_BIT[index];
-				int val = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
+				Evaluation val(alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta));
+				if (val.mobility > 5) {val.position += 10; val.mobility = INT_MAX;}
 				besti = (val < v) ? index : besti;
 				v = (val < v) ? val : v;
 				beta = (v < beta) ? v : beta;
@@ -523,41 +485,47 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 			return beta;
 	}
 	else if (s) {
-			int v = INT_MIN;
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(index, s);
-			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
-			alpha = (v > alpha) ? v : alpha;
+			Evaluation v(alphabeta(b2, depth - 1, other_side(s), alpha, beta));
+			//~ {cerr << "Before " << v << endl;}
+			if (v.mobility > -5 || v.position != INT_MIN) {v.position -= 10; v.mobility = INT_MIN;}
+			if (v.position > 1000) {cerr << "After" << endl;}
+			alpha = (v >= alpha) ? v : alpha;
 			while (legalMoves && alpha < beta) {	
 				int index = __builtin_clzl(legalMoves);
 				legalMoves ^= SINGLE_BIT[index];
-				int val = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
+				Evaluation val(alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta));
+				if (val.mobility < -5) {val.position -= 10; val.mobility = INT_MIN;}
 				v = (val > v) ? val : v;
 				alpha = (v > alpha) ? v : alpha;
 			}
 			return alpha;
 	}
 	else {
-			int v = INT_MAX;
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(index, s);
-			v = alphabeta(b2, depth - 1, other_side(s), alpha, beta);
-			beta = (v < beta) ? v : beta;			
+			Evaluation v(alphabeta(b2, depth - 1, other_side(s), alpha, beta));
+			//~ cerr << "Before " << v << endl;
+			if (v.mobility > 5 || v.position != INT_MAX) {v.position += 10; v.mobility = INT_MAX;}
+			if (v.position > 1000) {cerr << "After" << endl;}
+			beta = (v < beta) ? v : beta;
 			while (legalMoves && alpha < beta) {
 				int index = __builtin_clzl(legalMoves);
 				legalMoves ^= SINGLE_BIT[index];
-				int val = alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
-				v = (v < val) ? v : val;
+				Evaluation val(alphabeta(b.doMoveOnNewBoard(index, s), depth - 1, other_side(s), alpha, beta));
+				if (val.mobility > 5) {val.position += 10; val.mobility = INT_MAX;}
+				v = (val < v) ? val : v;
 				beta = (v < beta) ? v : beta;
 			}
 			return beta;
 	}
 }
-
+#if 0
 int pvsCalls = 0;
-int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false, bool usePC = true, int noPC = 0) {
+Evaluation pvs(Board b, int depth, Side s, Evaluation alpha = INT_MIN, Evaluation beta = INT_MAX, bool prevPass = false) {
 	pvsCalls++;
 	//~ if (beta - alpha > 1) cerr << alpha << ' ' << beta << endl;
 	
@@ -572,61 +540,56 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 	}
 	
 	BoardWithSide bws(b.taken, b.black, s);
-	/*
-	int totalDiscs = __builtin_popcountll(b.taken);
-	int sigma;
-	if (alpha != INT_MIN && beta != INT_MAX && usePC && depth >= 4 && noPC <= 0) {
-		int streak = 0;
-		for (int d = 0; d < 6; d += 2) {
-			sigma = (depth - d) / 2 + totalDiscs / 10;
-			if (totalDiscs > 44) {
-				sigma *= 6;
-				sigma /= 5;
-			}
-			//~ Timer tim;
-			if (pvs(b, d, s, alpha - sigma, alpha - sigma + 1, false, false) <= alpha - sigma) streak++;
-			else break;
-			//~ timeWasted += tim.getms();
-			if (streak == 3) {return alpha;}
-			//~ if (d + 2 * (3 - streak) >= depth) break;
-		}
-		streak = 0;
-		for (int d = 0; d < 6; d += 2) {
-			sigma = (depth - d) / 2 + totalDiscs / 10;
-			if (totalDiscs > 44) {
-				sigma *= 6;
-				sigma /= 5;
-			}
-			//~ Timer tim;
-			if (pvs(b, d, s, beta + sigma - 1, beta + sigma, false, false) >= beta + sigma) streak++;
-			else break;
-			//~ timeWasted += tim.getms();
-			if (streak == 3) {return beta;}
-			//~ if (d + 2 * (3 - streak) >= depth) break;
-		}
-	}*/
 	uint64_t legalMoves = b.findLegalMoves(s);
-		
+	
 	// Special case
 	if (!legalMoves) {
 		if (prevPass) {
 			int blacks = b.countBlack();
 			int whites = b.countWhite();
-			return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
+			return (blacks > whites) ? Evaluation(INT_MAX, INT_MAX) : ((whites > blacks) ? Evaluation(INT_MIN, INT_MIN) : 0);
 		}
-		return pvs(b, depth - 1, other_side(s), alpha, beta, true, usePC, noPC - 1);
+		return pvs(b, depth - 1, other_side(s), alpha, beta, true);
+	}
+	
+	// Pruning
+	if (depth != MAX_DEPTH && s == main_side && depth > 4) {
+		int position = b.pos_evaluate();
+		if (s == BLACK && position < alpha.position) {
+			// Special search
+			if (alphabeta(b, 4, s, alpha, Evaluation(alpha.position, alpha.mobility + 1)) <= alpha) {
+				return alpha;
+			}
+			//~ cerr << "Sacrifice!" << endl;
+		}
+		else if (s == WHITE && position > beta.position) {
+			if (alphabeta(b, 4, s, Evaluation(beta.position, beta.mobility - 1), beta) >= beta) {
+				return beta;
+			}
+			//~ cerr << "Sacrifice!" << endl;
+		}
+		/*
+		int sMoves = __builtin_popcountll(legalMoves & ~X_SQUARES);
+		uint64_t otherMoves = b.findLegalMoves(other_side(s));
+		int othersMoves = __builtin_popcountll(otherMoves & ~X_SQUARES);
+		int mobility = MOBILITY_WEIGHT * (sMoves - othersMoves) / (sMoves + othersMoves + 2);
+		if (position < -10 && s == BLACK) return Evaluation(position, mobility);
+		else if (position > 10 && s == WHITE) return Evaluation(position, mobility);
+		if (s == WHITE) mobility *= -1;
+		if (mobility < -5 && s == BLACK) return Evaluation(position, mobility);
+		else if (mobility > 5 && s == WHITE) return Evaluation(position, mobility);*/
 	}
 	
 	int v, index, besti;
 	uint64_t lm1, lm2;
 	if (s && um4->count(bws)) {
 		index = (*um4)[bws];
-		besti = -1; // No need to replace same value
+		besti = index; // No need to replace same value
 		legalMoves ^= SINGLE_BIT[index];
 		lm1 = legalMoves & ~X_SQUARES;
 		lm2 = legalMoves & X_SQUARES;
 		Board b2 = b.doMoveOnNewBoard(index, s);
-		v = pvs(b2, depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
+		v = pvs(b2, depth - 1, other_side(s), alpha, beta);
 		alpha = (v > alpha) ? v : alpha;
 		if (alpha >= beta) {
 			return alpha;
@@ -639,7 +602,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			Board b2 = b.doMoveOnNewBoard(index, s);
 			v = pvs(b2, depth - 1, other_side(s), alpha, alpha + 1);
 			if (v >= alpha + 1) {
-				v = pvs(b2, depth - 1, other_side(s), v, beta, false, usePC, noPC - 1);
+				v = pvs(b2, depth - 1, other_side(s), v, beta);
 				besti = index;
 				alpha = v;
 			}
@@ -648,7 +611,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			index = __builtin_clzl(lm2);
 			lm2 ^= SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(index, s);
-			v = pvs(b2, depth - 1, other_side(s), alpha, alpha + 1, false, usePC, noPC - 1);
+			v = pvs(b2, depth - 1, other_side(s), alpha, alpha + 1);
 			if (v >= alpha + 1) {
 				v = pvs(b2, depth - 1, other_side(s), v, beta);
 				besti = index;
@@ -668,6 +631,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		v = pvs(b2, depth - 1, other_side(s), alpha, beta);
 		alpha = (v > alpha) ? v : alpha;
 		if (alpha >= beta) {
+			(*um4)[bws] = besti;
 			return alpha;
 		}
 		
@@ -676,16 +640,16 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			index = __builtin_clzl(lm1);
 			lm1 ^= SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(index, s);
-			v = pvs(b2, depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
-			besti = (v > alpha) ? index : besti;
+			v = pvs(b2, depth - 1, other_side(s), alpha, beta);
+			besti = (v >= alpha) ? index : besti;
 			alpha = (v > alpha) ? v : alpha;
 		}
 		while (lm2 && alpha < beta) {	
 			index = __builtin_clzl(lm2);
 			lm2 ^= SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(index, s);
-			v = pvs(b2, depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
-			besti = (v > alpha) ? index : besti;
+			v = pvs(b2, depth - 1, other_side(s), alpha, beta);
+			besti = (v >= alpha) ? index : besti;
 			alpha = (v > alpha) ? v : alpha;
 		}
 		if (besti != -1) (*um4)[bws] = besti;
@@ -698,7 +662,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		lm1 = legalMoves & ~X_SQUARES;
 		lm2 = legalMoves & X_SQUARES;
 		Board b2 = b.doMoveOnNewBoard(index, s);
-		v = pvs(b2, depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
+		v = pvs(b2, depth - 1, other_side(s), alpha, beta);
 		beta = (v < beta) ? v : beta;
 		besti = index;
 		if (alpha >= beta) {
@@ -712,7 +676,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			Board b2 = b.doMoveOnNewBoard(index, s);
 			v = pvs(b2, depth - 1, other_side(s), beta - 1, beta);
 			if (v <= beta - 1) {
-				v = pvs(b2, depth - 1, other_side(s), alpha, v, false, usePC, noPC - 1);
+				v = pvs(b2, depth - 1, other_side(s), alpha, v);
 				besti = index;
 				beta = v;
 			}
@@ -723,7 +687,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			Board b2 = b.doMoveOnNewBoard(index, s);
 			v = pvs(b2, depth - 1, other_side(s), beta - 1, beta);
 			if (v <= beta - 1) {
-				v = pvs(b2, depth - 1, other_side(s), alpha, v, false, usePC, noPC - 1);
+				v = pvs(b2, depth - 1, other_side(s), alpha, v);
 				besti = index;
 				beta = v;
 			}
@@ -738,10 +702,11 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 		lm1 = legalMoves & ~X_SQUARES;
 		lm2 = legalMoves & X_SQUARES;
 		Board b2 = b.doMoveOnNewBoard(index, s);
-		v = pvs(b2, depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
+		v = pvs(b2, depth - 1, other_side(s), alpha, beta);
 		beta = (v < beta) ? v : beta;
 		besti = index;
 		if (alpha >= beta) {
+			(*um4)[bws] = besti;
 			return beta;
 		}
 		
@@ -750,16 +715,16 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 			index = __builtin_clzl(lm1);
 			lm1 ^= SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(index, s);
-			v = pvs(b2, depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
-			besti = (v < beta) ? index : besti;
+			v = pvs(b2, depth - 1, other_side(s), alpha, beta);
+			besti = (v <= beta) ? index : besti;
 			beta = (v < beta) ? v : beta;
 		}
 		while (lm2 && alpha < beta) {	
 			index = __builtin_clzl(lm2);
 			lm2 ^= SINGLE_BIT[index];
 			Board b2 = b.doMoveOnNewBoard(index, s);
-			v = pvs(b2, depth - 1, other_side(s), alpha, beta, false, usePC, noPC - 1);
-			besti = (v < beta) ? index : besti;
+			v = pvs(b2, depth - 1, other_side(s), alpha, beta);
+			besti = (v <= beta) ? index : besti;
 			beta = (v < beta) ? v : beta;
 		}
 		if (besti != -1) (*um4)[bws] = besti;
@@ -828,17 +793,20 @@ pair<int, int> main_minimax_aw_helper(Board b, Side s, int depth, int guess, int
 	}
 }
 
-pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
+#endif
+
+pair<int, Evaluation> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	// Best time: 1:58
 	// DEPTH CANNOT BE ZERO!
 	auto start = chrono::high_resolution_clock::now();
+	BoardWithSide bws(b.taken, b.black, s);
 	int d = 2;
-	int e, lower, upper, counter;
-	um5->clear();
+	Evaluation lower, upper;
+	int e, counter;
 	//~ d = alphabeta(b, depth - 6, s);
 	//~ cerr << "Finished depth " << depth - 6 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-	e = alphabeta(b, depth - 6, s, INT_MIN, INT_MAX, false, true, 4);
-	cerr << "Finished depth " << depth - 6 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+	Evaluation ev(alphabeta(b, depth - 6, s, Evaluation(INT_MIN, INT_MIN), Evaluation(INT_MAX, INT_MAX)));
+	cerr << "Finished depth " << depth - 6 << " search: " << ev << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 	//~ ee = alphabeta_odd(b, depth - 3, s);
 	//~ cerr << "Finished depth " << depth - 3 << " search: " << ee << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 	// Denominator 15: 2:21
@@ -851,81 +819,80 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	// Denominator 7: 2:13 
 	// Denominator 6: 2:13
 	// Denominator 5: 2:14
-	d = abs(e) / 8 + 2;
-	lower = e - d;
-	upper = e + d;
+	
+	//~ d = abs(e) / 8 + 2;
+	d = 3;
+	lower = Evaluation(min(ev.position - d, ev.position), min(ev.mobility - d, ev.mobility));
+	upper = Evaluation(max(ev.position + d, ev.position), max(ev.mobility + d, ev.mobility));
 	counter = 1;
 	try_again4:
-	um5->clear();
-	e = pvs(b, depth - 4, s, lower, upper, false, true, 4);
+	ev = alphabeta(b, depth - 4, s, lower, upper);
 	// Using 2 * counter: 2:27
 	// Using 4: 2:29
 	// Using d * counter: 2:28
 	// Using (d - 1) * counter: 2:27
 	// Using (d - 2) * counter: 2:25
-	if (e <= lower && lower != INT_MIN) {
+	if (ev <= lower && lower != INT_MIN) {
 		cerr << "Recalculating (failed low)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		lower -= (d - 2) * counter;
+		lower -= (d - 1) * counter;
 		counter++;
-		if (counter > 3) lower = INT_MIN;
+		if (counter > 3) lower = Evaluation(INT_MIN, INT_MIN);
 		goto try_again4;
 	}
-	else if (e >= upper && upper != INT_MAX) {
+	else if (ev >= upper && upper != INT_MAX) {
 		cerr << "Recalculating (failed high)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		upper += (d - 2) * counter;
+		upper += (d - 1) * counter;
 		counter++;
-		if (counter > 3) upper = INT_MAX;
+		if (counter > 3) upper = Evaluation(INT_MAX, INT_MAX);
 		goto try_again4;
 	}
-	cerr << "Finished depth " << depth - 4 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-	lower = e - d;
-	upper = e + d;
+	cerr << "Finished depth " << depth - 4 << " search: " << ev << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+	lower = Evaluation(min(ev.position - d, ev.position), min(ev.mobility - d, ev.mobility));
+	upper = Evaluation(max(ev.position + d, ev.position), max(ev.mobility + d, ev.mobility));
 	counter = 1;
-	try_again3:
-	um5->clear();
-	e = pvs(b, depth - 2, s, lower, upper, false, true, 4);
+	try_again:
+	ev = alphabeta(b, depth - 2, s, lower, upper);
 	// Using 2 * counter: 2:27
 	// Using 4: 2:29
 	// Using d * counter: 2:28
 	// Using (d - 1) * counter: 2:27
 	// Using (d - 2) * counter: 2:25
-	if (e <= lower && lower != INT_MIN) {
+	if (ev <= lower && lower != INT_MIN) {
 		cerr << "Recalculating (failed low)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		lower -= (d - 2) * counter;
+		lower -= (d - 1) * counter;
 		counter++;
-		if (counter > 3) lower = INT_MIN;
-		goto try_again3;
+		if (counter > 3) lower = Evaluation(INT_MIN, INT_MIN);
+		goto try_again;
 	}
-	else if (e >= upper && upper != INT_MAX) {
+	else if (ev >= upper && upper != INT_MAX) {
 		cerr << "Recalculating (failed high)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		upper += (d - 2) * counter;
+		upper += (d - 1) * counter;
 		counter++;
-		if (counter > 3) upper = INT_MAX;
-		goto try_again3;
+		if (counter > 3) upper = Evaluation(INT_MAX, INT_MAX);
+		goto try_again;
 	}
-	cerr << "Finished depth " << depth - 2 << " search: " << e << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-	lower = e - d; // Put bounds at -25, 25 too?
-	upper = e + d;
+	cerr << "Finished depth " << depth - 2 << " search: " << ev << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+	lower = Evaluation(min(ev.position - d, ev.position), min(ev.mobility - d, ev.mobility));
+	upper = Evaluation(max(ev.position + d, ev.position), max(ev.mobility + d, ev.mobility));
 	counter = 1;
 	//~ besti = (*um4)[BoardWithSide(b.taken, b.black, s)];
 	try_again2:
-	um5->clear();
-	pair<int, int> result;
-	e = pvs(b, depth, s, lower, upper, false, true, 4);
+	pair<int, Evaluation> result;
+	ev = alphabeta(b, depth, s, lower, upper);
 	// This is bound to segfault one day
-	result = make_pair((*um4)[BoardWithSide(b.taken, b.black, s)], e);
+	result = make_pair((*um4).at(bws), ev);
 	if (result.second <= lower && lower != INT_MIN) {
 		cerr << "Recalculating (failed low)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		lower -= (d - 2) * counter;
+		lower -= (d - 1) * counter;
 		counter++;
-		if (counter > 3) lower = INT_MIN;
+		if (counter > 3) lower = Evaluation(INT_MIN, INT_MIN);
 		goto try_again2;
 	}
 	else if (result.second >= upper && upper != INT_MAX) {
 		cerr << "Recalculating (failed high)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		upper += (d - 2) * counter;
+		upper += (d - 1) * counter;
 		counter++;
-		if (counter > 3) upper = INT_MAX;
+		if (counter > 3) upper = Evaluation(INT_MAX, INT_MAX);
 		goto try_again2;
 	}
 	cerr << "Finished depth " << depth << " search: " << result.second << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
@@ -1157,15 +1124,15 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     // Set counter, reset abort variables
     globalEndgameNodeCount = 0;
     abCalls = 0;
-    pvsCalls = 0;
+    //~ pvsCalls = 0;
     um2->clear();
     abortEndgameMinimax = false;
     abortSide = side;
     
-    int eval = -100; // Just a value
+    Evaluation eval; // Just a value
     // Find index of best move via search
     int besti = -1;
-    pair<int, int> p;
+    pair<int, Evaluation> p;
     if (depth != INT_MAX) {
 		//BoardWithSide bws(currBoard.taken, currBoard.black, side);
 		//if (um->count(bws) > 0) besti = (*um)[bws];
@@ -1176,12 +1143,12 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	else {
 		cerr << "Endgame search" << endl;
 		if (!gameSolved) {
-			pair<int, int> p2 = main_minimax_aw(currBoard, side, MAX_DEPTH);
+			pair<int, Evaluation> p2 = main_minimax_aw(currBoard, side, MAX_DEPTH);
 			auto start = chrono::high_resolution_clock::now();
-			p = endgame_minimax(currBoard, side, p2.first);
+			pair<int, int> p = endgame_minimax(currBoard, side, p2.first);
 			cerr << chrono::duration_cast<chrono::microseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 			besti = p.first;
-			eval = p.second;
+			eval = Evaluation(p.second, p.second);
 			// If could not calculate a win or draw, fall back to other algorithm
 			if (p.second == ((side == BLACK) ? INT_MIN : INT_MAX)) {
 				besti = p2.first;
@@ -1193,9 +1160,9 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 			}
 		}
 		else {
-			p = endgame_minimax(currBoard, side);
+			pair<int, int> p = endgame_minimax(currBoard, side);
 			besti = p.first;
-			eval = p.second;
+			eval = Evaluation(p.second, p.second);
 		}
 	}
     
@@ -1216,9 +1183,9 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     
     // Output some useful info and return (remove for more speed)
-    cerr << totalCount + 1 << " eval: " << eval << ' ' << abCalls << ' ' << pvsCalls << endl;
+    currBoard = currBoard.doMoveOnNewBoard(besti, side);
+    cerr << totalCount + 1 << " eval: " << eval << ' ' << abCalls << ' ' << currBoard.pos_evaluate() << endl;
 	if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount << endl;
-	cerr << "Time wasted " << timeWasted << endl;
 	// if (um->size() > MAX_HASH_SIZE) um->clear(); // Don't want to lose due to too much memory!
 	
 	// Make move
@@ -1229,7 +1196,6 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	int x = FROM_INDEX_X(besti);
 	int y = FROM_INDEX_Y(besti);
 	cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << endl;
-	currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
     //bitset<64> bsTaken(currBoard.taken), bsBlack(currBoard.black);
     //cerr << bsTaken << endl << bsBlack << endl;
     Move *move = new Move(x, y);

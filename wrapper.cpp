@@ -18,7 +18,8 @@ double minutesForMove = 1;
 int *EDGE_VALUES;
 int ordered_moves[64][64];
 uint64_t SINGLE_BIT[64];
-// fstream fil("c.txt", ios_base::app);
+fstream fil("c.txt", ios_base::out);
+Side main_side;
 
 int main(int argc, char *argv[]) {
     // Read in side the player is on.
@@ -26,7 +27,7 @@ int main(int argc, char *argv[]) {
         cerr << "usage: " << argv[0] << " side" << endl;
         exit(-1);
     }
-    Side side = (!strcmp(argv[1], "Black")) ? BLACK : WHITE;
+    main_side = (!strcmp(argv[1], "Black")) ? BLACK : WHITE;
 		
 	// Initialize SINGLE_BIT array
 	for (int i = 0; i < 64; i++) {
@@ -37,7 +38,7 @@ int main(int argc, char *argv[]) {
 	EDGE_VALUES = (int *) malloc(sizeof(int) * (1 << 16));
 	
     // Initialize player.
-    Player *player = new Player(side);
+    Player *player = new Player(main_side);
     
     // Tell java wrapper that we are done initializing.
     cout << "Init done" << endl;

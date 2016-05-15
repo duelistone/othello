@@ -67,6 +67,8 @@ extern fstream fil;
 extern int *EDGE_VALUES;
 extern int ordered_moves[64][64];
 
+extern Side main_side;
+
 // To avoid um getting too big
 #define MAX_HASH_SIZE 3000000
 #define STOP_SAVING_THRESHOLD 56
@@ -83,14 +85,10 @@ private:
 
 public:
     Player(Side);
-    ~Player();
     
     Board currBoard;
     
     Move *doMove(Move *opponentsMove, int msLeft);
-
-    // Flag to tell if the player is running within the test_minimax context
-    bool testingMinimax;
 };
 
 #endif
