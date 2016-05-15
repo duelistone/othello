@@ -865,14 +865,14 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	// Using (d - 2) * counter: 2:25
 	if (e <= lower && lower != INT_MIN) {
 		cerr << "Recalculating (failed low)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		lower -= (d - 2) * counter;
+		lower -= (d - 1) * counter;
 		counter++;
 		if (counter > 3) lower = INT_MIN;
 		goto try_again4;
 	}
 	else if (e >= upper && upper != INT_MAX) {
 		cerr << "Recalculating (failed high)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		upper += (d - 2) * counter;
+		upper += (d - 1) * counter;
 		counter++;
 		if (counter > 3) upper = INT_MAX;
 		goto try_again4;
@@ -891,14 +891,14 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	// Using (d - 2) * counter: 2:25
 	if (e <= lower && lower != INT_MIN) {
 		cerr << "Recalculating (failed low)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		lower -= (d - 2) * counter;
+		lower -= (d - 1) * counter;
 		counter++;
 		if (counter > 3) lower = INT_MIN;
 		goto try_again3;
 	}
 	else if (e >= upper && upper != INT_MAX) {
 		cerr << "Recalculating (failed high)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		upper += (d - 2) * counter;
+		upper += (d - 1) * counter;
 		counter++;
 		if (counter > 3) upper = INT_MAX;
 		goto try_again3;
@@ -916,14 +916,14 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	result = make_pair((*um4)[BoardWithSide(b.taken, b.black, s)], e);
 	if (result.second <= lower && lower != INT_MIN) {
 		cerr << "Recalculating (failed low)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		lower -= (d - 2) * counter;
+		lower -= (d - 1) * counter;
 		counter++;
 		if (counter > 3) lower = INT_MIN;
 		goto try_again2;
 	}
 	else if (result.second >= upper && upper != INT_MAX) {
 		cerr << "Recalculating (failed high)" << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-		upper += (d - 2) * counter;
+		upper += (d - 1) * counter;
 		counter++;
 		if (counter > 3) upper = INT_MAX;
 		goto try_again2;
