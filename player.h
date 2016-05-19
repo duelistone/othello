@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <algorithm>
 #include "timer.h"
 
 
@@ -52,11 +53,12 @@ extern std::mutex um2_lock;
 // For memoization
 // Question: Is it worth it?
 // Can run through the values it can store pretty quickly
-extern std::unordered_map< BoardWithSide, um_data > *um;
+extern std::unordered_map< BoardWithSide, vector<int> * > *um;
 extern std::unordered_map< BoardWithSide, int > *um2;
 extern std::unordered_map< BoardWithSide, int > *um3;
 extern std::unordered_map< BoardWithSide, int > *um4;
 extern std::unordered_map< BoardWithSide, int > *um5;
+extern std::vector<unordered_map<BoardWithSide, int> *> vec_of_ums;
 
 extern fstream fil;
 
