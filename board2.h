@@ -15,6 +15,7 @@
 #include <bitset>
 #include <boost/functional/hash.hpp>
 #include "common.h"
+#include "timer.h"
 
 #define BIT(x) ((uint64_t) 1 << (63 - (x)))
 #define OCCUPY_BLACK(x, t, b) {(t) |= BIT(x); (b) |= BIT(x);}
@@ -95,14 +96,16 @@ public:
     Board();
     Board(uint64_t, uint64_t);
     
-    uint64_t findLegalMoves(Side side) ;
-    uint64_t findLegalMoves2(Side side);
-    //~ uint64_t findLegalMoves3(Side side);
+    uint64_t findLegalMoves(const Side &side) const;
+    uint64_t findLegalMovesBlack() const;
+    uint64_t findLegalMovesWhite() const;
+    uint64_t findLegalMoves2(Side side) const;
+    //~ uint64_t findLegalMoves3(Side side) const;
     //~ uint64_t onlyFindLegalMoves(Side side) const;
-    int evaluate(int, int, int);
-    int evaluate_mobility();
-    int pos_evaluate();
-    int evaluateTest();
+    int evaluate(int, int, int) const;
+    //~ int evaluate_mobility() const;
+    int pos_evaluate() const;
+    int evaluateTest() const;
      
     //~ bool isDone() const;
     //~ bool hasMoves(Side side) const;
@@ -110,12 +113,12 @@ public:
     //~ bool checkMove(int x, int y, Side side) const;
     void doMove(int x, int y, Side side);
     //~ Board doMoveOnNewBoard(int x, int y, Side side);
-    Board doMoveOnNewBoard(int index, Side side);
-    Board doMoveOnNewBoard2(int x, int y, Side side);
-    Board doMoveOnNewBoard3(int x, int y, Side side);
-    int count (Side side) ;
-    int countBlack() ;
-    int countWhite() ;
+    Board doMoveOnNewBoard(const int &index, const Side &side) const;
+    Board doMoveOnNewBoard2(int x, int y, Side side) const;
+    Board doMoveOnNewBoard3(int x, int y, Side side) const;
+    int count (Side side) const;
+    int countBlack() const;
+    int countWhite() const;
 
     void setBoard(char data[]);
 };

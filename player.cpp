@@ -6,6 +6,12 @@
 // 3:11, 1.2 GB depth 13 no PC
 // 1:19, 750 MB depth 13 no PC simple eval
 // 3:35, 1.9 GB depth 14 no PC simple eval
+// 2:39 after improved column extractor
+
+// With no x square penalty (different game),
+// 3:05, 600 MB depth 14 no PC simple eval
+// 3:03 after splitting up legalMoves function
+// 2:57 after removing branching from doMoveOnNewBoard
 #define MAX_DEPTH 14
 
 Side abortSide;
@@ -365,22 +371,21 @@ Player::~Player() {
 
 int abCalls = 0;
 int timeWasted = 0;
-int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false, bool usePC = true, int noPC = 0) {
+int alphabeta(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
 	abCalls++;
 	//~ cerr << "ab called with " << depth << ' ' << alpha << ' ' << beta << endl;
-	int totalCount = __builtin_popcountll(b.taken);
+	//~ int totalCount = __builtin_popcountll(b.taken);
 	if (depth <= 0) {
-		Timer tim;
-		int position = b.pos_evaluate();
-		int mobilityWeight = (totalCount < 44) ? MOBILITY_WEIGHT : MOBILITY_WEIGHT + 10;
 		#if SIMPLE_EVAL
-		int blackMoves = __builtin_popcountll(b.findLegalMoves(BLACK) & SAFE_SQUARES);
-		int whiteMoves = __builtin_popcountll(b.findLegalMoves(WHITE) & SAFE_SQUARES);
-		return mobilityWeight * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + position;
+		int blackMoves = __builtin_popcountll(b.findLegalMovesBlack() & SAFE_SQUARES);
+		int whiteMoves = __builtin_popcountll(b.findLegalMovesWhite() & SAFE_SQUARES);
+		int result = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b.pos_evaluate();
+		return result;
 		#else
+		int position = b.pos_evaluate();
 		int mobilityBoost = MOBILITY_BOOST;
 		if (s == BLACK) {
-			uint64_t lm = b.findLegalMoves(BLACK);
+			uint64_t lm = b.findLegalMovesBlack();
 			int blackMoves = __builtin_popcountll(lm & SAFE_SQUARES);
 			int v = INT_MAX;
 			int eval = INT_MIN;
@@ -389,16 +394,15 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 				lm ^= SINGLE_BIT[index];
 				int val = __builtin_popcountll(b.doMoveOnNewBoard(index, BLACK).findLegalMoves(WHITE) & SAFE_SQUARES);
 				if (val < v) {
-					eval = mobilityWeight * (blackMoves - val) / (blackMoves + val + 2) + position + ((val == 0) ? mobilityBoost : 0);
+					eval = MOBILITY_WEIGHT * (blackMoves - val) / (blackMoves + val + 2) + position + ((val == 0) ? mobilityBoost : 0);
 					v = val;
 				}
 			}
 			if (eval == INT_MIN) eval = -mobilityWeight + position - mobilityBoost;
-			tim.end("eval time: ");
 			return eval;
 		}
 		else {
-			uint64_t lm = b.findLegalMoves(WHITE);
+			uint64_t lm = b.findLegalMovesWhite();
 			int whiteMoves = __builtin_popcountll(lm & SAFE_SQUARES);
 			int v = INT_MAX;
 			int eval = INT_MAX;
@@ -407,12 +411,11 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 				lm ^= SINGLE_BIT[index];
 				int val = __builtin_popcountll(b.doMoveOnNewBoard(index, WHITE).findLegalMoves(BLACK) & SAFE_SQUARES);
 				if (val < v) {
-					eval = mobilityWeight * (val - whiteMoves) / (whiteMoves + val + 2) + position - ((val == 0) ? mobilityBoost : 0);
+					eval = MOBILITY_WEIGHT * (val - whiteMoves) / (whiteMoves + val + 2) + position - ((val == 0) ? mobilityBoost : 0);
 					v = val;
 				}
 			}
 			if (eval == INT_MAX) eval = mobilityWeight + position + mobilityBoost;
-			tim.end("eval time: ");
 			return eval;
 		}
 		#endif
@@ -569,7 +572,7 @@ int alphabeta(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MA
 }
 
 int pvsCalls = 0;
-int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false, bool usePC = true, int noPC = 0) {
+int pvs(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, bool prevPass = false) {
 	pvsCalls++;
 	//~ cerr << "pvs called " << depth << ' ' << alpha << ' ' << beta << endl;
 	
@@ -745,7 +748,7 @@ int pvs(Board b, int depth, Side s, int alpha = INT_MIN, int beta = INT_MAX, boo
 	}
 }
 
-pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
+pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, int guess = -1) {
 	// Best time: 1:58
 	// DEPTH CANNOT BE ZERO!
 	auto start = chrono::high_resolution_clock::now();
@@ -800,7 +803,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	counter = 1;
 	try_again3:
 	um5->clear();
-	e = pvs(b, depth - 2, s, lower, upper, false, true, 4);
+	e = pvs(b, depth - 2, s, lower, upper, false);
 	// Using 2 * counter: 2:27
 	// Using 4: 2:29
 	// Using d * counter: 2:28
@@ -828,7 +831,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	try_again2:
 	um5->clear();
 	pair<int, int> result;
-	e = pvs(b, depth, s, lower, upper, false, true, 4);
+	e = pvs(b, depth, s, lower, upper, false);
 	// This is bound to segfault one day
 	result = make_pair(get_best_move(BoardWithSide(b.taken, b.black, s)), e);
 	if (result.second <= lower && lower != INT_MIN) {
@@ -849,7 +852,7 @@ pair<int, int> main_minimax_aw(Board b, Side s, int depth, int guess = -1) {
 	return result;
 }
 
-int endgame_alphabeta(Board b, Side s, int alpha = INT_MIN, int beta = INT_MAX) {
+int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX) {
 	if (abortEndgameMinimax) return (abortSide == BLACK) ? INT_MIN : INT_MAX;
 	
 	BoardWithSide bws(b.taken, b.black, s);
@@ -964,7 +967,7 @@ int endgame_alphabeta(Board b, Side s, int alpha = INT_MIN, int beta = INT_MAX) 
 	return ret;
 }
 
-pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
+pair<int, int> endgame_minimax(Board &b, Side s, int guess = -1) {
 	uint64_t legalMoves = b.findLegalMoves(s);
 	if (legalMoves == 0) return make_pair(-1, -10000); // Second value is meaningless here
 	
