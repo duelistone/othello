@@ -22,7 +22,9 @@
 #include <fstream>
 #include <algorithm>
 #include "timer.h"
+#include "tt.h"
 
+using namespace std;
 
 extern "C" int min(int x, int y);
 extern "C" int max(int x, int y);
@@ -47,8 +49,6 @@ extern "C" int max(int x, int y);
 extern long long globalEndgameNodeCount;
 extern std::atomic_bool abortEndgameMinimax;
 extern double minutesForMove;
-extern std::mutex um_lock;
-extern std::mutex um2_lock;
 
 // For memoization
 // Question: Is it worth it?
@@ -61,6 +61,8 @@ extern std::unordered_map< BoardWithSide, int > *um5;
 extern std::vector<unordered_map<BoardWithSide, int> *> vec_of_ums;
 
 extern fstream fil;
+
+extern BoardHash tt;
 
 //~ extern unordered_map<int, double> sigma;
 //~ extern unordered_map<int, double> constant_terms;

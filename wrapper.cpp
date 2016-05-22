@@ -5,6 +5,8 @@
 #include <fstream>
 #include <list>
 #include "player.h"
+#include "tt.h"
+
 using namespace std;
 
 // Global variables...I'll get rid of these if I have time
@@ -28,6 +30,8 @@ unordered_map< BoardWithSide, int > *um_3 = new unordered_map< BoardWithSide, in
 unordered_map< BoardWithSide, int > *um_4 = new unordered_map< BoardWithSide, int >;
 unordered_map< BoardWithSide, int > *um_5 = new unordered_map< BoardWithSide, int >;
 unordered_map< BoardWithSide, int > *um_6 = new unordered_map< BoardWithSide, int >;
+
+BoardHash tt(64);
 
 void initialize_hashes() {
 	vec_of_ums.push_back(um_1);

@@ -8,15 +8,18 @@
 using namespace std;
 
 struct BoardHash {
-	size_t mod;
+	size_t mod; // Should be a power of 2!
 	uint8_t *table;
 	
 	BoardHash(const int &size_in_mb) : mod(size_in_mb * 1024 * 1024) {
-		table = new table[mod];
+		table = new uint8_t[mod];
 		fill_n(table, mod, 64); // Set to invalid value to mark unused
 	}
-	inline uint8_t operator[] (const int &index) const {
-		return table[index];
+	inline uint8_t operator[] (const BoardWithSide &bws) const {
+		return table[bws.hash_value() & (mod - 1)];
+	}
+	inline uint8_t & operator[] (const BoardWithSide &bws) {
+		return table[bws.hash_value() & (mod - 1)];
 	}
 	~BoardHash() { delete table; }
 	

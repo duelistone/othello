@@ -110,10 +110,12 @@ public:
     //~ bool isDone() const;
     //~ bool hasMoves(Side side) const;
     //bool hasLegalMoves(Side side);
-    //~ bool checkMove(int x, int y, Side side) const;
+    //~ bool checkMove(const int &index, Side side) const;
     void doMove(int x, int y, Side side);
     //~ Board doMoveOnNewBoard(int x, int y, Side side);
     Board doMoveOnNewBoard(const int &index, const Side &side) const;
+    Board doMoveOnNewBoardBlack(const int &index) const;
+	Board doMoveOnNewBoardWhite(const int &index) const;
     Board doMoveOnNewBoard2(int x, int y, Side side) const;
     Board doMoveOnNewBoard3(int x, int y, Side side) const;
     int count (Side side) const;
@@ -132,6 +134,12 @@ public:
 	BoardWithSide(uint64_t t, uint64_t b, Side s) : taken(t), black(b), side(s) {}
 	BoardWithSide(const BoardWithSide& bws) : taken(bws.taken), black(bws.black), side(bws.side) {}
 	
+	inline size_t hash_value() const {
+		size_t seed = 0;
+		boost::hash_combine(seed, taken);
+		boost::hash_combine(seed, black);
+		return seed;
+	}
 	int count() const {return __builtin_popcountll(taken);}
 };
 
