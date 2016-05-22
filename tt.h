@@ -1,0 +1,25 @@
+#ifndef __TT_H__
+#define __TT_H__
+
+#include <algorithm>
+#include "common.h"
+#include "board2.h"
+
+using namespace std;
+
+struct BoardHash {
+	size_t mod;
+	uint8_t *table;
+	
+	BoardHash(const int &size_in_mb) : mod(size_in_mb * 1024 * 1024) {
+		table = new table[mod];
+		fill_n(table, mod, 64); // Set to invalid value to mark unused
+	}
+	inline uint8_t operator[] (const int &index) const {
+		return table[index];
+	}
+	~BoardHash() { delete table; }
+	
+};
+
+#endif
