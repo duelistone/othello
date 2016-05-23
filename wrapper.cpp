@@ -31,7 +31,9 @@ unordered_map< BoardWithSide, int > *um_4 = new unordered_map< BoardWithSide, in
 unordered_map< BoardWithSide, int > *um_5 = new unordered_map< BoardWithSide, int >;
 unordered_map< BoardWithSide, int > *um_6 = new unordered_map< BoardWithSide, int >;
 
-BoardHash tt(64);
+BoardHash tt(1024);
+
+size_t random_numbers[130];
 
 void initialize_hashes() {
 	vec_of_ums.push_back(um_1);
@@ -68,7 +70,11 @@ int main(int argc, char *argv[]) {
 	EDGE_VALUES = (int *) malloc(sizeof(int) * (1 << 16));
 	
 	// Initialize hashes
-	initialize_hashes();
+	//~ initialize_hashes();
+	
+	// Initialize random numbers
+	srand(0);
+	for (int i = 0; i < 130; i++) random_numbers[i] = ((size_t) rand() << 33) | ((size_t) rand() << 2) | ((size_t) rand() & 3);
 	
     // Initialize player.
     Player *player = new Player(side);

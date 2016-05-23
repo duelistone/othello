@@ -35,13 +35,37 @@ Board::Board() : taken(0), black(0) {
     OCCUPY_BLACK(3 + 8 * 4, taken, black);
     OCCUPY_BLACK(4 + 8 * 3, taken, black);
     OCCUPY_WHITE(4 + 8 * 4, taken, black);
+    zobrist_hash = make_zobrist_hash();
     // black |= BIT(18) | BIT(19) | BIT(20) | BIT(21) | BIT(26) | BIT(29) | BIT(34) | BIT(37) | BIT(42) | BIT(43) | BIT(44) | BIT(45);
 }
 
 /*
  * Make a board given a taken and black uint64_t.
  */
-Board::Board(uint64_t t, uint64_t b) : taken(t), black(b) {}
+Board::Board(uint64_t t, uint64_t b) : taken(t), black(b), zobrist_hash(make_zobrist_hash()) {}
+Board::Board(uint64_t t, uint64_t b, size_t z) : taken(t), black(b), zobrist_hash(z) {}
+
+size_t Board::make_zobrist_hash(const Side &s) const {
+	uint64_t blackCopy = black;
+	uint64_t whiteCopy = taken & ~black;
+	size_t result = 0;
+	
+	while (blackCopy) {
+		int index = __builtin_clzl(blackCopy);
+		blackCopy ^= BIT(index);
+		result ^= random_numbers[index];
+	}
+	while (whiteCopy) {
+		int index = __builtin_clzl(whiteCopy);
+		whiteCopy ^= BIT(index);
+		result ^= random_numbers[index + 64];
+	}
+	/*
+	if (s) result ^= random_numbers[128];
+	else result ^= random_numbers[129];
+	*/
+	return result;
+}
 
 uint64_t doMove(uint64_t taken, uint64_t black, Side side, int index) {
 	uint64_t white = ~black & taken;
@@ -2133,221 +2157,8 @@ Board Board::doMoveOnNewBoard(int x, int y, Side side) const {
 #endif
 
 Board Board::doMoveOnNewBoard(const int &index, const Side &side) const {
-	// Makes move on new board using bit operations
-	// This leads to no jumping when converted to assembly
-	// (once we branch into side == BLACK or side == WHITE)
-	
-	// Observe that if the move is illegal, taken will be updated, 
-	// but black will remain the same.
-	
-	//~ assert(SINGLE_BIT[index] & findLegalMoves(side));
-	
-	//~ auto start = chrono::high_resolution_clock::now();
-	uint64_t white = ~black & taken;
-	
-	const uint64_t bi = SINGLE_BIT[index];
-	uint64_t n = bi;
-	
-	uint64_t newblack = black;
-	uint64_t newwhite = white;
-	uint64_t filtered;
-	
-	// TODO: Split this up into two functions
-	if (side == BLACK) {
-		// LEFT
-		filtered = white & LEFT_FILTER;
-		n |= filtered & (n << 1);
-		n |= filtered & (n << 1);
-		n |= filtered & (n << 1);
-		n |= filtered & (n << 1);
-		n |= filtered & (n << 1);
-		n |= filtered & (n << 1);
-		//~ n |= white & LEFT_FILTER & (n << 1);
-		newblack = (black & LEFT_FILTER & (n << 1)) ? newblack | n : newblack;
-		// RIGHT
-		n = bi;
-		filtered = white & RIGHT_FILTER;
-		n |= filtered & (n >> 1);
-		n |= filtered & (n >> 1);
-		n |= filtered & (n >> 1);
-		n |= filtered & (n >> 1);
-		n |= filtered & (n >> 1);
-		n |= filtered & (n >> 1);
-		//~ n |= white & RIGHT_FILTER & (n >> 1);
-		newblack = (black & RIGHT_FILTER & (n >> 1)) ? newblack | n : newblack;
-		
-		// DOWN
-		n = bi;
-		filtered = white & DOWN_FILTER;
-		n |= filtered & (n >> 8);
-		n |= filtered & (n >> 8);
-		n |= filtered & (n >> 8);
-		n |= filtered & (n >> 8);
-		n |= filtered & (n >> 8);
-		n |= filtered & (n >> 8);
-		//~ n |= white & DOWN_FILTER & (n >> 8);
-		newblack = (black & DOWN_FILTER & (n >> 8)) ? newblack | n : newblack;
-		
-		// UP
-		n = bi;
-		filtered = white & UP_FILTER;
-		n |= filtered & (n << 8);
-		n |= filtered & (n << 8);
-		n |= filtered & (n << 8);
-		n |= filtered & (n << 8);
-		n |= filtered & (n << 8);
-		n |= filtered & (n << 8);
-		//~ n |= white & UP_FILTER & (n << 8);
-		newblack = (black & UP_FILTER & (n << 8)) ? newblack | n : newblack;
-		
-		// UP_LEFT
-		n = bi;
-		filtered = white & UP_LEFT_FILTER;
-		n |= filtered & (n << 9);
-		n |= filtered & (n << 9);
-		n |= filtered & (n << 9);
-		n |= filtered & (n << 9);
-		n |= filtered & (n << 9);
-		n |= filtered & (n << 9);
-		//~ n |= white & UP_LEFT_FILTER & (n << 9);
-		newblack = (black & UP_LEFT_FILTER & (n << 9)) ? newblack | n : newblack;
-		
-		// DOWN_RIGHT
-		n = bi;
-		filtered = white & DOWN_RIGHT_FILTER;
-		n |= filtered & (n >> 9);
-		n |= filtered & (n >> 9);
-		n |= filtered & (n >> 9);
-		n |= filtered & (n >> 9);
-		n |= filtered & (n >> 9);
-		n |= filtered & (n >> 9);
-		//~ n |= white & DOWN_RIGHT_FILTER & (n >> 9);
-		newblack = (black & DOWN_RIGHT_FILTER & (n >> 9)) ? newblack | n : newblack;
-		
-		// UP_RIGHT
-		n = bi;
-		filtered = white & UP_RIGHT_FILTER;
-		n |= filtered & (n << 7);
-		n |= filtered & (n << 7);
-		n |= filtered & (n << 7);
-		n |= filtered & (n << 7);
-		n |= filtered & (n << 7);
-		n |= filtered & (n << 7);
-		//~ n |= white & UP_RIGHT_FILTER & (n << 7);
-		newblack = (black & UP_RIGHT_FILTER & (n << 7)) ? newblack | n : newblack;
-		
-		// DOWN_LEFT
-		n = bi;
-		filtered = white & DOWN_LEFT_FILTER;
-		n |= filtered & (n >> 7);
-		n |= filtered & (n >> 7);
-		n |= filtered & (n >> 7);
-		n |= filtered & (n >> 7);
-		n |= filtered & (n >> 7);
-		n |= filtered & (n >> 7);
-		//~ n |= white & DOWN_LEFT_FILTER & (n >> 7);
-		newblack = (black & DOWN_LEFT_FILTER & (n >> 7)) ? newblack | n : newblack;
-	}
-	else {
-		// LEFT
-		filtered = black & LEFT_FILTER;
-		n |= filtered & (n << 1);
-		n |= filtered & (n << 1);
-		n |= filtered & (n << 1);
-		n |= filtered & (n << 1);
-		n |= filtered & (n << 1);
-		n |= filtered & (n << 1);
-		//~ n |= black & LEFT_FILTER & (n << 1);
-		newwhite = (white & LEFT_FILTER & (n << 1)) ? newwhite | n : newwhite;
-		
-		// RIGHT
-		n = bi;
-		filtered = black & RIGHT_FILTER;
-		n |= filtered & (n >> 1);
-		n |= filtered & (n >> 1);
-		n |= filtered & (n >> 1);
-		n |= filtered & (n >> 1);
-		n |= filtered & (n >> 1);
-		n |= filtered & (n >> 1);
-		//~ n |= black & RIGHT_FILTER & (n >> 1);
-		newwhite = (white & RIGHT_FILTER & (n >> 1)) ? newwhite | n : newwhite;
-		
-		// DOWN
-		n = bi;
-		filtered = black & DOWN_FILTER;
-		n |= filtered & (n >> 8);
-		n |= filtered & (n >> 8);
-		n |= filtered & (n >> 8);
-		n |= filtered & (n >> 8);
-		n |= filtered & (n >> 8);
-		n |= filtered & (n >> 8);
-		//~ n |= black & DOWN_FILTER & (n >> 8);
-		newwhite = (white & DOWN_FILTER & (n >> 8)) ? newwhite | n : newwhite;
-		
-		// UP
-		n = bi;
-		filtered = black & UP_FILTER;
-		n |= filtered & (n << 8);
-		n |= filtered & (n << 8);
-		n |= filtered & (n << 8);
-		n |= filtered & (n << 8);
-		n |= filtered & (n << 8);
-		n |= filtered & (n << 8);
-		//~ n |= black & UP_FILTER & (n << 8);
-		newwhite = (white & UP_FILTER & (n << 8)) ? newwhite | n : newwhite;
-		
-		// UP_LEFT
-		n = bi;
-		filtered = black & UP_LEFT_FILTER;
-		n |= filtered & (n << 9);
-		n |= filtered & (n << 9);
-		n |= filtered & (n << 9);
-		n |= filtered & (n << 9);
-		n |= filtered & (n << 9);
-		n |= filtered & (n << 9);
-		//~ n |= black & UP_LEFT_FILTER & (n << 9);
-		newwhite = (white & UP_LEFT_FILTER & (n << 9)) ? newwhite | n : newwhite;
-		
-		// DOWN_RIGHT
-		n = bi;
-		filtered = black & DOWN_RIGHT_FILTER;
-		n |= filtered & (n >> 9);
-		n |= filtered & (n >> 9);
-		n |= filtered & (n >> 9);
-		n |= filtered & (n >> 9);
-		n |= filtered & (n >> 9);
-		n |= filtered & (n >> 9);
-		//~ n |= black & DOWN_RIGHT_FILTER & (n >> 9);
-		newwhite = (white & DOWN_RIGHT_FILTER & (n >> 9)) ? newwhite | n : newwhite;
-				
-		// UP_RIGHT
-		n = bi;
-		filtered = black & UP_RIGHT_FILTER;
-		n |= filtered & (n << 7);
-		n |= filtered & (n << 7);
-		n |= filtered & (n << 7);
-		n |= filtered & (n << 7);
-		n |= filtered & (n << 7);
-		n |= filtered & (n << 7);
-		//~ n |= black & UP_RIGHT_FILTER & (n << 7);
-		newwhite = (white & UP_RIGHT_FILTER & (n << 7)) ? newwhite | n : newwhite;
-		
-		// DOWN_LEFT
-		n = bi;
-		filtered = black & DOWN_LEFT_FILTER;
-		n |= filtered & (n >> 7);
-		n |= filtered & (n >> 7);
-		n |= filtered & (n >> 7);
-		n |= filtered & (n >> 7);
-		n |= filtered & (n >> 7);
-		n |= filtered & (n >> 7);
-		//~ n |= filtered & (n >> 7);
-		newwhite = (white & DOWN_LEFT_FILTER & (n >> 7)) ? newwhite | n : newwhite;
-		
-		newblack = ~newwhite & taken;
-	}
-	//~ cerr << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
-	return Board(taken | bi, newblack);
+	if (side) return doMoveOnNewBoardBlack(index);
+	else return doMoveOnNewBoardWhite(index);
 }
 
 Board Board::doMoveOnNewBoardBlack(const int &index) const {
@@ -2463,8 +2274,19 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
 	//~ n |= white & DOWN_LEFT_FILTER & (n >> 7);
 	newblack = (black & DOWN_LEFT_FILTER & (n >> 7)) ? newblack | n : newblack;
 
+	// Zobrist hash stuff
+	size_t zobrist_hash_copy = zobrist_hash;
+	zobrist_hash_copy ^= random_numbers[index];
+	uint64_t flipped = black ^ newblack ^ BIT(index);
+	while (flipped) {
+		int index = __builtin_clzl(flipped);
+		flipped ^= BIT(index);
+		zobrist_hash_copy ^= random_numbers[index + 64];
+		zobrist_hash_copy ^= random_numbers[index];
+	}
+
 	//~ cerr << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
-	return Board(taken | bi, newblack);
+	return Board(taken | bi, newblack, zobrist_hash_copy);
 }
 
 Board Board::doMoveOnNewBoardWhite(const int &index) const {
@@ -2581,8 +2403,22 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
 	//~ n |= filtered & (n >> 7);
 	newwhite = (white & DOWN_LEFT_FILTER & (n >> 7)) ? newwhite | n : newwhite;
 	
+	// Zobrist hash stuff
+	//~ Timer tim;
+	size_t zobrist_hash_copy = zobrist_hash;
+	zobrist_hash_copy ^= random_numbers[index + 64];
+	uint64_t flipped = white ^ newwhite ^ BIT(index);
+	//~ int count = __builtin_popcountll(flipped);
+	while (flipped) {
+		int index = __builtin_clzl(flipped);
+		flipped ^= BIT(index);
+		zobrist_hash_copy ^= random_numbers[index + 64];
+		zobrist_hash_copy ^= random_numbers[index];
+	}
+	//~ tim.end(to_string(count) + " ");
+	
 	//~ cerr << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
-	return Board(taken | bi, ~newwhite & taken);
+	return Board(taken | bi, ~newwhite & taken, zobrist_hash_copy);
 }
 
 

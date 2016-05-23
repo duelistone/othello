@@ -80,6 +80,7 @@ extern "C" int other_side(int);
 
 extern int *EDGE_VALUES;
 extern uint64_t SINGLE_BIT[64];
+extern size_t random_numbers[130];
 
 um_data make_hash_data(int, int, int, int);
 uint64_t doMove(uint64_t taken, uint64_t black, Side side, int index);
@@ -92,9 +93,11 @@ private:
 public:
     uint64_t taken;
 	uint64_t black;
+	size_t zobrist_hash;
     
     Board();
     Board(uint64_t, uint64_t);
+    Board(uint64_t t, uint64_t b, size_t z);
     
     uint64_t findLegalMoves(const Side &side) const;
     uint64_t findLegalMovesBlack() const;
@@ -121,6 +124,8 @@ public:
     int count (Side side) const;
     int countBlack() const;
     int countWhite() const;
+    
+    size_t make_zobrist_hash(const Side &s = BLACK) const;
 
     void setBoard(char data[]);
 };
@@ -135,10 +140,38 @@ public:
 	BoardWithSide(const BoardWithSide& bws) : taken(bws.taken), black(bws.black), side(bws.side) {}
 	
 	inline size_t hash_value() const {
+		uint64_t blackCopy = black;
+		uint64_t whiteCopy = taken & ~black;
+		size_t result = side ? random_numbers[128] : random_numbers[129];
+		
+		while (blackCopy) {
+			int index = __builtin_clzl(blackCopy);
+			blackCopy ^= BIT(index);
+			result ^= random_numbers[index];
+		}
+		while (whiteCopy) {
+			int index = __builtin_clzl(whiteCopy);
+			whiteCopy ^= BIT(index);
+			result ^= random_numbers[index + 64];
+		}
+		return result;
+		
+		// Independent of side?!
+		//~ return 0;
+		/*
+		size_t result = __builtin_popcountll(taken) - 1;
+		size_t seed = 0;
+		boost::hash_combine(seed, taken);
+		boost::hash_combine(seed, black);
+		result |= seed << 6;
+		return result;
+		*/
+		/*
 		size_t seed = 0;
 		boost::hash_combine(seed, taken);
 		boost::hash_combine(seed, black);
 		return seed;
+		*/
 	}
 	int count() const {return __builtin_popcountll(taken);}
 };
