@@ -20,7 +20,7 @@
 // 3:05, 600 MB depth 14 no PC simple eval
 // 3:03 after splitting up legalMoves function
 // 2:57 after removing branching from doMoveOnNewBoard
-#define MAX_DEPTH 12
+#define MAX_DEPTH 14
 
 Side abortSide;
 
