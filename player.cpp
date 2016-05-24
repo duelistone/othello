@@ -3,6 +3,7 @@
 #define SIMPLE_EVAL 1
 #define KILLER_HEURISTIC 0 
 #define IID 1
+#define USE_HASH_IN_ENDGAME_ALPHABETA 1
 
 // Note: More work necessary to make killer heuristic work, and
 // (when it was working) there was no noticeable speed increase.
@@ -19,7 +20,7 @@
 // 3:05, 600 MB depth 14 no PC simple eval
 // 3:03 after splitting up legalMoves function
 // 2:57 after removing branching from doMoveOnNewBoard
-#define MAX_DEPTH 14
+#define MAX_DEPTH 12
 
 Side abortSide;
 
@@ -1304,6 +1305,19 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 	*/
 	if (s) {
 		int v = INT_MIN;
+		#if USE_HASH_IN_ENDGAME_ALPHABETA
+		if (totalCount < 50) { // 50 is a complete guess
+			size_t hash_index = b.zobrist_hash & (tt.mod - 1);
+			int index = tt.table[hash_index];
+			if (BIT_SAFE(index) & legalMoves) {
+				// The move is valid
+				legalMoves ^= BIT(index);
+				Board b2 = b.doMoveOnNewBoardBlack(index);
+				v = endgame_alphabeta(b2, WHITE, alpha, beta);
+				alpha = (v > alpha) ? v : alpha;
+			}
+		}
+		#endif
 		while (alpha < beta && legalMoves) {
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
@@ -1314,6 +1328,18 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 	}
 	else {
 		int v = INT_MAX;
+		#if USE_HASH_IN_ENDGAME_ALPHABETA
+		if (totalCount < 50) { // 50 is a complete guess
+			size_t hash_index = b.zobrist_hash & (tt.mod - 1);
+			int index = tt.table[hash_index];
+			if (BIT_SAFE(index) & legalMoves) {
+				legalMoves ^= BIT(index);
+				Board b2 = b.doMoveOnNewBoardWhite(index);
+				v = endgame_alphabeta(b2, BLACK, alpha, beta);
+				beta = (v < beta) ? v : beta;
+			}
+		}
+		#endif
 		while (alpha < beta && legalMoves) {
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
