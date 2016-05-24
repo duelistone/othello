@@ -1,8 +1,13 @@
 #include "player.h"
 
 #define SIMPLE_EVAL 1
+#define KILLER_HEURISTIC 0 
+#define IID 1
 
-#define HASH_DEPTH 14
+// Note: More work necessary to make killer heuristic work, and
+// (when it was working) there was no noticeable speed increase.
+
+#define HASH_DEPTH (MAX_DEPTH - 1)
 
 // 58.5, 413 MB depth 12 no PC
 // 3:11, 1.2 GB depth 13 no PC
@@ -493,6 +498,8 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha = INT_MIN, int b
 int pvsWhiteNull(const Board &b, const int &depth, const int &alpha = INT_MIN, const int &depth2 = 0, const bool &prevPass = false);
 int pvsCalls = 0;
 int tthits = 0;
+uint8_t killerMoves[MAX_DEPTH][3];
+
 int pvs(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false) {
 	if (s) return pvsBlack(b, depth, alpha, beta, depth2, prevPass);
 	else return pvsWhite(b, depth, alpha, beta, depth2, prevPass);
@@ -561,6 +568,12 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 		return pvsWhite(b, depth - 1, alpha, beta, depth2 + 1, true);
 	}
 	
+	#if KILLER_HEURISTIC
+	uint8_t km1 = killerMoves[depth2][0];
+	uint8_t km2 = killerMoves[depth2][1];
+	//~ uint8_t km3 = killerMoves[depth2][2];
+	#endif
+	
 	if (depth == 1) {
 		// Fall back to alphabeta
 		int v = INT_MIN;
@@ -570,7 +583,7 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 		if (depth2 <= HASH_DEPTH) {
 			size_t hash_index = b.zobrist_hash & (tt.mod - 1);
 			index = tt.table[hash_index];
-			if (index < 64 && (BIT(index) & legalMoves)) {
+			if (BIT_SAFE(index) & legalMoves) {
 				// The move is valid
 				tthits++;
 				legalMoves ^= BIT(index);
@@ -578,7 +591,38 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 				v = eval(b.doMoveOnNewBoardBlack(index));
 				alpha = (v > alpha) ? v : alpha;
 			}
-		
+			#if KILLER_HEURISTIC
+			index = km1;
+			if (alpha < beta && (BIT(index) & legalMoves)) {
+				// The move is valid
+				legalMoves ^= BIT(index);
+				int val = eval(b.doMoveOnNewBoardBlack(index));
+				bool temp = (val > v);
+				besti = temp ? index : besti;
+				v = temp ? val : v;
+				alpha = (v > alpha) ? v : alpha;
+			}
+			index = km2;
+			if (alpha < beta && (BIT(index) & legalMoves)) {
+				// The move is valid
+				legalMoves ^= BIT(index);
+				int val = eval(b.doMoveOnNewBoardBlack(index));
+				bool temp = (val > v);
+				besti = temp ? index : besti;
+				v = temp ? val : v;
+				alpha = (v > alpha) ? v : alpha;
+			}
+			//~ index = km3;
+			//~ if (alpha < beta && (BIT(index) & legalMoves)) {
+				//~ // The move is valid
+				//~ legalMoves ^= BIT(index);
+				//~ int val = eval(b.doMoveOnNewBoardBlack(index));
+				//~ bool temp = (val > v);
+				//~ besti = temp ? index : besti;
+				//~ v = temp ? val : v;
+				//~ alpha = (v > alpha) ? v : alpha;
+			//~ }
+			#endif
 			while (alpha < beta && legalMoves) {	
 				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
@@ -595,9 +639,19 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
 				int val = eval(b.doMoveOnNewBoardBlack(index));
+				#if KILLER_HEURISTIC
+				besti = (val > alpha) ? index : besti;
+				#endif
 				alpha = (val > alpha) ? val : alpha;
 			}
 		}
+		#if KILLER_HEURISTIC
+		if (alpha >= beta && km1 != besti) {
+			//~ killerMoves[depth2][2] = km2;
+			killerMoves[depth2][1] = km1;
+			killerMoves[depth2][0] = besti;
+		}
+		#endif
 		return alpha;
 	}
 	
@@ -608,7 +662,8 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 	if (depth2 <= HASH_DEPTH) {
 		size_t hash_index = b.zobrist_hash & (tt.mod - 1);
 		index = tt.table[hash_index];
-		if (index < 64 && (BIT(index) & legalMoves)) {
+		if (BIT_SAFE(index) & legalMoves) {
+			use_hash:
 			// The move is valid
 			tthits++;
 			legalMoves ^= BIT(index);
@@ -635,7 +690,41 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 			}
 		}
 		else {
+			#if IID
+			pvsBlack(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
+			index = tt.table[b.zobrist_hash & (tt.mod - 1)];
+			goto use_hash;
+			#endif
 			// Fall back to normal search
+			#if KILLER_HEURISTIC
+			index = km1;
+			if (BIT(index) & legalMoves) {
+				legalMoves ^= BIT(index);
+				int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
+				bool temp = (val > v);
+				besti = temp ? index : besti;
+				v = temp ? val : v;
+				alpha = (v > alpha) ? v : alpha;
+			}
+			index = km2;
+			if (alpha < beta && (BIT(index) & legalMoves)) {
+				legalMoves ^= BIT(index);
+				int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
+				bool temp = (val > v);
+				besti = temp ? index : besti;
+				v = temp ? val : v;
+				alpha = (v > alpha) ? v : alpha;
+			}
+			//~ index = km3;
+			//~ if (alpha < beta && (BIT(index) & legalMoves)) {
+				//~ legalMoves ^= BIT(index);
+				//~ int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
+				//~ bool temp = (val > v);
+				//~ besti = temp ? index : besti;
+				//~ v = temp ? val : v;
+				//~ alpha = (v > alpha) ? v : alpha;
+			//~ }
+			#endif
 			while (alpha < beta && legalMoves) {	
 				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
@@ -653,15 +742,24 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 			uint8_t index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
 			int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
+			#if KILLER_HEURISTIC
+			besti = (val > alpha) ? index : besti;
+			#endif
 			alpha = (val > alpha) ? val : alpha;
 		}
 	}
+	#if KILLER_HEURISTIC
+	if (alpha >= beta && km1 != besti) {
+		//~ killerMoves[depth2][2] = km2;
+		killerMoves[depth2][1] = km1;
+		killerMoves[depth2][0] = besti;
+	}
+	#endif
 	return alpha;
 }
 
 int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const int &depth2, const bool &prevPass) {
 	pvsCalls++;
-	Timer tim;
 	
 	// Should rarely be called
 	if (__builtin_expect(depth <= 0, 0)) {
@@ -722,6 +820,12 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 		}
 		return pvsBlack(b, depth - 1, alpha, beta, depth2 + 1, true);
 	}
+
+	#if KILLER_HEURISTIC
+	uint8_t km1 = killerMoves[depth2][0];
+	uint8_t km2 = killerMoves[depth2][1];
+	//~ uint8_t km3 = killerMoves[depth2][2];
+	#endif
 	
 	// Note: What if there is a pass that jumps from depth 2 to depth 0?
 	// Maybe this case is rare enough to not need to consider it.
@@ -733,7 +837,7 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 		uint8_t besti = 64;
 		if (depth2 <= HASH_DEPTH) {
 			index = tt.table[hash_index];
-			if (index < 64 && (BIT(index) & legalMoves)) {
+			if (BIT_SAFE(index) & legalMoves) {
 				// The move is valid
 				tthits++;
 				legalMoves ^= BIT(index);
@@ -741,8 +845,38 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 				v = eval(b.doMoveOnNewBoardWhite(index));
 				beta = (v < beta) ? v : beta;
 			}
-			//~ tim.end();
-			//~ int counter = 0;
+			#if KILLER_HEURISTIC
+			index = km1;
+			if (alpha < beta && (BIT(index) & legalMoves)) {
+				// The move is valid
+				legalMoves ^= BIT(index);
+				int val = eval(b.doMoveOnNewBoardWhite(index));
+				bool temp = (val < v);
+				besti = temp ? index : besti;
+				v = temp ? val : v;
+				beta = (v < beta) ? v : beta;
+			}
+			index = km2;
+			if (alpha < beta && (BIT(index) & legalMoves)) {
+				// The move is valid
+				legalMoves ^= BIT(index);
+				int val = eval(b.doMoveOnNewBoardWhite(index));
+				bool temp = (val < v);
+				besti = temp ? index : besti;
+				v = temp ? val : v;
+				beta = (v < beta) ? v : beta;
+			}
+			//~ index = km3;
+			//~ if (alpha < beta && (BIT(index) & legalMoves)) {
+				//~ // The move is valid
+				//~ legalMoves ^= BIT(index);
+				//~ int val = eval(b.doMoveOnNewBoardWhite(index));
+				//~ bool temp = (val < v);
+				//~ besti = temp ? index : besti;
+				//~ v = temp ? val : v;
+				//~ beta = (v < beta) ? v : beta;
+			//~ }
+			#endif
 			while (alpha < beta && legalMoves) {	
 				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
@@ -751,10 +885,7 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 				besti = temp ? index : besti;
 				v = temp ? val : v;
 				beta = (v < beta) ? v : beta;
-				//~ counter++;
 			}
-			//~ tim.end();
-			//~ cerr << counter << endl;
 			tt.table[hash_index] = besti;
 		}
 		else {
@@ -762,9 +893,19 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
 				int val = eval(b.doMoveOnNewBoardWhite(index));
+				#if KILLER_HEURISTIC
+				besti = (val < beta) ? index : besti;
+				#endif
 				beta = (val < beta) ? val : beta;
 			}
 		}
+		#if KILLER_HEURISTIC
+		if (alpha >= beta && km1 != besti) {
+			//~ killerMoves[depth2][2] = km2;
+			killerMoves[depth2][1] = km1;
+			killerMoves[depth2][0] = besti;
+		}
+		#endif
 		return beta;
 	}
 	
@@ -775,7 +916,8 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 		int v = INT_MAX;
 		size_t hash_index = b.zobrist_hash & (tt.mod - 1);
 		index = tt.table[hash_index];
-		if (index < 64 && (BIT(index) & legalMoves)) {
+		if (BIT_SAFE(index) & legalMoves) {
+			use_hash:
 			// The move is valid
 			tthits++;
 			legalMoves ^= BIT(index);
@@ -801,6 +943,40 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 		}
 		else {
 			// Fall back to normal search
+			#if IID
+			pvsWhite(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
+			index = tt.table[b.zobrist_hash & (tt.mod - 1)];
+			goto use_hash;
+			#endif
+			#if KILLER_HEURISTIC
+			index = km1;
+			if (BIT(index) & legalMoves) {
+				legalMoves ^= BIT(index);
+				int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
+				bool temp = (val < v);
+				besti = temp ? index : besti;
+				v = temp ? val : v;
+				beta = (val < beta) ? val : beta;
+			}
+			index = km2;
+			if (alpha < beta && (BIT(index) & legalMoves)) {
+				legalMoves ^= BIT(index);
+				int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
+				bool temp = (val < v);
+				besti = temp ? index : besti;
+				v = temp ? val : v;
+				beta = (val < beta) ? val : beta;
+			}
+			//~ index = km3;
+			//~ if (alpha < beta && (BIT(index) & legalMoves)) {
+				//~ legalMoves ^= BIT(index);
+				//~ int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
+				//~ bool temp = (val < v);
+				//~ besti = temp ? index : besti;
+				//~ v = temp ? val : v;
+				//~ beta = (val < beta) ? val : beta;
+			//~ }
+			#endif
 			while (alpha < beta && legalMoves) {	
 				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
@@ -814,174 +990,155 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 		tt.table[hash_index] = besti;
 	}
 	else {
+		#if IID
+		pvsWhite(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
+		#endif
 		while (alpha < beta && legalMoves) {	
 			uint8_t index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
 			int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
+			#if KILLER_HEURISTIC
+			besti = (val < beta) ? index : besti;
+			#endif
 			beta = (val < beta) ? val : beta;
 		}
 	}
-	//~ tim.end("depth " + to_string(depth) + " ");
+	#if KILLER_HEURISTIC
+	if (alpha >= beta && km1 != besti) {
+		//~ killerMoves[depth2][2] = km2;
+		killerMoves[depth2][1] = km1;
+		killerMoves[depth2][0] = besti;
+	}
+	#endif
 	return beta;
 }
-#if 0
-int pvsBlackNull(const Board &b, const int &depth, const int &beta, const int &depth2, const bool &prevPass) {
-	pvsCalls++;
-	
-	int alpha = beta - 1;
-	
-	// Should rarely be called
-	if (__builtin_expect(depth <= 0, 0)) {
-		#if SIMPLE_EVAL
-		int blackMoves = __builtin_popcountll(b.findLegalMovesBlack() & SAFE_SQUARES);
-		int whiteMoves = __builtin_popcountll(b.findLegalMovesWhite() & SAFE_SQUARES);
-		int result = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b.pos_evaluate();
-		return result;
-		#else
-		int position = b.pos_evaluate();
-		int mobilityBoost = MOBILITY_BOOST;
-		if (s == BLACK) {
-			uint64_t lm = b.findLegalMovesBlack();
-			int blackMoves = __builtin_popcountll(lm & SAFE_SQUARES);
-			int v = INT_MAX;
-			int eval = INT_MIN;
-			while (lm && eval < beta) {
-				int index = __builtin_clzl(lm);
-				lm ^= BIT(index);
-				int val = __builtin_popcountll(b.doMoveOnNewBoard(index, BLACK).findLegalMoves(WHITE) & SAFE_SQUARES);
-				if (val < v) {
-					eval = MOBILITY_WEIGHT * (blackMoves - val) / (blackMoves + val + 2) + position + ((val == 0) ? mobilityBoost : 0);
-					v = val;
-				}
-			}
-			if (eval == INT_MIN) eval = -mobilityWeight + position - mobilityBoost;
-			return eval;
-		}
-		else {
-			uint64_t lm = b.findLegalMovesWhite();
-			int whiteMoves = __builtin_popcountll(lm & SAFE_SQUARES);
-			int v = INT_MAX;
-			int eval = INT_MAX;
-			while (lm && eval > alpha) {
-				int index = __builtin_clzl(lm);
-				lm ^= BIT(index);
-				int val = __builtin_popcountll(b.doMoveOnNewBoard(index, WHITE).findLegalMoves(BLACK) & SAFE_SQUARES);
-				if (val < v) {
-					eval = MOBILITY_WEIGHT * (val - whiteMoves) / (whiteMoves + val + 2) + position - ((val == 0) ? mobilityBoost : 0);
-					v = val;
-				}
-			}
-			if (eval == INT_MAX) eval = mobilityWeight + position + mobilityBoost;
-			return eval;
-		}
-		#endif
-	}
-	
-	BoardWithSide bws(b.taken, b.black, BLACK);
-	uint64_t legalMoves = b.findLegalMovesBlack();
-		
-	// Special case
-	if (__builtin_expect(!legalMoves, 0)) {
-		if (prevPass) {
-			int blacks = b.countBlack();
-			int whites = b.countWhite();
-			return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
-		}
-		return pvsWhite(b, depth - 1, alpha, beta, depth2 + 1, true);
-	}
-	
-	if (depth == 1) {
-		// Fall back to alphabeta
-		int v = INT_MIN;
-		// Best move
-		uint8_t index = 64;
-		uint8_t besti = 64;
-		if (depth2 <= HASH_DEPTH) {
-			size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-			index = tt.table[hash_index];
-			if (index < 64 && (BIT(index) & legalMoves)) {
-				// The move is valid
-				tthits++;
-				legalMoves ^= BIT(index);
-				besti = index;
-				v = eval(b.doMoveOnNewBoardBlack(index));
-				alpha = (v > alpha) ? v : alpha;
-			}
-		
-			while (alpha < beta && legalMoves) {	
-				uint8_t index = __builtin_clzl(legalMoves);
-				legalMoves ^= BIT(index);
-				int val = eval(b.doMoveOnNewBoardBlack(index));
-				bool temp = (val > v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				alpha = (v > alpha) ? v : alpha;
-			}
-			tt.table[hash_index] = besti;
-		}
-		else {
-			while (alpha < beta && legalMoves) {	
-				uint8_t index = __builtin_clzl(legalMoves);
-				legalMoves ^= BIT(index);
-				int val = eval(b.doMoveOnNewBoardBlack(index));
-				alpha = (val > alpha) ? val : alpha;
-			}
-		}
-		return alpha;
-	}
-	
-	uint8_t besti = 64;
-	int v = INT_MIN;
-	// Best move
-	uint8_t index = 64;
-	if (depth2 <= HASH_DEPTH) {
-		size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-		index = tt.table[hash_index];
-		if (index < 64 && (BIT(index) & legalMoves)) {
-			// The move is valid
-			tthits++;
-			legalMoves ^= BIT(index);
-			besti = index;
-			v = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
-			alpha = (v > alpha) ? v : alpha;
-			// Prove that it is indeed the best move
-			while (alpha < beta && legalMoves) {	
-				uint8_t index = __builtin_clzl(legalMoves);
-				legalMoves ^= BIT(index);
-				int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
-				bool temp = (val > v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				alpha = (v > alpha) ? v : alpha;
-			}
-		}
-		else {
-			// Fall back to normal search
-			while (alpha < beta && legalMoves) {	
-				uint8_t index = __builtin_clzl(legalMoves);
-				legalMoves ^= BIT(index);
-				int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
-				bool temp = (val > v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				alpha = (v > alpha) ? v : alpha;
-			}
-		}
-		tt.table[hash_index] = besti;
-	}
-	else {
-		while (alpha < beta && legalMoves) {	
-			uint8_t index = __builtin_clzl(legalMoves);
-			legalMoves ^= BIT(index);
-			int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
-			alpha = (val > alpha) ? val : alpha;
-		}
-	}
-	return alpha;
-}
-#endif
 
 pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, int guess = -1) {
+	Timer tim;
+	
+	#if KILLER_HEURISTIC
+	// Reset killerMoves
+	for (int i = 0; i < MAX_DEPTH; i++) {
+		killerMoves[i][0] = 0;
+		killerMoves[i][1] = 0;
+		killerMoves[i][2] = 0;
+	}
+	#endif
+	
+	int eOdd, eEven;
+	// First two plies
+	eOdd = pvs(b, 1, s, INT_MIN, INT_MAX);
+	eEven = pvs(b, 2, s, INT_MIN, INT_MAX);
+	cerr << "Finished depth 1: " << eOdd << endl;
+	cerr << "Finished depth 2: " << eEven << endl;
+	
+	// Middle plies
+	for (int d = 3; d < depth; d++) {
+		if (d % 2) {
+			int diff = abs(eOdd) / 8 + 2;
+			int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
+			int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
+			int counter = 1;
+			try_again1:
+			eOdd = pvs(b, d, s, lower, upper);
+			if (eOdd <= lower && lower != INT_MIN) {
+				tim.endms("Recalculating (failed low) ");
+				lower -= (diff - 1) * counter;
+				counter++;
+				if (counter > 3) lower = INT_MIN;
+				goto try_again1;
+			}
+			else if (eOdd >= upper && upper != INT_MAX) {
+				tim.endms("Recalculating (failed high) ");
+				upper += (diff - 1) * counter;
+				counter++;
+				if (counter > 3) upper = INT_MAX;
+				goto try_again1;
+			}
+			cerr << "Finished depth " << d << " search: " << eOdd << ' ';
+			tim.endms();
+		}
+		else {
+			int diff = abs(eEven) / 8 + 2;
+			int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
+			int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
+			int counter = 1;
+			try_again2:
+			eEven = pvs(b, d, s, lower, upper);
+			if (eEven <= lower && lower != INT_MIN) {
+				tim.endms("Recalculating (failed low) ");
+				lower -= (diff - 1) * counter;
+				counter++;
+				if (counter > 3) lower = INT_MIN;
+				goto try_again2;
+			}
+			else if (eEven >= upper && upper != INT_MAX) {
+				tim.endms("Recalculating (failed high) ");
+				upper += (diff - 1) * counter;
+				counter++;
+				if (counter > 3) upper = INT_MAX;
+				goto try_again2;
+			}
+			cerr << "Finished depth " << d << " search: " << eEven << ' ';
+			tim.endms();
+		}
+	}
+	// Last one
+	if (depth % 2) {
+		int counter = 1;
+		int diff = abs(eOdd) / 8 + 2;
+		int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
+		int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
+		try_again3:
+		int e = pvs(b, depth, s, lower, upper, false);
+		// This is bound to run into issues one day
+		pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], e);
+		if (result.second <= lower && lower != INT_MIN) {
+			tim.endms("Recalculating (failed low) ");
+			lower -= (diff - 1) * counter;
+			counter++;
+			if (counter > 3) lower = INT_MIN;
+			goto try_again3;
+		}
+		else if (result.second >= upper && upper != INT_MAX) {
+			tim.endms("Recalculating (failed high) ");
+			upper += (diff - 1) * counter;
+			counter++;
+			if (counter > 3) upper = INT_MAX;
+			goto try_again3;
+		}
+		cerr << "Finished depth " << depth << " search: " << result.second << ' ';
+		tim.endms();
+		return result;
+	}
+	else {
+		int counter = 1;
+		int diff = abs(eEven) / 8 + 2;
+		int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
+		int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
+		try_again4:
+		int e = pvs(b, depth, s, lower, upper, false);
+		// This is bound to run into issues one day
+		pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], e);
+		if (result.second <= lower && lower != INT_MIN) {
+			tim.endms("Recalculating (failed low) ");
+			lower -= (diff - 1) * counter;
+			counter++;
+			if (counter > 3) lower = INT_MIN;
+			goto try_again4;
+		}
+		else if (result.second >= upper && upper != INT_MAX) {
+			tim.endms("Recalculating (failed high) ");
+			upper += (diff - 1) * counter;
+			counter++;
+			if (counter > 3) upper = INT_MAX;
+			goto try_again4;
+		}
+		cerr << "Finished depth " << depth << " search: " << result.second << ' ';
+		tim.endms();
+		return result;
+	}
+	/*
 	// Best time: 1:58
 	// DEPTH CANNOT BE ZERO!
 	auto start = chrono::high_resolution_clock::now();
@@ -1078,7 +1235,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 		goto try_again2;
 	}
 	cerr << "Finished depth " << depth << " search: " << result.second << ' ' << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
-	return result;
+	return result;*/
 }
 
 int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX) {
@@ -1095,7 +1252,7 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 	if (totalCount == 64) {
 		//auto start = chrono::high_resolution_clock::now();
 		globalEndgameNodeCount++;
-		//if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
+		if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
 		if (globalEndgameNodeCount > maxNodes) abortEndgameMinimax = true;
 		// Simple evaluation here
 		int diff = __builtin_popcountll(b.black);
@@ -1127,6 +1284,7 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 		return ret;
 	}
 	
+	/*
 	if (totalCount == 63) {
 		int blackCount = __builtin_popcountll(b.black);
 		int diff = 2 * blackCount - 63;
@@ -1143,17 +1301,9 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 			if (diff - 3 < 0) return INT_MIN;
 		}
 	}
-	
-	// TODO: Replace usage of um with tt
-	if (s == BLACK) {
+	*/
+	if (s) {
 		int v = INT_MIN;
-		int index = tt.table[b.zobrist_hash & (tt.mod - 1)];
-		if (index < 64 && (BIT(index) & legalMoves)) {
-			legalMoves ^= BIT(index);
-			Board b2 = b.doMoveOnNewBoardBlack(index);
-			v = endgame_alphabeta(b2, WHITE, alpha, beta);
-			alpha = (v > alpha) ? v : alpha;
-		}
 		while (alpha < beta && legalMoves) {
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
@@ -1164,13 +1314,6 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 	}
 	else {
 		int v = INT_MAX;
-		int index = tt.table[b.zobrist_hash & (tt.mod - 1)];
-		if (index < 64 && (BIT(index) & legalMoves)) {
-			legalMoves ^= BIT(index);
-			Board b2 = b.doMoveOnNewBoardWhite(index);
-			v = endgame_alphabeta(b2, BLACK, alpha, beta);
-			beta = (v < beta) ? v : beta;
-		}
 		while (alpha < beta && legalMoves) {
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
@@ -1181,8 +1324,8 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 	}
 	
 	int ret = (s == BLACK) ? alpha : beta;
-	if (um2->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD) {
-		if (alpha != 0 || beta != 0) (*um2)[bws] = ret;
+	if (um2->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD && (alpha != 0 || beta != 0)) {
+		(*um2)[bws] = ret;
 	}
 	return ret;
 }

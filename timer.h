@@ -17,6 +17,9 @@ public:
 	int getms() {
 		return chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count();
 	}
+	void endms(const string &message = "") {
+		cerr << message << chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
+	}
 	void end(const string &message = "") {
 		cerr << message << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count() << endl;
 	}

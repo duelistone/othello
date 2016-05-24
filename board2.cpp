@@ -1,7 +1,7 @@
 #include "board2.h"
 
 #define USE_MAGIC 1
-#define X_SQUARE_PENALTY 0
+#define X_SQUARE_PENALTY 1
 
 // rotate bitboard 90° to the left
 uint64_t reflect(uint64_t b) {
@@ -2960,35 +2960,40 @@ int Board::pos_evaluate() const {
 	//~ int shiftRowCount = 48;
 	
 	#if X_SQUARE_PENALTY
-	int penaltyWeight = 10;
-	// Penalty for risky squares if corner not filled
-	if (!(taken & CORNER_TL) && (BIT(9) & black)) {
-		ee -= penaltyWeight;
-	}
-	else if (!(taken & CORNER_TL) && (BIT(9) & white)) {
-		ee += penaltyWeight;
-	}
-	if (!(taken & CORNER_TR) && (BIT(14) & black)) {
-		ee -= penaltyWeight;
-	}
-	else if (!(taken & CORNER_TR) && (BIT(14) & white)) {
-		ee += penaltyWeight;
-	}
-	if (!(taken & CORNER_BL) && (BIT(49) & black)) {
-		ee -= penaltyWeight;
-	}
-	else if (!(taken & CORNER_BL) && (BIT(49) & white)) {
-		ee += penaltyWeight;
-	}
-	if (!(taken & CORNER_BR) && (BIT(54) & black)) {
-		ee -= penaltyWeight;
-	}
-	else if (!(taken & CORNER_BR) && (BIT(54) & white)) {
-		ee += penaltyWeight;
+	{
+		const int penaltyWeight = 10;
+		// Penalty for risky squares if corner not filled
+		ee -= (!(taken & CORNER_TL) && (BIT(9) & black));
+		ee += (!(taken & CORNER_TL) && (BIT(9) & white));
+		ee -= (!(taken & CORNER_TR) && (BIT(14) & black));
+		ee += (!(taken & CORNER_TR) && (BIT(14) & white));
+		ee -= (!(taken & CORNER_BL) && (BIT(49) & black));
+		ee += (!(taken & CORNER_BL) && (BIT(49) & white));
+		ee -= (!(taken & CORNER_BR) && (BIT(54) & black));
+		ee += (!(taken & CORNER_BR) && (BIT(54) & white));
+		ee *= penaltyWeight;
+		
+		/*
+		uint64_t temp = ((taken & CORNER_TL) >> 63) ^ 1;
+		ee -= (temp & ((BIT(9) & black) >> (63 - 9)));
+		ee += (temp & ((BIT(9) & white) >> (63 - 9)));
+		
+		temp = ((taken & CORNER_TR) >> (63 - 7)) ^ 1;
+		ee -= (temp & ((BIT(14) & black) >> (63 - 14)));
+		ee += (temp & ((BIT(14) & white) >> (63 - 14)));
+		
+		temp = ((taken & CORNER_BL) >> (63 - 56)) ^ 1;
+		ee -= (temp & ((BIT(49) & black) >> (63 - 49)));
+		ee += (temp & ((BIT(49) & white) >> (63 - 49)));
+		
+		temp = (taken & CORNER_BR) ^ 1;
+		ee -= (temp & ((BIT(54) & black) >> (63 - 54)));
+		ee += (temp & ((BIT(54) & white) >> (63 - 54)));
+		*/
 	}
 	#endif
 	
-	int totalCount = __builtin_popcountll(taken);
+	const int totalCount = __builtin_popcountll(taken);
 	// Minimize discs early
 	if (totalCount < 40) {
 		int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
@@ -3004,59 +3009,63 @@ int Board::pos_evaluate() const {
 	// Get left and right edges
 	#if USE_MAGIC
 	// Idea from http://stackoverflow.com/questions/14537831/isolate-specific-row-column-diagonal-from-a-64-bit-number
-	const uint64_t column_mask = 0x8080808080808080ull;
-	const uint64_t magic = 0x2040810204081ull;
-	uint64_t col_taken = (((taken & column_mask) * magic) >> 56) & 0xff;
-	uint64_t col_black = (((black & column_mask) * magic) >> 56) & 0xff;
-	ee += EDGE_VALUES[(col_taken << 8) | col_black];
-	col_taken = ((((taken << 7) & column_mask) * magic) >> 56) & 0xff;
-	col_black = ((((black << 7) & column_mask) * magic) >> 56) & 0xff;
-	ee += EDGE_VALUES[(col_taken << 8) | col_black];
+	{
+		const uint64_t column_mask = 0x8080808080808080ull;
+		const uint64_t magic = 0x2040810204081ull;
+		uint64_t col_taken = (((taken & column_mask) * magic) >> 56) & 0xff;
+		uint64_t col_black = (((black & column_mask) * magic) >> 56) & 0xff;
+		ee += EDGE_VALUES[(col_taken << 8) | col_black];
+		col_taken = ((((taken << 7) & column_mask) * magic) >> 56) & 0xff;
+		col_black = ((((black << 7) & column_mask) * magic) >> 56) & 0xff;
+		ee += EDGE_VALUES[(col_taken << 8) | col_black];
+	}
 	#else
-	// Get left edge
-	uint64_t tempTaken = taken & EDGE_LEFT;
-	uint64_t tempB = black & EDGE_LEFT;
-	tempTaken >>= 7;
-	tempB >>= 7;
-	// Now same as right edge
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	
-	u16 = (tempTaken << 8) | tempB;
-	ee += EDGE_VALUES[u16];
-	
-	// Get right edge
-	tempTaken = taken & EDGE_RIGHT;
-	tempB = black & EDGE_RIGHT;
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempTaken |= (tempTaken >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	tempB |= (tempB >> 7);
-	
-	u16 = (tempTaken << 8) | tempB;
-	ee += EDGE_VALUES[u16];
+	{
+		// Get left edge
+		uint64_t tempTaken = taken & EDGE_LEFT;
+		uint64_t tempB = black & EDGE_LEFT;
+		tempTaken >>= 7;
+		tempB >>= 7;
+		// Now same as right edge
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		
+		u16 = (tempTaken << 8) | tempB;
+		ee += EDGE_VALUES[u16];
+		
+		// Get right edge
+		tempTaken = taken & EDGE_RIGHT;
+		tempB = black & EDGE_RIGHT;
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempTaken |= (tempTaken >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		tempB |= (tempB >> 7);
+		
+		u16 = (tempTaken << 8) | tempB;
+		ee += EDGE_VALUES[u16];
+	}
 	#endif
 	
 	return ee;

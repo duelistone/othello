@@ -18,6 +18,7 @@
 #include "timer.h"
 
 #define BIT(x) ((uint64_t) 1 << (63 - (x)))
+#define BIT_SAFE(x) ((x) < 64 ? (uint64_t) 1 << (63 - (x)) : 0)
 #define OCCUPY_BLACK(x, t, b) {(t) |= BIT(x); (b) |= BIT(x);}
 #define OCCUPY_WHITE(x, t, b) {(t) |= BIT(x);}
 #define TO_INDEX(x, y) ((x) + 8 * (y))
