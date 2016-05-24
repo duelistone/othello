@@ -73,11 +73,11 @@ extern int ordered_moves[64][64];
 
 // To avoid um getting too big
 #define MAX_HASH_SIZE 3000000
-#define STOP_SAVING_THRESHOLD 56
+#define STOP_SAVING_THRESHOLD 50
 // At this point it should be quick to compute to the end
 
 // Should correspond to at most a minute of computation
-#define DEFAULT_MAX_NODES (60000000)
+#define DEFAULT_MAX_NODES (200000000)
 
 using namespace std;
 

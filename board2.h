@@ -119,7 +119,9 @@ public:
     //~ Board doMoveOnNewBoard(int x, int y, Side side);
     Board doMoveOnNewBoard(const int &index, const Side &side) const;
     Board doMoveOnNewBoardBlack(const int &index) const;
+    Board doMoveOnNewBoardBlackWZH(const int &index) const;
 	Board doMoveOnNewBoardWhite(const int &index) const;
+	Board doMoveOnNewBoardWhiteWZH(const int &index) const;
     Board doMoveOnNewBoard2(int x, int y, Side side) const;
     Board doMoveOnNewBoard3(int x, int y, Side side) const;
     int count (Side side) const;

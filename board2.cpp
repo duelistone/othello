@@ -2421,6 +2421,241 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
 	return Board(taken | bi, ~newwhite & taken, zobrist_hash_copy);
 }
 
+Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
+	// Makes move on new board using bit operations
+	// This leads to no jumping when converted to assembly
+	// (once we branch into side == BLACK or side == WHITE)
+	
+	// Observe that if the move is illegal, taken will be updated, 
+	// but black will remain the same.
+	
+	//~ assert(SINGLE_BIT[index] & findLegalMoves(side));
+	
+	//~ auto start = chrono::high_resolution_clock::now();
+	uint64_t white = ~black & taken;
+	
+	const uint64_t bi = SINGLE_BIT[index];
+	uint64_t n = bi;
+	
+	uint64_t newblack = black;
+	uint64_t filtered;
+	
+	// LEFT
+	filtered = white & LEFT_FILTER;
+	n |= filtered & (n << 1);
+	n |= filtered & (n << 1);
+	n |= filtered & (n << 1);
+	n |= filtered & (n << 1);
+	n |= filtered & (n << 1);
+	n |= filtered & (n << 1);
+	//~ n |= white & LEFT_FILTER & (n << 1);
+	newblack = (black & LEFT_FILTER & (n << 1)) ? newblack | n : newblack;
+	// RIGHT
+	n = bi;
+	filtered = white & RIGHT_FILTER;
+	n |= filtered & (n >> 1);
+	n |= filtered & (n >> 1);
+	n |= filtered & (n >> 1);
+	n |= filtered & (n >> 1);
+	n |= filtered & (n >> 1);
+	n |= filtered & (n >> 1);
+	//~ n |= white & RIGHT_FILTER & (n >> 1);
+	newblack = (black & RIGHT_FILTER & (n >> 1)) ? newblack | n : newblack;
+	
+	// DOWN
+	n = bi;
+	filtered = white & DOWN_FILTER;
+	n |= filtered & (n >> 8);
+	n |= filtered & (n >> 8);
+	n |= filtered & (n >> 8);
+	n |= filtered & (n >> 8);
+	n |= filtered & (n >> 8);
+	n |= filtered & (n >> 8);
+	//~ n |= white & DOWN_FILTER & (n >> 8);
+	newblack = (black & DOWN_FILTER & (n >> 8)) ? newblack | n : newblack;
+	
+	// UP
+	n = bi;
+	filtered = white & UP_FILTER;
+	n |= filtered & (n << 8);
+	n |= filtered & (n << 8);
+	n |= filtered & (n << 8);
+	n |= filtered & (n << 8);
+	n |= filtered & (n << 8);
+	n |= filtered & (n << 8);
+	//~ n |= white & UP_FILTER & (n << 8);
+	newblack = (black & UP_FILTER & (n << 8)) ? newblack | n : newblack;
+	
+	// UP_LEFT
+	n = bi;
+	filtered = white & UP_LEFT_FILTER;
+	n |= filtered & (n << 9);
+	n |= filtered & (n << 9);
+	n |= filtered & (n << 9);
+	n |= filtered & (n << 9);
+	n |= filtered & (n << 9);
+	n |= filtered & (n << 9);
+	//~ n |= white & UP_LEFT_FILTER & (n << 9);
+	newblack = (black & UP_LEFT_FILTER & (n << 9)) ? newblack | n : newblack;
+	
+	// DOWN_RIGHT
+	n = bi;
+	filtered = white & DOWN_RIGHT_FILTER;
+	n |= filtered & (n >> 9);
+	n |= filtered & (n >> 9);
+	n |= filtered & (n >> 9);
+	n |= filtered & (n >> 9);
+	n |= filtered & (n >> 9);
+	n |= filtered & (n >> 9);
+	//~ n |= white & DOWN_RIGHT_FILTER & (n >> 9);
+	newblack = (black & DOWN_RIGHT_FILTER & (n >> 9)) ? newblack | n : newblack;
+	
+	// UP_RIGHT
+	n = bi;
+	filtered = white & UP_RIGHT_FILTER;
+	n |= filtered & (n << 7);
+	n |= filtered & (n << 7);
+	n |= filtered & (n << 7);
+	n |= filtered & (n << 7);
+	n |= filtered & (n << 7);
+	n |= filtered & (n << 7);
+	//~ n |= white & UP_RIGHT_FILTER & (n << 7);
+	newblack = (black & UP_RIGHT_FILTER & (n << 7)) ? newblack | n : newblack;
+	
+	// DOWN_LEFT
+	n = bi;
+	filtered = white & DOWN_LEFT_FILTER;
+	n |= filtered & (n >> 7);
+	n |= filtered & (n >> 7);
+	n |= filtered & (n >> 7);
+	n |= filtered & (n >> 7);
+	n |= filtered & (n >> 7);
+	n |= filtered & (n >> 7);
+	//~ n |= white & DOWN_LEFT_FILTER & (n >> 7);
+	newblack = (black & DOWN_LEFT_FILTER & (n >> 7)) ? newblack | n : newblack;
+
+	//~ cerr << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
+	return Board(taken | bi, newblack, 0);
+}
+
+Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
+	// Makes move on new board using bit operations
+	// This leads to no jumping when converted to assembly
+	// (once we branch into side == BLACK or side == WHITE)
+	
+	// Observe that if the move is illegal, taken will be updated, 
+	// but black will remain the same.
+	
+	//~ assert(SINGLE_BIT[index] & findLegalMoves(side));
+	
+	//~ auto start = chrono::high_resolution_clock::now();
+	uint64_t white = ~black & taken;
+	
+	const uint64_t bi = SINGLE_BIT[index];
+	uint64_t n = bi;
+	
+	uint64_t newwhite = white;
+	uint64_t filtered;
+	
+	// LEFT
+	filtered = black & LEFT_FILTER;
+	n |= filtered & (n << 1);
+	n |= filtered & (n << 1);
+	n |= filtered & (n << 1);
+	n |= filtered & (n << 1);
+	n |= filtered & (n << 1);
+	n |= filtered & (n << 1);
+	//~ n |= black & LEFT_FILTER & (n << 1);
+	newwhite = (white & LEFT_FILTER & (n << 1)) ? newwhite | n : newwhite;
+	
+	// RIGHT
+	n = bi;
+	filtered = black & RIGHT_FILTER;
+	n |= filtered & (n >> 1);
+	n |= filtered & (n >> 1);
+	n |= filtered & (n >> 1);
+	n |= filtered & (n >> 1);
+	n |= filtered & (n >> 1);
+	n |= filtered & (n >> 1);
+	//~ n |= black & RIGHT_FILTER & (n >> 1);
+	newwhite = (white & RIGHT_FILTER & (n >> 1)) ? newwhite | n : newwhite;
+	
+	// DOWN
+	n = bi;
+	filtered = black & DOWN_FILTER;
+	n |= filtered & (n >> 8);
+	n |= filtered & (n >> 8);
+	n |= filtered & (n >> 8);
+	n |= filtered & (n >> 8);
+	n |= filtered & (n >> 8);
+	n |= filtered & (n >> 8);
+	//~ n |= black & DOWN_FILTER & (n >> 8);
+	newwhite = (white & DOWN_FILTER & (n >> 8)) ? newwhite | n : newwhite;
+	
+	// UP
+	n = bi;
+	filtered = black & UP_FILTER;
+	n |= filtered & (n << 8);
+	n |= filtered & (n << 8);
+	n |= filtered & (n << 8);
+	n |= filtered & (n << 8);
+	n |= filtered & (n << 8);
+	n |= filtered & (n << 8);
+	//~ n |= black & UP_FILTER & (n << 8);
+	newwhite = (white & UP_FILTER & (n << 8)) ? newwhite | n : newwhite;
+	
+	// UP_LEFT
+	n = bi;
+	filtered = black & UP_LEFT_FILTER;
+	n |= filtered & (n << 9);
+	n |= filtered & (n << 9);
+	n |= filtered & (n << 9);
+	n |= filtered & (n << 9);
+	n |= filtered & (n << 9);
+	n |= filtered & (n << 9);
+	//~ n |= black & UP_LEFT_FILTER & (n << 9);
+	newwhite = (white & UP_LEFT_FILTER & (n << 9)) ? newwhite | n : newwhite;
+	
+	// DOWN_RIGHT
+	n = bi;
+	filtered = black & DOWN_RIGHT_FILTER;
+	n |= filtered & (n >> 9);
+	n |= filtered & (n >> 9);
+	n |= filtered & (n >> 9);
+	n |= filtered & (n >> 9);
+	n |= filtered & (n >> 9);
+	n |= filtered & (n >> 9);
+	//~ n |= black & DOWN_RIGHT_FILTER & (n >> 9);
+	newwhite = (white & DOWN_RIGHT_FILTER & (n >> 9)) ? newwhite | n : newwhite;
+			
+	// UP_RIGHT
+	n = bi;
+	filtered = black & UP_RIGHT_FILTER;
+	n |= filtered & (n << 7);
+	n |= filtered & (n << 7);
+	n |= filtered & (n << 7);
+	n |= filtered & (n << 7);
+	n |= filtered & (n << 7);
+	n |= filtered & (n << 7);
+	//~ n |= black & UP_RIGHT_FILTER & (n << 7);
+	newwhite = (white & UP_RIGHT_FILTER & (n << 7)) ? newwhite | n : newwhite;
+	
+	// DOWN_LEFT
+	n = bi;
+	filtered = black & DOWN_LEFT_FILTER;
+	n |= filtered & (n >> 7);
+	n |= filtered & (n >> 7);
+	n |= filtered & (n >> 7);
+	n |= filtered & (n >> 7);
+	n |= filtered & (n >> 7);
+	n |= filtered & (n >> 7);
+	//~ n |= filtered & (n >> 7);
+	newwhite = (white & DOWN_LEFT_FILTER & (n >> 7)) ? newwhite | n : newwhite;
+		
+	//~ cerr << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
+	return Board(taken | bi, ~newwhite & taken, 0);
+}
+
 
 Board Board::doMoveOnNewBoard3(int X, int Y, Side side) const {
 	return doMoveOnNewBoard3(X, Y, side);

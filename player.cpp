@@ -1239,26 +1239,17 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 	return result;*/
 }
 
-int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX) {
-	if (abortEndgameMinimax) return (abortSide == BLACK) ? INT_MIN : INT_MAX;
-	
-	BoardWithSide bws(b.taken, b.black, s);
-	if (um2->count(bws) > 0) {
-		return (*um2)[bws];
-	}
-	
+int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX) {
 	int totalCount = __builtin_popcountll(b.taken);
-	double maxNodes = minutesForMove * DEFAULT_MAX_NODES;
 	
 	if (totalCount == 64) {
 		//auto start = chrono::high_resolution_clock::now();
 		globalEndgameNodeCount++;
 		if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
+		double maxNodes = minutesForMove * DEFAULT_MAX_NODES;
 		if (globalEndgameNodeCount > maxNodes) abortEndgameMinimax = true;
 		// Simple evaluation here
 		int diff = __builtin_popcountll(b.black);
-		//cerr << "Endgame time: " << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
-		// TODO: Try using array
 		if (diff > 32) return INT_MAX;
 		else if (diff < 32) return INT_MIN;
 		else return 0;
@@ -1271,6 +1262,7 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 		if (legalMovesOther == 0) {
 			globalEndgameNodeCount++;
 			if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
+			double maxNodes = minutesForMove * DEFAULT_MAX_NODES;
 			if (globalEndgameNodeCount > maxNodes) abortEndgameMinimax = true;
 			// Simple evaluation here
 			int diff = b.countBlack() - b.countWhite();
@@ -1278,11 +1270,7 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 			else if (diff < 0) return INT_MIN;
 			else return 0;
 		}
-		int ret = endgame_alphabeta(b, other_side(s), alpha, beta);
-		if (um2->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD) {
-			(*um2)[bws] = ret;
-		}
-		return ret;
+		return deep_endgame_alphabeta(b, other_side(s), alpha, beta);
 	}
 	
 	/*
@@ -1303,54 +1291,100 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 		}
 	}
 	*/
+
 	if (s) {
-		int v = INT_MIN;
-		#if USE_HASH_IN_ENDGAME_ALPHABETA
-		if (totalCount < 50) { // 50 is a complete guess
-			size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-			int index = tt.table[hash_index];
-			if (BIT_SAFE(index) & legalMoves) {
-				// The move is valid
-				legalMoves ^= BIT(index);
-				Board b2 = b.doMoveOnNewBoardBlack(index);
-				v = endgame_alphabeta(b2, WHITE, alpha, beta);
-				alpha = (v > alpha) ? v : alpha;
-			}
-		}
-		#endif
 		while (alpha < beta && legalMoves) {
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
-			Board b2 = b.doMoveOnNewBoardBlack(index);
-			v = endgame_alphabeta(b2, WHITE, alpha, beta);
+			int v = deep_endgame_alphabeta(b.doMoveOnNewBoardBlackWZH(index), WHITE, alpha, beta);
 			alpha = (v > alpha) ? v : alpha;
 		}
 	}
 	else {
-		int v = INT_MAX;
+		while (alpha < beta && legalMoves) {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves ^= BIT(index);
+			int v = deep_endgame_alphabeta(b.doMoveOnNewBoardWhiteWZH(index), BLACK, alpha, beta);
+			beta = (v < beta) ? v : beta;
+		}
+	}
+	
+	return s ? alpha : beta;
+}
+
+int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX) {
+	if (abortEndgameMinimax) return (abortSide == BLACK) ? INT_MIN : INT_MAX;
+	
+	BoardWithSide bws(b.taken, b.black, s);
+	if (um2->count(bws) > 0) {
+		return (*um2)[bws];
+	}
+	
+	int totalCount = __builtin_popcountll(b.taken);
+	
+	if (totalCount >= 42 + HASH_DEPTH) return deep_endgame_alphabeta(b, s, alpha, beta);
+	
+	double maxNodes = minutesForMove * DEFAULT_MAX_NODES;
+	
+	uint64_t legalMoves = b.findLegalMoves(s);
+	
+	if (legalMoves == 0) {
+		uint64_t legalMovesOther = b.findLegalMoves(other_side(s));
+		if (legalMovesOther == 0) {
+			globalEndgameNodeCount++;
+			if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
+			if (globalEndgameNodeCount > maxNodes) abortEndgameMinimax = true;
+			// Simple evaluation here
+			int diff = b.countBlack() - b.countWhite();
+			if (diff > 0) return INT_MAX;
+			else if (diff < 0) return INT_MIN;
+			else return 0;
+		}
+		int ret = endgame_alphabeta(b, other_side(s), alpha, beta);
+		if (totalCount < STOP_SAVING_THRESHOLD) {
+			(*um2)[bws] = ret;
+		}
+		return ret;
+	}
+	
+	if (s) {
 		#if USE_HASH_IN_ENDGAME_ALPHABETA
-		if (totalCount < 50) { // 50 is a complete guess
-			size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-			int index = tt.table[hash_index];
-			if (BIT_SAFE(index) & legalMoves) {
-				legalMoves ^= BIT(index);
-				Board b2 = b.doMoveOnNewBoardWhite(index);
-				v = endgame_alphabeta(b2, BLACK, alpha, beta);
-				beta = (v < beta) ? v : beta;
-			}
+		size_t hash_index = b.zobrist_hash & (tt.mod - 1);
+		int index = tt.table[hash_index];
+		if (BIT_SAFE(index) & legalMoves) {
+			// The move is valid
+			legalMoves ^= BIT(index);
+			int v = endgame_alphabeta(b.doMoveOnNewBoardBlack(index), WHITE, alpha, beta);
+			alpha = (v > alpha) ? v : alpha;
 		}
 		#endif
 		while (alpha < beta && legalMoves) {
 			int index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
-			Board b2 = b.doMoveOnNewBoardWhite(index);
-			v = endgame_alphabeta(b2, BLACK, alpha, beta);
+			int v = endgame_alphabeta(b.doMoveOnNewBoardBlack(index), WHITE, alpha, beta);
+			alpha = (v > alpha) ? v : alpha;
+		}
+	}
+	else {
+		#if USE_HASH_IN_ENDGAME_ALPHABETA
+		size_t hash_index = b.zobrist_hash & (tt.mod - 1);
+		int index = tt.table[hash_index];
+		if (BIT_SAFE(index) & legalMoves) {
+			legalMoves ^= BIT(index);
+			int v = endgame_alphabeta(b.doMoveOnNewBoardWhite(index), BLACK, alpha, beta);
+			beta = (v < beta) ? v : beta;
+		}
+		#endif
+		while (alpha < beta && legalMoves) {
+			int index = __builtin_clzl(legalMoves);
+			legalMoves ^= BIT(index);
+			int v = endgame_alphabeta(b.doMoveOnNewBoardWhite(index), BLACK, alpha, beta);
 			beta = (v < beta) ? v : beta;
 		}
 	}
 	
-	int ret = (s == BLACK) ? alpha : beta;
-	if (um2->size() < MAX_HASH_SIZE && totalCount < STOP_SAVING_THRESHOLD && (alpha != 0 || beta != 0)) {
+	int ret = s ? alpha : beta;
+	if (alpha != 0 || beta != 0) {
 		(*um2)[bws] = ret;
 	}
 	return ret;
