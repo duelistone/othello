@@ -325,13 +325,14 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 	
 	EDGE_VALUES[data] = eval;
 	
+	/*
 	for (int i = 0; i < 8; i++) {
 		if (f(i) == -1) fil << '-';
 		else if (f(i) == BLACK) fil << 'X';
 		else fil << 'O';
 	}
 	fil << ' ' << bitset<16>(data) << ' ' << f(5) << f(6) << f(7) << ' ' << eval << endl;
-	
+	*/
 	// ./testgame freezes when you uncomment this for who knows what reason
 	/*
 	bitset<8> bs((unsigned char) (data >> 8));
