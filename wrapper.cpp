@@ -21,7 +21,7 @@ double minutesForMove = 1;
 int *EDGE_VALUES;
 int ordered_moves[64][64];
 uint64_t SINGLE_BIT[64];
-// fstream fil("c.txt", ios_base::app);
+fstream fil("c.txt", ios_base::out);
 
 vector< unordered_map< BoardWithSide, int > * > vec_of_ums;
 unordered_map< BoardWithSide, int > *um_1 = new unordered_map< BoardWithSide, int >;

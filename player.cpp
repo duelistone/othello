@@ -41,12 +41,12 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 	}
 	
 	int cornerWeight = 9;
-    int stableWeight = 3;
-    int wedgeWeight = 3;
-    int unstableWeightC = -4;
-    int unbalancedEdgeWeight = -6;
+	int stableWeight = 3;
+	//~ int wedgeWeight = 3;
+	//~ int unstableWeightC = -4;
+	int unbalancedEdgeWeight = -6;
     
-    uint16_t data = 0;
+	uint16_t data = 0;
 	int eval = 0;
 	if (i0) data |= EDGE_BIT(0);
 	if (i0 == 1) data |= EDGE_BIT(8);
@@ -67,11 +67,17 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 	
 	int count = __builtin_popcount(data >> 8);
 	
+	function<int(int)> f = [data] (int index) -> int {
+		if ((data & EDGE_BIT(index)) == 0) return -1;
+		else if (data & EDGE_BIT(index + 8)) return BLACK;
+		else return WHITE;
+	};
+	
 	for (int i = 0; i < 8; i++) {
 		// If empty, continue
-		if ((data & EDGE_BIT(i)) == 0) continue;
+		if (f(i) == -1) continue;
 		
-		Side s = (data & EDGE_BIT(8 + i)) ? BLACK : WHITE;
+		Side s = f(i);
 		
 		if (i == 0 || i == 7) {
 			if (s == BLACK) eval += cornerWeight;
@@ -91,47 +97,22 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		
 		int x = i;
 		x--;
-		while (x >= 0 && ((data & EDGE_BIT(x)) == EDGE_BIT(x))) {
-			bool iset = ((data & EDGE_BIT(8 + i)) == EDGE_BIT(8 + i));
-			bool xset = ((data & EDGE_BIT(8 + x)) == EDGE_BIT(8 + x));
-			if ((iset && !xset) || ((!iset) && xset)) break;
-			x--;
-		}
+		while (x >= 0 && f(x) == f(i)) x--;
 		if (x == -1) {
 			if (s == BLACK) eval += stableWeight;
 			else eval -= stableWeight;
 			continue;
 		}
-		else if (i == 1 || i == 6) {
-			if (s == BLACK) eval += unstableWeightC;
-			else eval -= unstableWeightC;
-			continue;
-		}
 		
 		x = i;
 		x++;
-		while (x < 8 && ((data & EDGE_BIT(x)) == EDGE_BIT(x))) {
-			bool iset = ((data & EDGE_BIT(8 + i)) == EDGE_BIT(8 + i));
-			bool xset = ((data & EDGE_BIT(8 + x)) == EDGE_BIT(8 + x));
-			if ((iset && !xset) || ((!iset) && xset)) break;
-			x++;
-		}
+		while (x < 8 && f(x) == f(i)) x++;
 		if (x == 8) {
 			if (s == BLACK) eval += stableWeight;
 			else eval -= stableWeight;
 		}
-		else if (i == 1 || i == 6) {
-			if (s == BLACK) eval += unstableWeightC;
-			else eval -= unstableWeightC;
-		}
 	}
-	
-	function<int(int)> f = [data] (int index) -> int {
-		if ((data & EDGE_BIT(index)) == 0) return -1;
-		else if (data & EDGE_BIT(index + 8)) return BLACK;
-		else return WHITE;
-	};
-	
+	/*
 	// Wedges (these are complicated, maybe we shouldn't deal with
 	// them so generally.
 	for (int i = 0; i < 8; i++) {
@@ -159,7 +140,8 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 			}
 		}
 	}
-	
+	*/
+	/*
 	// Forced corner capture (only count if to corner)
 	// Won't assume it's the turn players turn for now, so this 
 	// requires a wedge to be guaranteed
@@ -175,7 +157,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		emptySquares++;
 	}
 	if (f(k + 1) != BLACK) cornerCapture = false;
-	if (emptySquares % 2 == 0) cornerCapture = false;
+	if (emptySquares % 2) cornerCapture = false;
 	if (cornerCapture) {
 		eval -= 2 * cornerWeight;
 		eval -= stableWeight * (emptySquares + 2);
@@ -187,7 +169,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		emptySquares++;
 	}
 	if (f(k + 1) != WHITE) cornerCapture = false;
-	if (emptySquares % 2 == 0) cornerCapture = false;
+	if (emptySquares % 2) cornerCapture = false;
 	if (cornerCapture) {
 		eval += 2 * cornerWeight;
 		eval += stableWeight * (emptySquares + 2);
@@ -203,7 +185,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		emptySquares++;
 	}
 	if (f(k - 1) != BLACK) cornerCapture = false;
-	if (emptySquares % 2 == 0) cornerCapture = false;
+	if (emptySquares % 2) cornerCapture = false;
 	if (cornerCapture) {
 		eval -= 2 * cornerWeight;
 		eval -= stableWeight * (emptySquares + 2);
@@ -215,12 +197,13 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		emptySquares++;
 	}
 	if (f(k - 1) != WHITE) cornerCapture = false;
-	if (emptySquares % 2 == 0) cornerCapture = false;
+	if (emptySquares % 2) cornerCapture = false;
 	if (cornerCapture) {
 		eval += 2 * cornerWeight;
 		eval += stableWeight * (emptySquares + 2);
 	}
-	
+	*/
+	/*
 	// Even distance, different color discs, forced corner capture
 	
 	cornerCapture = true;
@@ -278,7 +261,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		eval += 2 * cornerWeight;
 		eval += stableWeight * (emptySquares + 2);
 	}
-	
+	*/
 	/*
 	// Special case
 	if (f(0) == -1 && f(1) == BLACK && f(2) == BLACK && f(3) == -1 &&
@@ -302,6 +285,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 		eval += 5 * stableWeight;
 	}
 	*/
+	
 	// Unbalanced edge
 	if (f(0) == -1 && f(1) == BLACK && f(2) == BLACK && f(3) == BLACK &&
 		f(4) == BLACK && f(5) == BLACK && f(6) == -1 && f(7) == -1) {
@@ -338,7 +322,15 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 			 f(4) == -1 && f(5) == WHITE && f(6) == -1 && f(7) == -1) {
 		eval += unbalancedEdgeWeight;
 	}
+	
 	EDGE_VALUES[data] = eval;
+	
+	for (int i = 0; i < 8; i++) {
+		if (f(i) == -1) fil << '-';
+		else if (f(i) == BLACK) fil << 'X';
+		else fil << 'O';
+	}
+	fil << ' ' << bitset<16>(data) << ' ' << f(5) << f(6) << f(7) << ' ' << eval << endl;
 	
 	// ./testgame freezes when you uncomment this for who knows what reason
 	/*
@@ -1091,9 +1083,9 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 		int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
 		int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
 		try_again3:
-		int e = pvs(b, depth, s, lower, upper, false);
+		eOdd = pvs(b, depth, s, lower, upper, false);
 		// This is bound to run into issues one day
-		pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], e);
+		pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], eOdd);
 		if (result.second <= lower && lower != INT_MIN) {
 			tim.endms("Recalculating (failed low) ");
 			lower -= (diff - 1) * counter;
@@ -1108,7 +1100,62 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 			if (counter > 3) upper = INT_MAX;
 			goto try_again3;
 		}
+		cerr << "Finished depth " << depth + 1 << " search: " << result.second << ' ';
+		tim.endms();
+		if (counter < 3) return result;
+	}
+	else {
+		int counter = 1;
+		int diff = abs(eEven) / 8 + 2;
+		int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
+		int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
+		try_again4:
+		eEven = pvs(b, depth, s, lower, upper, false);
+		// This is bound to run into issues one day
+		pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], eEven);
+		if (result.second <= lower && lower != INT_MIN) {
+			tim.endms("Recalculating (failed low) ");
+			lower -= (diff - 1) * counter;
+			counter++;
+			if (counter > 3) lower = INT_MIN;
+			goto try_again4;
+		}
+		else if (result.second >= upper && upper != INT_MAX) {
+			tim.endms("Recalculating (failed high) ");
+			upper += (diff - 1) * counter;
+			counter++;
+			if (counter > 3) upper = INT_MAX;
+			goto try_again4;
+		}
 		cerr << "Finished depth " << depth << " search: " << result.second << ' ';
+		tim.endms();
+		if (counter < 3) return result;
+	}
+	// Okay, maybe one more
+	if ((depth  + 1) % 2) {
+		int counter = 1;
+		int diff = abs(eOdd) / 8 + 2;
+		int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
+		int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
+		try_again5:
+		eOdd = pvs(b, depth + 1, s, lower, upper, false, -1); // The -1 is to fool pvs into hashing
+		// This is bound to run into issues one day
+		pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], eOdd);
+		if (result.second <= lower && lower != INT_MIN) {
+			tim.endms("Recalculating (failed low) ");
+			lower -= (diff - 1) * counter;
+			counter++;
+			if (counter > 3) lower = INT_MIN;
+			goto try_again5;
+		}
+		else if (result.second >= upper && upper != INT_MAX) {
+			tim.endms("Recalculating (failed high) ");
+			upper += (diff - 1) * counter;
+			counter++;
+			if (counter > 3) upper = INT_MAX;
+			goto try_again5;
+		}
+		cerr << "Finished depth " << depth + 1 << " search: " << result.second << ' ';
 		tim.endms();
 		return result;
 	}
@@ -1117,25 +1164,25 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 		int diff = abs(eEven) / 8 + 2;
 		int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
 		int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
-		try_again4:
-		int e = pvs(b, depth, s, lower, upper, false);
+		try_again6:
+		eEven = pvs(b, depth + 1, s, lower, upper, false, -1); // The -1 is to fool pvs into hashing
 		// This is bound to run into issues one day
-		pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], e);
+		pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], eEven);
 		if (result.second <= lower && lower != INT_MIN) {
 			tim.endms("Recalculating (failed low) ");
 			lower -= (diff - 1) * counter;
 			counter++;
 			if (counter > 3) lower = INT_MIN;
-			goto try_again4;
+			goto try_again6;
 		}
 		else if (result.second >= upper && upper != INT_MAX) {
 			tim.endms("Recalculating (failed high) ");
 			upper += (diff - 1) * counter;
 			counter++;
 			if (counter > 3) upper = INT_MAX;
-			goto try_again4;
+			goto try_again6;
 		}
-		cerr << "Finished depth " << depth << " search: " << result.second << ' ';
+		cerr << "Finished depth " << depth + 1 << " search: " << result.second << ' ';
 		tim.endms();
 		return result;
 	}
