@@ -69,6 +69,7 @@ extern BoardHash tt;
 //~ extern unordered_map<int, double> coefficients;
 
 extern int *EDGE_VALUES;
+extern int *EDGE_VOLATILITY;
 extern int ordered_moves[64][64];
 
 // To avoid um getting too big

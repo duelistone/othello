@@ -3,8 +3,8 @@
 /*====================================================================
  * int min(int x, int y)
  */
-.globl min
-min:
+.globl _min
+_min:
 	cmpl	%esi, %edi
 	movl	%esi, %eax
 	cmovle	%edi, %eax
@@ -13,15 +13,15 @@ min:
 /*====================================================================
  * int max(int x, int y)
  */
-.globl max
-max:
+.globl _max
+_max:
 	cmpl	%esi, %edi
 	movl	%esi, %eax
 	cmovge	%edi, %eax
 	ret
 
-.globl other_side
-other_side:
+.globl _other_side
+_other_side:
 	cmpl	$0, %edi
 	sete	%al
 	movzbl	%al, %eax

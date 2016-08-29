@@ -1,9 +1,9 @@
 #include "player.h"
 
 #define SIMPLE_EVAL 1
-#define KILLER_HEURISTIC 0 
 #define IID 1
 #define USE_HASH_IN_ENDGAME_ALPHABETA 1
+#define QSEARCH 1
 
 // Note: More work necessary to make killer heuristic work, and
 // (when it was working) there was no noticeable speed increase.
@@ -21,8 +21,13 @@
 // 3:03 after splitting up legalMoves function
 // 2:57 after removing branching from doMoveOnNewBoard
 #define MAX_DEPTH 14
+#define MAX_DEPTH2 16
+
+#define THREAT_THRESHOLD 20
 
 Side abortSide;
+int currentDiscs;
+int pVariations[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int i4 = 0, int i5 = 0, int i6 = 0, int i7 = 0, int depth = 8) {
 	if (depth > 0) {
@@ -42,7 +47,9 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 	
 	int cornerWeight = 9;
 	int stableWeight = 3;
-	//~ int wedgeWeight = 3;
+	int cornerWedgeWeight_1 = 7;
+	int cornerWedgeWeight_3 = 4;
+	int cornerWedgeWeight_5 = 1;
 	//~ int unstableWeightC = -4;
 	int unbalancedEdgeWeight = -6;
     
@@ -64,6 +71,8 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 	if (i6 == 1) data |= EDGE_BIT(14);
 	if (i7) data |= EDGE_BIT(7);
 	if (i7 == 1) data |= EDGE_BIT(15);
+	
+	EDGE_VOLATILITY[data] = 0;
 	
 	int count = __builtin_popcount(data >> 8);
 	
@@ -112,179 +121,74 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 			else eval -= stableWeight;
 		}
 	}
-	/*
-	// Wedges (these are complicated, maybe we shouldn't deal with
-	// them so generally.
-	for (int i = 0; i < 8; i++) {
-		for (int j = i + 4; j < 8; j++) {
-			if (f(i) == -1 && f(j) == -1) {
-				bool isWedge = true;
-				if (f(i + 1) == BLACK && f(j - 1) == BLACK) {
-					for (int k = i + 2; k < j - 1; k++) {
-						if (f(k) != WHITE) isWedge = false;
-					}
-					if (isWedge) {
-						eval -= wedgeWeight;
-						if (i == 0 || i == 8) eval -= cornerWeight;
-					}
+	
+	if (f(0) == -1) {
+		Side s = f(1);
+		int counter = 0;
+		if (s != -1) {
+			Side other = other_side(s);
+			for (int i = 2; i < 8; i++) {
+				// Odd number of empty squares
+				if (counter == 1 && f(i) == s) {
+					eval -= (s ? cornerWedgeWeight_1 : -cornerWedgeWeight_1);
+					break;
 				}
-				else if (f(i + 1) == WHITE && f(j - 1) == WHITE) {
-					for (int k = i + 2; k < j - 1; k++) {
-						if (f(k) != BLACK) isWedge = false;
-					}
-					if (isWedge) {
-						eval += wedgeWeight;
-						if (i == 0 || i == 8) eval -= cornerWeight;
-					}
+				else if (counter == 3 && f(i) == s) {
+					eval -= (s ? cornerWedgeWeight_3 : -cornerWedgeWeight_3);
+					break;
+				}
+				else if (counter == 5 && f(i) == s) {
+					eval -= (s ? cornerWedgeWeight_5 : -cornerWedgeWeight_5);
+					break;
+				}
+				// Any other case with nonzero counter
+				if (counter) break;
+				// Corner can be immediately taken
+				if (f(i) == other) {
+					EDGE_VOLATILITY[data] = 1;
+					break;
+				}
+				// Empty square
+				if (f(i) == -1) {
+					counter++;
 				}
 			}
 		}
 	}
-	*/
-	/*
-	// Forced corner capture (only count if to corner)
-	// Won't assume it's the turn players turn for now, so this 
-	// requires a wedge to be guaranteed
-	// Shouldn't overlap with the wedge case covered earlier
-	bool cornerCapture = true;
-	int i = 0;
-	if (f(i) != -1) cornerCapture = false;
-	// WHITE advantage
-	if (f(i + 1) != BLACK) cornerCapture = false;
-	int emptySquares = 0;
-	int k;
-	for (k = i + 2; f(k) == -1 && k <= 7; k++) {
-		emptySquares++;
-	}
-	if (f(k + 1) != BLACK) cornerCapture = false;
-	if (emptySquares % 2) cornerCapture = false;
-	if (cornerCapture) {
-		eval -= 2 * cornerWeight;
-		eval -= stableWeight * (emptySquares + 2);
-	}
-	// BLACK advantage
-	if (f(i + 1) != WHITE) cornerCapture = false;
-	emptySquares = 0;
-	for (k = i + 2; f(k) == -1 && k <= 7; k++) {
-		emptySquares++;
-	}
-	if (f(k + 1) != WHITE) cornerCapture = false;
-	if (emptySquares % 2) cornerCapture = false;
-	if (cornerCapture) {
-		eval += 2 * cornerWeight;
-		eval += stableWeight * (emptySquares + 2);
-	}
 	
-	cornerCapture = true;
-	i = 7;
-	if (f(i) != -1) cornerCapture = false;
-	// WHITE advantage
-	if (f(i - 1) != BLACK) cornerCapture = false;
-	emptySquares = 0;
-	for (k = i - 2; f(k) == -1 && k >= 0; k--) {
-		emptySquares++;
+	if (f(7) == -1 && !EDGE_VOLATILITY[data]) {
+		Side s = f(6);
+		int counter = 0;
+		if (s != -1) {
+			Side other = other_side(s);
+			for (int i = 5; i >= 0; i--) {
+				// Odd number of empty squares
+				if (counter == 1 && f(i) == s) {
+					eval -= (s ? cornerWedgeWeight_1 : -cornerWedgeWeight_1);
+					break;
+				}
+				else if (counter == 3 && f(i) == s) {
+					eval -= (s ? cornerWedgeWeight_3 : -cornerWedgeWeight_3);
+					break;
+				}
+				else if (counter == 5 && f(i) == s) {
+					eval -= (s ? cornerWedgeWeight_5 : -cornerWedgeWeight_5);
+					break;
+				}
+				// Any other case with nonzero counter
+				if (counter) break;
+				// Corner can be immediately taken
+				if (f(i) == other) {
+					EDGE_VOLATILITY[data] = 1;
+					break;
+				}
+				// Empty square
+				if (f(i) == -1) {
+					counter++;
+				}
+			}
+		}
 	}
-	if (f(k - 1) != BLACK) cornerCapture = false;
-	if (emptySquares % 2) cornerCapture = false;
-	if (cornerCapture) {
-		eval -= 2 * cornerWeight;
-		eval -= stableWeight * (emptySquares + 2);
-	}
-	// BLACK advantage
-	if (f(i - 1) != WHITE) cornerCapture = false;
-	emptySquares = 0;
-	for (int k = i - 2; f(k) == -1 && k >= 0; k--) {
-		emptySquares++;
-	}
-	if (f(k - 1) != WHITE) cornerCapture = false;
-	if (emptySquares % 2) cornerCapture = false;
-	if (cornerCapture) {
-		eval += 2 * cornerWeight;
-		eval += stableWeight * (emptySquares + 2);
-	}
-	*/
-	/*
-	// Even distance, different color discs, forced corner capture
-	
-	cornerCapture = true;
-	i = 0;
-	if (f(i) != -1) cornerCapture = false;
-	// WHITE advantage
-	if (f(i + 1) != BLACK) cornerCapture = false;
-	emptySquares = 0;
-	for (k = i + 2; f(k) == -1 && k <= 7; k++) {
-		emptySquares++;
-	}
-	if (f(k + 1) != WHITE) cornerCapture = false;
-	if (emptySquares % 2) cornerCapture = false;
-	if (cornerCapture) {
-		eval -= 2 * cornerWeight;
-		eval -= stableWeight * (emptySquares + 2);
-	}
-	// BLACK advantage
-	if (f(i + 1) != WHITE) cornerCapture = false;
-	emptySquares = 0;
-	for (k = i + 2; f(k) == -1 && k <= 7; k++) {
-		emptySquares++;
-	}
-	if (f(k + 1) != BLACK) cornerCapture = false;
-	if (emptySquares % 2) cornerCapture = false;
-	if (cornerCapture) {
-		eval += 2 * cornerWeight;
-		eval += stableWeight * (emptySquares + 2);
-	}
-	
-	cornerCapture = true;
-	i = 7;
-	if (f(i) != -1) cornerCapture = false;
-	// WHITE advantage
-	if (f(i - 1) != BLACK) cornerCapture = false;
-	emptySquares = 0;
-	for (k = i - 2; f(k) == -1 && k >= 0; k--) {
-		emptySquares++;
-	}
-	if (f(k - 1) != WHITE) cornerCapture = false;
-	if (emptySquares % 2) cornerCapture = false;
-	if (cornerCapture) {
-		eval -= 2 * cornerWeight;
-		eval -= stableWeight * (emptySquares + 2);
-	}
-	// BLACK advantage
-	if (f(i - 1) != WHITE) cornerCapture = false;
-	emptySquares = 0;
-	for (k = i - 2; f(k) == -1 && k >= 0; k--) {
-		emptySquares++;
-	}
-	if (f(k - 1) != BLACK) cornerCapture = false;
-	if (emptySquares % 2) cornerCapture = false;
-	if (cornerCapture) {
-		eval += 2 * cornerWeight;
-		eval += stableWeight * (emptySquares + 2);
-	}
-	*/
-	/*
-	// Special case
-	if (f(0) == -1 && f(1) == BLACK && f(2) == BLACK && f(3) == -1 &&
-		f(4) == -1 && f(5) == BLACK && f(6) == -1 && f(7) == BLACK) {
-		eval -= cornerWeight;
-		eval -= 5 * stableWeight;
-	}
-	else if (f(0) == -1 && f(1) == WHITE && f(2) == WHITE && f(3) == -1 &&
-		f(4) == -1 && f(5) == WHITE && f(6) == -1 && f(7) == WHITE) {
-		eval += cornerWeight;
-		eval += 5 * stableWeight;
-	}
-	else if (f(7) == -1 && f(6) == BLACK && f(5) == BLACK && f(4) == -1 &&
-		f(3) == -1 && f(2) == BLACK && f(1) == -1 && f(0) == BLACK) {
-		eval -= cornerWeight;
-		eval -= 5 * stableWeight;
-	}
-	else if (f(7) == -1 && f(6) == WHITE && f(5) == WHITE && f(4) == -1 &&
-		f(3) == -1 && f(2) == WHITE && f(1) == -1 && f(0) == WHITE) {
-		eval += cornerWeight;
-		eval += 5 * stableWeight;
-	}
-	*/
 	
 	// Unbalanced edge
 	if (f(0) == -1 && f(1) == BLACK && f(2) == BLACK && f(3) == BLACK &&
@@ -325,6 +229,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 	
 	EDGE_VALUES[data] = eval;
 	
+	
 	/*
 	for (int i = 0; i < 8; i++) {
 		if (f(i) == -1) fil << '-';
@@ -363,16 +268,60 @@ inline int eval(const Board &b2) {
 	return MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b2.pos_evaluate();
 }
 
+// alphabeta declaration
+int alphabeta(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false, const uint64_t &mask = 0b1111111111111111111111111111111111111111111111111111111111111111);
+int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX);
+
+// Quivaluate
+int quivaluate(const Board &b, const Side &s, const int &alpha, const int &beta, const int &depth2, const int &e, const uint64_t &mask = 0b1111111111111111111111111111111111111111111111111111111111111111) {
+	if (depth2 >= MAX_DEPTH2) {
+		return e;
+	}
+	// if (mask != 0b1111111111111111111111111111111111111111111111111111111111111111) return e;
+	
+	uint64_t lm = b.findLegalMoves(s);
+	if (__builtin_popcountll(lm) < 5) return alphabeta(b, 2, s, alpha, beta, depth2);
+	
+	// Extract edges
+	// Get top and bottom edge into uint16
+	uint64_t new_mask = 0;
+	uint16_t u16 = ((b.taken >> 56) << 8) | (b.black >> 56);
+	if (EDGE_VOLATILITY[u16]) new_mask |= EDGE_TOP;
+	u16 = ((b.taken << 56) >> 48) | ((b.black << 56) >> 56);
+	if (EDGE_VOLATILITY[u16]) new_mask |= EDGE_BOTTOM;
+
+	// Get left and right edges
+	// Idea from http://stackoverflow.com/questions/14537831/isolate-specific-row-column-diagonal-from-a-64-bit-number
+	{
+		const uint64_t column_mask = 0x8080808080808080ull;
+		const uint64_t magic = 0x2040810204081ull;
+		uint64_t col_taken = (((b.taken & column_mask) * magic) >> 56) & 0xff;
+		uint64_t col_black = (((b.black & column_mask) * magic) >> 56) & 0xff;
+		if (EDGE_VOLATILITY[(col_taken << 8) | col_black]) new_mask |= EDGE_LEFT;
+		col_taken = ((((b.taken << 7) & column_mask) * magic) >> 56) & 0xff;
+		col_black = ((((b.black << 7) & column_mask) * magic) >> 56) & 0xff;
+		if (EDGE_VOLATILITY[(col_taken << 8) | col_black]) new_mask |= EDGE_RIGHT;
+	}
+	
+	// new_mask &= mask;
+	
+	//~ if (new_mask != 0 && depth2 == 10) cerr << bitset<64>(b.taken) << endl << bitset<64>(b.black) << endl; 
+	
+	// Return
+	if (new_mask != 0) return alphabeta(b, 2, s, alpha, beta, depth2, false, new_mask);
+	return e;
+}
+
 int abCalls = 0;
 int timeWasted = 0;
-int alphabeta(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, bool prevPass = false) {
+int alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int beta, const int &depth2, const bool &prevPass, const uint64_t &mask) {
 	abCalls++;
 	
 	//~ assert(alpha < beta);
 	
 	//~ cerr << "ab called with " << depth << ' ' << alpha << ' ' << beta << endl;
 	//~ int totalCount = __builtin_popcountll(b.taken);
-	if (depth <= 0) {
+	if (depth <= 0 || depth2 >= MAX_DEPTH2) {
 		#if SIMPLE_EVAL
 		int blackMoves = __builtin_popcountll(b.findLegalMovesBlack() & SAFE_SQUARES);
 		int whiteMoves = __builtin_popcountll(b.findLegalMovesWhite() & SAFE_SQUARES);
@@ -419,7 +368,6 @@ int alphabeta(const Board &b, const int &depth, const Side &s, int alpha = INT_M
 	}		
 
 	BoardWithSide bws(b.taken, b.black, s);
-	size_t hash_index = (depth <= HASH_DEPTH) ? bws.hash_value() & (tt.mod - 1) : 0; // Hopefully compiler won't always do computation here
 	uint64_t legalMoves = b.findLegalMoves(s);
 	
 	// Special case
@@ -429,61 +377,111 @@ int alphabeta(const Board &b, const int &depth, const Side &s, int alpha = INT_M
 			int whites = b.countWhite();
 			return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
 		}
-		return alphabeta(b, depth - 1, other_side(s), alpha, beta, depth2 + 1, true);
+		return alphabeta(b, depth - 1, other_side(s), alpha, beta, depth2 + 1, true, mask);
+	}
+	// No legal moves with mask taken into account
+	if (!(legalMoves & mask)) {
+		return alphabeta(b, depth - 1, other_side(s), alpha, beta, depth2 + 1, false, mask);
 	}
 	
-	// TODO: Avoid saving every single position's best move
-	uint8_t besti = 64;
-	if (s) {
-		int v = INT_MIN;
-		// Best move
-		uint8_t index = 64;
-		if (depth2 <= HASH_DEPTH) {
-			index = tt.table[hash_index];
-			if (index < 64 && (BIT(index) & legalMoves)) {
-				// The move is valid
+	legalMoves &= mask;
+	
+	// Depth 1
+	#if QSEARCH
+	int loss = (s ? INT_MIN : INT_MAX);
+	int lower = (s ? INT_MIN : 0);
+	int upper = (s ? 0 : INT_MAX);
+	if (depth == 1) {
+		uint8_t besti = 64;
+		if (s) {
+			int v = INT_MIN;
+			// Best move
+			while (alpha < beta && legalMoves) {	
+				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
-				besti = index;
-				v = alphabeta(b.doMoveOnNewBoardBlack(index), depth - 1, WHITE, alpha, beta, depth2 + 1);
+				int val = alphabeta(b.doMoveOnNewBoardBlack(index), 0, WHITE, alpha, beta, depth2 + 1, false, mask);
+				Board b2 = b.doMoveOnNewBoardBlack(index);
+				//~ if (val > v) {
+					if (depth2 >= MAX_DEPTH - 1) val = quivaluate(b2, WHITE, alpha, beta, depth2 + 1, val, mask);
+					if (val > v && depth2 >= MAX_DEPTH - 1 && __builtin_popcountll(b2.taken) > 48) {
+						// Endgame search on PV
+						if (endgame_alphabeta(b2, WHITE, lower, upper) != loss) {
+							besti = index;
+							v = val;
+						}
+					}
+					else if (val > v) {
+						besti = index;
+						v = val;
+					}
+				//~ }
 				alpha = (v > alpha) ? v : alpha;
 			}
+			return alpha;
 		}
-		while (alpha < beta && legalMoves) {	
-			uint8_t index = __builtin_clzl(legalMoves);
-			legalMoves ^= BIT(index);
-			int val = alphabeta(b.doMoveOnNewBoardBlack(index), depth - 1, WHITE, alpha, beta, depth2 + 1);
-			besti = (val > v) ? index : besti;
-			v = (val > v) ? val : v;
-			alpha = (v > alpha) ? v : alpha;
-		}
-		if (depth2 <= HASH_DEPTH) tt.table[hash_index] = besti;
-		return alpha;
-	}
-	else {
-		int v = INT_MAX;
-		// Best move
-		uint8_t index = 64;
-		if (depth2 <= HASH_DEPTH) {
-			index = tt.table[hash_index];
-			if (index < 64 && (BIT(index) & legalMoves)) {
-				// The move is valid
+		else {
+			int v = INT_MAX;
+			// Best move
+			while (alpha < beta && legalMoves) {	
+				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
-				besti = index;
-				v = alphabeta(b.doMoveOnNewBoardWhite(index), depth - 1, BLACK, alpha, beta, depth2 + 1);
+				int val = alphabeta(b.doMoveOnNewBoardWhite(index), 0, BLACK, alpha, beta, depth2 + 1, false, mask);
+				Board b2 = b.doMoveOnNewBoardBlack(index);
+				//~ if (val < v) {
+					if (depth2 >= MAX_DEPTH - 1) val = quivaluate(b2, BLACK, alpha, beta, depth2 + 1, val, mask);
+					if (val < v && depth2 >= MAX_DEPTH - 1 && __builtin_popcountll(b2.taken) > 48) {
+						// Endgame search on PV
+						if (endgame_alphabeta(b2, BLACK, lower, upper) != loss) {
+							besti = index;
+							v = val;
+						}
+					}
+					else if (val < v) {
+						besti = index;
+						v = val;
+					}
+				//~ }
 				beta = (v < beta) ? v : beta;
 			}
+			return beta;
 		}
-		while (alpha < beta && legalMoves) {	
-			uint8_t index = __builtin_clzl(legalMoves);
-			legalMoves ^= BIT(index);
-			int val = alphabeta(b.doMoveOnNewBoardWhite(index), depth - 1, BLACK, alpha, beta, depth2 + 1);
-			besti = (val < v) ? index : besti;
-			v = (val < v) ? val : v;
-			beta = (v < beta) ? v : beta;
-		}
-		if (depth2 <= HASH_DEPTH) tt.table[hash_index] = besti;
-		return beta;
 	}
+	else {
+	#endif
+		uint8_t besti = 64;
+		if (s) {
+			int v = INT_MIN;
+			// Best move
+			while (alpha < beta && legalMoves) {	
+				uint8_t index = __builtin_clzl(legalMoves);
+				legalMoves ^= BIT(index);
+				int val = alphabeta(b.doMoveOnNewBoardBlack(index), depth - 1, WHITE, alpha, beta, depth2 + 1, false, mask);
+				if (val > v) {
+					besti = index;
+					v = val;
+				}
+				alpha = (v > alpha) ? v : alpha;
+			}
+			return alpha;
+		}
+		else {
+			int v = INT_MAX;
+			// Best move
+			while (alpha < beta && legalMoves) {	
+				uint8_t index = __builtin_clzl(legalMoves);
+				legalMoves ^= BIT(index);
+				int val = alphabeta(b.doMoveOnNewBoardWhite(index), depth - 1, BLACK, alpha, beta, depth2 + 1, false, mask);
+				if (val < v) {
+					besti = index;
+					v = val;
+				}
+				beta = (v < beta) ? v : beta;
+			}
+			return beta;
+		}
+	#if QSEARCH
+	}
+	#endif
 }
 
 int pvsBlack(const Board &b, const int &depth, int alpha = INT_MIN, const int &beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false);
@@ -494,6 +492,10 @@ int pvsCalls = 0;
 int tthits = 0;
 uint8_t killerMoves[MAX_DEPTH][3];
 
+bool isEndgame(const int &currentDiscs, const int &depth) {
+	return false;
+}
+
 int pvs(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false) {
 	if (s) return pvsBlack(b, depth, alpha, beta, depth2, prevPass);
 	else return pvsWhite(b, depth, alpha, beta, depth2, prevPass);
@@ -502,56 +504,14 @@ int pvs(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, in
 int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const int &depth2, const bool &prevPass) {
 	pvsCalls++;
 	
-	// Should rarely be called
-	if (__builtin_expect(depth <= 0, 0)) {
-		#if SIMPLE_EVAL
-		int blackMoves = __builtin_popcountll(b.findLegalMovesBlack() & SAFE_SQUARES);
-		int whiteMoves = __builtin_popcountll(b.findLegalMovesWhite() & SAFE_SQUARES);
-		int result = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b.pos_evaluate();
-		return result;
-		#else
-		int position = b.pos_evaluate();
-		int mobilityBoost = MOBILITY_BOOST;
-		if (s == BLACK) {
-			uint64_t lm = b.findLegalMovesBlack();
-			int blackMoves = __builtin_popcountll(lm & SAFE_SQUARES);
-			int v = INT_MAX;
-			int eval = INT_MIN;
-			while (lm && eval < beta) {
-				int index = __builtin_clzl(lm);
-				lm ^= BIT(index);
-				int val = __builtin_popcountll(b.doMoveOnNewBoard(index, BLACK).findLegalMoves(WHITE) & SAFE_SQUARES);
-				if (val < v) {
-					eval = MOBILITY_WEIGHT * (blackMoves - val) / (blackMoves + val + 2) + position + ((val == 0) ? mobilityBoost : 0);
-					v = val;
-				}
-			}
-			if (eval == INT_MIN) eval = -mobilityWeight + position - mobilityBoost;
-			return eval;
-		}
-		else {
-			uint64_t lm = b.findLegalMovesWhite();
-			int whiteMoves = __builtin_popcountll(lm & SAFE_SQUARES);
-			int v = INT_MAX;
-			int eval = INT_MAX;
-			while (lm && eval > alpha) {
-				int index = __builtin_clzl(lm);
-				lm ^= BIT(index);
-				int val = __builtin_popcountll(b.doMoveOnNewBoard(index, WHITE).findLegalMoves(BLACK) & SAFE_SQUARES);
-				if (val < v) {
-					eval = MOBILITY_WEIGHT * (val - whiteMoves) / (whiteMoves + val + 2) + position - ((val == 0) ? mobilityBoost : 0);
-					v = val;
-				}
-			}
-			if (eval == INT_MAX) eval = mobilityWeight + position + mobilityBoost;
-			return eval;
-		}
-		#endif
-	}
+	//~ bool endgame_search = isEndgame(currentDiscs, depth2);
+	//~ if (endgame_search) return endgame_alphabeta(b, depth, BLACK);
 	
+	if (depth <= 1) return alphabeta(b, depth, BLACK, alpha, beta, depth2, prevPass);
+		
 	BoardWithSide bws(b.taken, b.black, BLACK);
 	uint64_t legalMoves = b.findLegalMovesBlack();
-		
+	
 	// Special case
 	if (__builtin_expect(!legalMoves, 0)) {
 		if (prevPass) {
@@ -562,93 +522,6 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 		return pvsWhite(b, depth - 1, alpha, beta, depth2 + 1, true);
 	}
 	
-	#if KILLER_HEURISTIC
-	uint8_t km1 = killerMoves[depth2][0];
-	uint8_t km2 = killerMoves[depth2][1];
-	//~ uint8_t km3 = killerMoves[depth2][2];
-	#endif
-	
-	if (depth == 1) {
-		// Fall back to alphabeta
-		int v = INT_MIN;
-		// Best move
-		uint8_t index = 64;
-		uint8_t besti = 64;
-		if (depth2 <= HASH_DEPTH) {
-			size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-			index = tt.table[hash_index];
-			if (BIT_SAFE(index) & legalMoves) {
-				// The move is valid
-				tthits++;
-				legalMoves ^= BIT(index);
-				besti = index;
-				v = eval(b.doMoveOnNewBoardBlack(index));
-				alpha = (v > alpha) ? v : alpha;
-			}
-			#if KILLER_HEURISTIC
-			index = km1;
-			if (alpha < beta && (BIT(index) & legalMoves)) {
-				// The move is valid
-				legalMoves ^= BIT(index);
-				int val = eval(b.doMoveOnNewBoardBlack(index));
-				bool temp = (val > v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				alpha = (v > alpha) ? v : alpha;
-			}
-			index = km2;
-			if (alpha < beta && (BIT(index) & legalMoves)) {
-				// The move is valid
-				legalMoves ^= BIT(index);
-				int val = eval(b.doMoveOnNewBoardBlack(index));
-				bool temp = (val > v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				alpha = (v > alpha) ? v : alpha;
-			}
-			//~ index = km3;
-			//~ if (alpha < beta && (BIT(index) & legalMoves)) {
-				//~ // The move is valid
-				//~ legalMoves ^= BIT(index);
-				//~ int val = eval(b.doMoveOnNewBoardBlack(index));
-				//~ bool temp = (val > v);
-				//~ besti = temp ? index : besti;
-				//~ v = temp ? val : v;
-				//~ alpha = (v > alpha) ? v : alpha;
-			//~ }
-			#endif
-			while (alpha < beta && legalMoves) {	
-				uint8_t index = __builtin_clzl(legalMoves);
-				legalMoves ^= BIT(index);
-				int val = eval(b.doMoveOnNewBoardBlack(index));
-				bool temp = (val > v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				alpha = (v > alpha) ? v : alpha;
-			}
-			tt.table[hash_index] = besti;
-		}
-		else {
-			while (alpha < beta && legalMoves) {	
-				uint8_t index = __builtin_clzl(legalMoves);
-				legalMoves ^= BIT(index);
-				int val = eval(b.doMoveOnNewBoardBlack(index));
-				#if KILLER_HEURISTIC
-				besti = (val > alpha) ? index : besti;
-				#endif
-				alpha = (val > alpha) ? val : alpha;
-			}
-		}
-		#if KILLER_HEURISTIC
-		if (alpha >= beta && km1 != besti) {
-			//~ killerMoves[depth2][2] = km2;
-			killerMoves[depth2][1] = km1;
-			killerMoves[depth2][0] = besti;
-		}
-		#endif
-		return alpha;
-	}
-	
 	uint8_t besti = 64;
 	int v = INT_MIN;
 	// Best move
@@ -657,9 +530,12 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 		size_t hash_index = b.zobrist_hash & (tt.mod - 1);
 		index = tt.table[hash_index];
 		if (BIT_SAFE(index) & legalMoves) {
+			#if IID
 			use_hash:
+			#endif
 			// The move is valid
 			tthits++;
+			pVariations[depth2]++;
 			legalMoves ^= BIT(index);
 			besti = index;
 			v = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
@@ -673,11 +549,13 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 				// Either v = alpha + 1 or v <= alpha
 				// Also, either beta = alpha + 1 or beta > alpha + 1
 				if (__builtin_expect(v >= beta, 0)) {
+					pVariations[depth2]++;
 					besti = index;
 					alpha = v;
 					break;
 				}
 				else if (__builtin_expect(v >= alpha + 1, 0)) {
+					pVariations[depth2]++;
 					besti = index;
 					alpha = pvsWhite(b2, depth - 1, v, beta, depth2 + 1);
 				}
@@ -685,49 +563,28 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 		}
 		else {
 			#if IID
-			pvsBlack(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
-			index = tt.table[b.zobrist_hash & (tt.mod - 1)];
-			goto use_hash;
+			if (depth > 2) {
+				pvsBlack(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
+				index = tt.table[b.zobrist_hash & (tt.mod - 1)];
+				goto use_hash;
+			}
 			#endif
 			// Fall back to normal search
-			#if KILLER_HEURISTIC
-			index = km1;
-			if (BIT(index) & legalMoves) {
-				legalMoves ^= BIT(index);
-				int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
-				bool temp = (val > v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				alpha = (v > alpha) ? v : alpha;
-			}
-			index = km2;
-			if (alpha < beta && (BIT(index) & legalMoves)) {
-				legalMoves ^= BIT(index);
-				int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
-				bool temp = (val > v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				alpha = (v > alpha) ? v : alpha;
-			}
-			//~ index = km3;
-			//~ if (alpha < beta && (BIT(index) & legalMoves)) {
-				//~ legalMoves ^= BIT(index);
-				//~ int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
-				//~ bool temp = (val > v);
-				//~ besti = temp ? index : besti;
-				//~ v = temp ? val : v;
-				//~ alpha = (v > alpha) ? v : alpha;
-			//~ }
-			#endif
 			while (alpha < beta && legalMoves) {	
 				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
 				int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
-				bool temp = (val > v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
+				if (val > v) {
+					pVariations[depth2]++;
+					besti = index;
+					v = val;
+				}	
 				alpha = (v > alpha) ? v : alpha;
 			}
+		}
+		if (besti == 64) {
+			// Completely lost...make any legal move
+			besti = __builtin_clzl(b.findLegalMovesBlack());
 		}
 		tt.table[hash_index] = besti;
 	}
@@ -736,71 +593,16 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
 			uint8_t index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
 			int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
-			#if KILLER_HEURISTIC
-			besti = (val > alpha) ? index : besti;
-			#endif
 			alpha = (val > alpha) ? val : alpha;
 		}
 	}
-	#if KILLER_HEURISTIC
-	if (alpha >= beta && km1 != besti) {
-		//~ killerMoves[depth2][2] = km2;
-		killerMoves[depth2][1] = km1;
-		killerMoves[depth2][0] = besti;
-	}
-	#endif
 	return alpha;
 }
 
 int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const int &depth2, const bool &prevPass) {
 	pvsCalls++;
 	
-	// Should rarely be called
-	if (__builtin_expect(depth <= 0, 0)) {
-		#if SIMPLE_EVAL
-		int blackMoves = __builtin_popcountll(b.findLegalMovesBlack() & SAFE_SQUARES);
-		int whiteMoves = __builtin_popcountll(b.findLegalMovesWhite() & SAFE_SQUARES);
-		int result = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b.pos_evaluate();
-		return min(result, beta);
-		#else
-		int position = b.pos_evaluate();
-		int mobilityBoost = MOBILITY_BOOST;
-		if (s == BLACK) {
-			uint64_t lm = b.findLegalMovesBlack();
-			int blackMoves = __builtin_popcountll(lm & SAFE_SQUARES);
-			int v = INT_MAX;
-			int eval = INT_MIN;
-			while (lm && eval < beta) {
-				int index = __builtin_clzl(lm);
-				lm ^= BIT(index);
-				int val = __builtin_popcountll(b.doMoveOnNewBoard(index, BLACK).findLegalMoves(WHITE) & SAFE_SQUARES);
-				if (val < v) {
-					eval = MOBILITY_WEIGHT * (blackMoves - val) / (blackMoves + val + 2) + position + ((val == 0) ? mobilityBoost : 0);
-					v = val;
-				}
-			}
-			if (eval == INT_MIN) eval = -mobilityWeight + position - mobilityBoost;
-			return eval;
-		}
-		else {
-			uint64_t lm = b.findLegalMovesWhite();
-			int whiteMoves = __builtin_popcountll(lm & SAFE_SQUARES);
-			int v = INT_MAX;
-			int eval = INT_MAX;
-			while (lm && eval > alpha) {
-				int index = __builtin_clzl(lm);
-				lm ^= BIT(index);
-				int val = __builtin_popcountll(b.doMoveOnNewBoard(index, WHITE).findLegalMoves(BLACK) & SAFE_SQUARES);
-				if (val < v) {
-					eval = MOBILITY_WEIGHT * (val - whiteMoves) / (whiteMoves + val + 2) + position - ((val == 0) ? mobilityBoost : 0);
-					v = val;
-				}
-			}
-			if (eval == INT_MAX) eval = mobilityWeight + position + mobilityBoost;
-			return eval;
-		}
-		#endif
-	}
+	if (depth <= 1) return alphabeta(b, depth, WHITE, alpha, beta, depth2, prevPass);
 	
 	BoardWithSide bws(b.taken, b.black, WHITE);
 	uint64_t legalMoves = b.findLegalMovesWhite();
@@ -814,94 +616,6 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 		}
 		return pvsBlack(b, depth - 1, alpha, beta, depth2 + 1, true);
 	}
-
-	#if KILLER_HEURISTIC
-	uint8_t km1 = killerMoves[depth2][0];
-	uint8_t km2 = killerMoves[depth2][1];
-	//~ uint8_t km3 = killerMoves[depth2][2];
-	#endif
-	
-	// Note: What if there is a pass that jumps from depth 2 to depth 0?
-	// Maybe this case is rare enough to not need to consider it.
-	if (depth == 1) {
-		int v = INT_MAX;
-		size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-		// Best move
-		uint8_t index = 64;
-		uint8_t besti = 64;
-		if (depth2 <= HASH_DEPTH) {
-			index = tt.table[hash_index];
-			if (BIT_SAFE(index) & legalMoves) {
-				// The move is valid
-				tthits++;
-				legalMoves ^= BIT(index);
-				besti = index;
-				v = eval(b.doMoveOnNewBoardWhite(index));
-				beta = (v < beta) ? v : beta;
-			}
-			#if KILLER_HEURISTIC
-			index = km1;
-			if (alpha < beta && (BIT(index) & legalMoves)) {
-				// The move is valid
-				legalMoves ^= BIT(index);
-				int val = eval(b.doMoveOnNewBoardWhite(index));
-				bool temp = (val < v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				beta = (v < beta) ? v : beta;
-			}
-			index = km2;
-			if (alpha < beta && (BIT(index) & legalMoves)) {
-				// The move is valid
-				legalMoves ^= BIT(index);
-				int val = eval(b.doMoveOnNewBoardWhite(index));
-				bool temp = (val < v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				beta = (v < beta) ? v : beta;
-			}
-			//~ index = km3;
-			//~ if (alpha < beta && (BIT(index) & legalMoves)) {
-				//~ // The move is valid
-				//~ legalMoves ^= BIT(index);
-				//~ int val = eval(b.doMoveOnNewBoardWhite(index));
-				//~ bool temp = (val < v);
-				//~ besti = temp ? index : besti;
-				//~ v = temp ? val : v;
-				//~ beta = (v < beta) ? v : beta;
-			//~ }
-			#endif
-			while (alpha < beta && legalMoves) {	
-				uint8_t index = __builtin_clzl(legalMoves);
-				legalMoves ^= BIT(index);
-				int val = eval(b.doMoveOnNewBoardWhite(index));
-				bool temp = (val < v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				beta = (v < beta) ? v : beta;
-			}
-			tt.table[hash_index] = besti;
-		}
-		else {
-			while (alpha < beta && legalMoves) {	
-				uint8_t index = __builtin_clzl(legalMoves);
-				legalMoves ^= BIT(index);
-				int val = eval(b.doMoveOnNewBoardWhite(index));
-				#if KILLER_HEURISTIC
-				besti = (val < beta) ? index : besti;
-				#endif
-				beta = (val < beta) ? val : beta;
-			}
-		}
-		#if KILLER_HEURISTIC
-		if (alpha >= beta && km1 != besti) {
-			//~ killerMoves[depth2][2] = km2;
-			killerMoves[depth2][1] = km1;
-			killerMoves[depth2][0] = besti;
-		}
-		#endif
-		return beta;
-	}
 	
 	uint8_t besti = 64;
 	uint8_t index = 64;
@@ -911,9 +625,12 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 		size_t hash_index = b.zobrist_hash & (tt.mod - 1);
 		index = tt.table[hash_index];
 		if (BIT_SAFE(index) & legalMoves) {
+			#if IID
 			use_hash:
+			#endif
 			// The move is valid
 			tthits++;
+			pVariations[depth2]++;
 			legalMoves ^= BIT(index);
 			besti = index;
 			v = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
@@ -925,11 +642,13 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 				Board b2 = b.doMoveOnNewBoardWhite(index);
 				v = pvsBlack(b2, depth - 1, beta - 1, beta, depth2 + 1);
 				if (__builtin_expect(v <= alpha, 0)) {
+					pVariations[depth2]++;
 					besti = index;
 					beta = v;
 					break;
 				}
 				else if (__builtin_expect(v <= beta - 1, 0)) {
+					pVariations[depth2]++;
 					besti = index;
 					beta = pvsBlack(b2, depth - 1, alpha, v, depth2 + 1);
 				}
@@ -938,92 +657,63 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 		else {
 			// Fall back to normal search
 			#if IID
-			pvsWhite(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
-			index = tt.table[b.zobrist_hash & (tt.mod - 1)];
-			goto use_hash;
-			#endif
-			#if KILLER_HEURISTIC
-			index = km1;
-			if (BIT(index) & legalMoves) {
-				legalMoves ^= BIT(index);
-				int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
-				bool temp = (val < v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				beta = (val < beta) ? val : beta;
+			if (depth > 2) {
+				pvsWhite(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
+				index = tt.table[b.zobrist_hash & (tt.mod - 1)];
+				goto use_hash;
 			}
-			index = km2;
-			if (alpha < beta && (BIT(index) & legalMoves)) {
-				legalMoves ^= BIT(index);
-				int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
-				bool temp = (val < v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
-				beta = (val < beta) ? val : beta;
-			}
-			//~ index = km3;
-			//~ if (alpha < beta && (BIT(index) & legalMoves)) {
-				//~ legalMoves ^= BIT(index);
-				//~ int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
-				//~ bool temp = (val < v);
-				//~ besti = temp ? index : besti;
-				//~ v = temp ? val : v;
-				//~ beta = (val < beta) ? val : beta;
-			//~ }
 			#endif
 			while (alpha < beta && legalMoves) {	
 				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
 				int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
-				bool temp = (val < v);
-				besti = temp ? index : besti;
-				v = temp ? val : v;
+				if (val < v) {
+					pVariations[depth2]++;
+					besti = index;
+					v = val;
+				}
 				beta = (val < beta) ? val : beta;
 			}
+		}
+		if (besti == 64) {
+			// Completely lost...make any move
+			besti = __builtin_clzl(b.findLegalMovesWhite());
 		}
 		tt.table[hash_index] = besti;
 	}
 	else {
-		#if IID
-		pvsWhite(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
-		#endif
 		while (alpha < beta && legalMoves) {	
 			uint8_t index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
 			int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
-			#if KILLER_HEURISTIC
-			besti = (val < beta) ? index : besti;
-			#endif
 			beta = (val < beta) ? val : beta;
 		}
 	}
-	#if KILLER_HEURISTIC
-	if (alpha >= beta && km1 != besti) {
-		//~ killerMoves[depth2][2] = km2;
-		killerMoves[depth2][1] = km1;
-		killerMoves[depth2][0] = besti;
-	}
-	#endif
 	return beta;
+}
+
+void print_counts() {
+	cerr << "[";
+	for (int i = 0; i < 14; i++) cerr << pVariations[i] << ", ";
+	cerr << pVariations[14] << "}" << endl;
+}
+
+void clear_counts() {
+	for (int i = 0; i < 15; i++) pVariations[i] = 0;
 }
 
 pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, int guess = -1) {
 	Timer tim;
 	
-	#if KILLER_HEURISTIC
-	// Reset killerMoves
-	for (int i = 0; i < MAX_DEPTH; i++) {
-		killerMoves[i][0] = 0;
-		killerMoves[i][1] = 0;
-		killerMoves[i][2] = 0;
-	}
-	#endif
+	clear_counts();
 	
 	int eOdd, eEven;
 	// First two plies
 	eOdd = pvs(b, 1, s, INT_MIN, INT_MAX);
-	eEven = pvs(b, 2, s, INT_MIN, INT_MAX);
+	print_counts(); clear_counts();
 	cerr << "Finished depth 1: " << eOdd << endl;
+	eEven = pvs(b, 2, s, INT_MIN, INT_MAX);
+	print_counts(); clear_counts();
 	cerr << "Finished depth 2: " << eEven << endl;
 	
 	// Middle plies
@@ -1035,6 +725,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 			int counter = 1;
 			try_again1:
 			eOdd = pvs(b, d, s, lower, upper);
+			print_counts(); clear_counts();
 			if (eOdd <= lower && lower != INT_MIN) {
 				tim.endms("Recalculating (failed low) ");
 				lower -= (diff - 1) * counter;
@@ -1059,6 +750,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 			int counter = 1;
 			try_again2:
 			eEven = pvs(b, d, s, lower, upper);
+			print_counts(); clear_counts();
 			if (eEven <= lower && lower != INT_MIN) {
 				tim.endms("Recalculating (failed low) ");
 				lower -= (diff - 1) * counter;
@@ -1101,9 +793,10 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 			if (counter > 3) upper = INT_MAX;
 			goto try_again3;
 		}
+		print_counts(); clear_counts();
 		cerr << "Finished depth " << depth + 1 << " search: " << result.second << ' ';
 		tim.endms();
-		if (counter < 3) return result;
+		return result;
 	}
 	else {
 		int counter = 1;
@@ -1128,10 +821,12 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 			if (counter > 3) upper = INT_MAX;
 			goto try_again4;
 		}
+		print_counts(); clear_counts();
 		cerr << "Finished depth " << depth << " search: " << result.second << ' ';
 		tim.endms();
-		if (counter < 3) return result;
+		return result;
 	}
+	/*
 	// Okay, maybe one more
 	if ((depth  + 1) % 2) {
 		int counter = 1;
@@ -1187,6 +882,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 		tim.endms();
 		return result;
 	}
+	*/
 	/*
 	// Best time: 1:58
 	// DEPTH CANNOT BE ZERO!
@@ -1360,13 +1056,16 @@ int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, i
 	return s ? alpha : beta;
 }
 
-int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX) {
+int endgame_alphabeta(const Board &b, const Side &s, int alpha, int beta) {
 	if (abortEndgameMinimax) return (abortSide == BLACK) ? INT_MIN : INT_MAX;
 	
 	BoardWithSide bws(b.taken, b.black, s);
 	if (um2->count(bws) > 0) {
 		return (*um2)[bws];
 	}
+	
+	int original_alpha = alpha;
+	int original_beta = beta;
 	
 	int totalCount = __builtin_popcountll(b.taken);
 	
@@ -1432,7 +1131,17 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
 	}
 	
 	int ret = s ? alpha : beta;
-	if (alpha != 0 || beta != 0) {
+	// Reasoning:
+	// If alpha, beta = -inf, inf, any result is trustworthy. Otherwise... 
+	// ...if black:
+	// -inf, 0 -> -inf, inf
+	// 0, inf -> 0, inf
+	// ...if white:
+	// -inf, 0 -> -inf, 0
+	// 0, inf -> -inf, inf
+	if ((original_alpha == INT_MIN && original_beta == INT_MAX) || 
+		(s && (alpha == INT_MIN || original_alpha == alpha)) || 
+		(!s && (beta == INT_MAX || original_beta == beta))) {
 		(*um2)[bws] = ret;
 	}
 	return ret;
@@ -1450,8 +1159,10 @@ pair<int, int> endgame_minimax(Board &b, Side s, int guess = -1) {
 			legalMoves ^= SINGLE_BIT[guess];
 			Board b2 = b.doMoveOnNewBoard(guess, s);
 			int val = endgame_alphabeta(b2, other_side(s), v, INT_MAX);
-			besti = guess;
-			v = val;
+			if (val > v) {
+				besti = guess;
+				v = val;
+			}
 		}
 		while (legalMoves && v != INT_MAX) {
 			int index = __builtin_clzl(legalMoves);
@@ -1471,8 +1182,10 @@ pair<int, int> endgame_minimax(Board &b, Side s, int guess = -1) {
 			legalMoves ^= SINGLE_BIT[guess];
 			Board b2 = b.doMoveOnNewBoard(guess, s);
 			int val = endgame_alphabeta(b2, other_side(s), INT_MIN, v);
-			besti = guess;
-			v = val;
+			if (val < v) {
+				besti = guess;
+				v = val;
+			}
 		}
 		while (legalMoves && v != INT_MIN) {
 			int index = __builtin_clzl(legalMoves);
@@ -1486,6 +1199,7 @@ pair<int, int> endgame_minimax(Board &b, Side s, int guess = -1) {
 			}
 		}
 	}
+	if (besti == -1) cerr << "Endgame minimax: no good move " << v << endl;
 	return make_pair(besti, v);
 }
 
@@ -1514,14 +1228,14 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     uint64_t legalMoves = currBoard.findLegalMoves(side);
     if (!legalMoves) return NULL;
     
-    int totalCount = __builtin_popcountll(currBoard.taken);
-    if (totalCount == 4) {
+    currentDiscs = __builtin_popcountll(currBoard.taken);
+    if (currentDiscs == 4) {
 		// Move e6 without thinking
 		currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(4, 5), side);
 		Move *move = new Move(4, 5);
 		return move;
 	}
-	else if (totalCount == 5) {
+	else if (currentDiscs == 5) {
 		// Choose diagonal opening
 		int index = __builtin_clzl(legalMoves & (BIT(18) | BIT(21) | BIT(42) | BIT(45)));
 		int x = FROM_INDEX_X(index);
@@ -1548,9 +1262,9 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     // Set depth according to how far into game
     int depth;
-    if (totalCount <= 20) depth = MAX_DEPTH;
-    else if (totalCount <= 30) depth = MAX_DEPTH;
-    else if (totalCount <= 41) depth = MAX_DEPTH;
+    if (currentDiscs <= 20) depth = MAX_DEPTH;
+    else if (currentDiscs <= 30) depth = MAX_DEPTH;
+    else if (currentDiscs <= 41) depth = MAX_DEPTH;
     else depth = INT_MAX; // Search to end (much faster)
 	
     // Set counter, reset abort variables
@@ -1583,13 +1297,14 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 			besti = p.first;
 			eval = p.second;
 			// If could not calculate a win or draw, fall back to other algorithm
-			if (p.second == ((side == BLACK) ? INT_MIN : INT_MAX)) {
+			if (besti < 0) {
 				besti = p2.first;
 				eval = p2.second;
 				um2->clear(); // For now, some values may be incorrect if search not done, later we may want to prune the hash table, if it's worth it
 			}
 			else {
 				gameSolved = true;
+				cerr << "Game solved" << endl;
 			}
 		}
 		else {
@@ -1626,7 +1341,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 	//~ }
     
     // Output some useful info and return (remove for more speed)
-    cerr << totalCount + 1 << " eval: " << eval << ' ' << pvsCalls << ' ' << tthits << ' ' << um->size() << endl; //' ' << positions << endl;
+    cerr << currentDiscs + 1 << " eval: " << eval << ' ' << pvsCalls << ' ' << tthits << ' ' << um->size() << endl; //' ' << positions << endl;
 	if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount << endl;
 	//~ cerr << "Time wasted " << timeWasted << endl;
 	// if (um->size() > MAX_HASH_SIZE) um->clear(); // Don't want to lose due to too much memory!
@@ -1638,7 +1353,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     //if (totalCount <= 41 && ret_value.first >= 0 && ((side == BLACK) ? (eval < ret_value.second) : (eval > ret_value.second))) besti = ret_value.first; // Better move
 	int x = FROM_INDEX_X(besti);
 	int y = FROM_INDEX_Y(besti);
-	cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << endl;
+	cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << "       " << besti << endl;
 	currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
     //bitset<64> bsTaken(currBoard.taken), bsBlack(currBoard.black);
     //cerr << bsTaken << endl << bsBlack << endl;

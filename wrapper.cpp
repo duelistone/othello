@@ -19,6 +19,7 @@ unordered_map< BoardWithSide, int > *um5 = new unordered_map< BoardWithSide, int
 atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
 int *EDGE_VALUES;
+int *EDGE_VOLATILITY;
 int ordered_moves[64][64];
 uint64_t SINGLE_BIT[64];
 fstream fil("c.txt", ios_base::out);
@@ -68,6 +69,7 @@ int main(int argc, char *argv[]) {
 	
 	// Allocate for EDGE_VALUES
 	EDGE_VALUES = (int *) malloc(sizeof(int) * (1 << 16));
+	EDGE_VOLATILITY = (int *) malloc(sizeof(int) * (1 << 16));
 	
 	// Initialize hashes
 	//~ initialize_hashes();

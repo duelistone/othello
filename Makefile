@@ -1,12 +1,12 @@
 CC          = g++
-CFLAGS      = -Wall -O3 -msse2 -march=corei7 -ansi -pedantic -std=c++14 -pthread
+CFLAGS      = -Wall -O3 -msse2 -march=native -ansi -pedantic -std=c++14 -pthread -I/opt/local/include
 OBJS        = player.o board2.o 
 PLAYERNAME  = duelist
 
 all: $(PLAYERNAME) testgame
 	
 $(PLAYERNAME): $(OBJS) timer.o math.o wrapper.o 
-	$(CC) -o $@ $^ -lboost_system -pthread
+	$(CC) -L/opt/local/lib -o $@ $^ -lboost_system-mt -pthread
 
 testgame: testgame.o 
 	$(CC) -o $@ $^ -pthread

@@ -69,7 +69,6 @@
 #define UP_RIGHT_FILTER 0x7F7F7F7F7F7F7F00ULL
 #define UP_LEFT_FILTER 0xFEFEFEFEFEFEFE00ULL
 
-
 #define MOBILITY_WEIGHT 60
 #define MOBILITY_BOOST 15
 #define MOBILITY_CAP 30
@@ -187,6 +186,7 @@ namespace std {
 			size_t seed = 0;
 			boost::hash_combine(seed, b.taken);
 			boost::hash_combine(seed, b.black);
+			boost::hash_combine(seed, b.side); // Should we remove this line?
 			return hash<unsigned long long>()(seed);
 		}
 	};
