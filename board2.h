@@ -122,7 +122,6 @@ public:
 	Board doMoveOnNewBoardWhite(const int &index) const;
 	Board doMoveOnNewBoardWhiteWZH(const int &index) const;
     Board doMoveOnNewBoard2(int x, int y, Side side) const;
-    Board doMoveOnNewBoard3(int x, int y, Side side) const;
     int count (Side side) const;
     int countBlack() const;
     int countWhite() const;
