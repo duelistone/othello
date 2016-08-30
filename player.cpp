@@ -325,10 +325,15 @@ int quivaluate(const Board &b, const Side &s, const int &alpha, const int &beta,
 
 int abCalls = 0;
 int timeWasted = 0;
+Side playerSide = BLACK;
 Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int beta, const int &depth2, const bool &prevPass, const uint64_t &mask) {
 	abCalls++;
 	
 	if (depth <= 0 || depth2 >= MAX_DEPTH2) {
+		// Check if poison position
+		for (int i = 0; i < numberOfPoisonPositions; i++) {
+			if (poisonPositions[i] == b) return Eval(b, playerSide ? INT_MIN : INT_MAX);
+		}
 		int blackMoves = __builtin_popcountll(b.findLegalMovesBlack() & SAFE_SQUARES);
 		int whiteMoves = __builtin_popcountll(b.findLegalMovesWhite() & SAFE_SQUARES);
 		int result = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b.pos_evaluate();
@@ -354,12 +359,13 @@ Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int b
 	
 	legalMoves &= mask;
 	
+	Board pvBoard;
+	
 	// Depth 1
 	#if QSEARCH
 	int loss = (s ? INT_MIN : INT_MAX);
 	int lower = (s ? INT_MIN : 0);
 	int upper = (s ? 0 : INT_MAX);
-	Board pvBoard;
 	if (depth == 1) {
 		uint8_t besti = 64;
 		if (s) {
@@ -371,15 +377,16 @@ Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int b
 				Board b2 = b.doMoveOnNewBoardBlack(index);
 				Eval val = alphabeta(b2, 0, WHITE, alpha, beta, depth2 + 1, false, mask);
 				if (depth2 >= MAX_DEPTH - 1) val.e = quivaluate(b2, WHITE, alpha, beta, depth2 + 1, val.e, mask);
-				if (val.e > v && depth2 >= MAX_DEPTH - 1 && __builtin_popcountll(b2.taken) > 48) {
-					// Endgame search on PV
-					if (endgame_alphabeta(b2, WHITE, lower, upper) != loss) {
-						pvBoard = b2;
-						besti = index;
-						v = val.e;
-					}
-				}
-				else if (val.e > v) {
+				//~ if (val.e > v && depth2 >= MAX_DEPTH - 1 && __builtin_popcountll(b2.taken) > 48) { // We're checking too many variations (ignore if alpha >= beta)
+					//~ // Endgame search on PV
+					//~ if (endgame_alphabeta(b2, WHITE, lower, upper) != loss) {
+						//~ pvBoard = b2;
+						//~ besti = index;
+						//~ v = val.e;
+					//~ }
+				//~ }
+				//~ else 
+				if (val.e > v) {
 					pvBoard = b2;
 					besti = index;
 					v = val.e;
@@ -394,18 +401,19 @@ Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int b
 			while (alpha < beta && legalMoves) {	
 				uint8_t index = __builtin_clzl(legalMoves);
 				legalMoves ^= BIT(index);
-				Board b2 = b.doMoveOnNewBoardBlack(index);
+				Board b2 = b.doMoveOnNewBoardWhite(index);
 				Eval val = alphabeta(b2, 0, BLACK, alpha, beta, depth2 + 1, false, mask);
 				if (depth2 >= MAX_DEPTH - 1) val.e = quivaluate(b2, BLACK, alpha, beta, depth2 + 1, val.e, mask);
-				if (val.e < v && depth2 >= MAX_DEPTH - 1 && __builtin_popcountll(b2.taken) > 48) {
-					// Endgame search on PV
-					if (endgame_alphabeta(b2, BLACK, lower, upper) != loss) {
-						pvBoard = b2;
-						besti = index;
-						v = val.e;
-					}
-				}
-				else if (val.e < v) {
+				//~ if (val.e < v && depth2 >= MAX_DEPTH - 1 && __builtin_popcountll(b2.taken) > 48) {
+					//~ // Endgame search on PV
+					//~ if (endgame_alphabeta(b2, BLACK, lower, upper) != loss) {
+						//~ pvBoard = b2;
+						//~ besti = index;
+						//~ v = val.e;
+					//~ }
+				//~ }
+				//~ else 
+				if (val.e < v) {
 					pvBoard = b2;
 					besti = index;
 					v = val.e;
@@ -698,6 +706,8 @@ void clear_counts() {
 pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, int guess = -1) {
 	Timer tim;
 	
+	int loss = playerSide ? INT_MIN : INT_MAX;
+	
 	clear_counts();
 	
 	int eOdd, eEven;
@@ -769,7 +779,14 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 		int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
 		int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
 		try_again3:
-		eOdd = pvs(b, depth, s, lower, upper, false).e;
+		Eval ev = pvs(b, depth, s, lower, upper, false);
+		eOdd = ev.e;
+		// Check if pv leads to win
+		if (__builtin_popcountll(ev.pvBoard.taken) >= 44 && endgame_alphabeta(ev.pvBoard, other_side(s)) == loss) {
+			poisonPositions[numberOfPoisonPositions] = ev.pvBoard;
+			numberOfPoisonPositions++;
+			goto try_again3;
+		}
 		// This is bound to run into issues one day
 		pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], eOdd);
 		if (result.second <= lower && lower != INT_MIN) {
@@ -797,7 +814,14 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 		int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
 		int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
 		try_again4:
-		eEven = pvs(b, depth, s, lower, upper, false).e;
+		Eval ev = pvs(b, depth, s, lower, upper, false);
+		eEven = ev.e;
+		// Check if pv leads to win
+		if (__builtin_popcountll(ev.pvBoard.taken) >= 44 && endgame_alphabeta(ev.pvBoard, s) == loss) {
+			poisonPositions[numberOfPoisonPositions] = ev.pvBoard;
+			numberOfPoisonPositions++;
+			goto try_again4;
+		}
 		// This is bound to run into issues one day
 		pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], eEven);
 		if (result.second <= lower && lower != INT_MIN) {
@@ -1063,6 +1087,8 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 		currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(opponentsMove->x, opponentsMove->y), other_side(side));
 	}
     
+    playerSide = side;
+    
     uint64_t legalMoves = currBoard.findLegalMoves(side);
     if (!legalMoves) return NULL;
     
@@ -1102,7 +1128,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     int depth;
     if (currentDiscs <= 20) depth = MAX_DEPTH;
     else if (currentDiscs <= 30) depth = MAX_DEPTH;
-    else if (currentDiscs <= 41) depth = MAX_DEPTH;
+    else if (currentDiscs <= 41) depth = 44 - currentDiscs;
     else depth = INT_MAX; // Search to end (much faster)
 	
     // Set counter, reset abort variables

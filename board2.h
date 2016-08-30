@@ -129,6 +129,8 @@ public:
     size_t make_zobrist_hash(const Side &s = BLACK) const;
 
     void setBoard(char data[]);
+    
+    bool operator==(const Board &b) const {return b.taken == taken && b.black == black;}
 };
 
 class BoardWithSide {

@@ -75,8 +75,9 @@ int main(int argc, char *argv[]) {
         // Delete move objects.
         if (opponentsMove != NULL) delete opponentsMove;
         if (playersMove != NULL) delete playersMove; 
-        if (player != NULL) delete player;
     }
+    
+    if (player != NULL) delete player;
 	
     return 0;
 }
