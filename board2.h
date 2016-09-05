@@ -82,14 +82,9 @@ extern int *EDGE_VALUES;
 extern uint64_t SINGLE_BIT[64];
 extern size_t random_numbers[130];
 
-um_data make_hash_data(int, int, int, int);
 uint64_t doMove(uint64_t taken, uint64_t black, Side side, int index);
 
 class Board {
-   
-private:
-    
-      
 public:
     uint64_t taken;
 	uint64_t black;
@@ -103,25 +98,16 @@ public:
     uint64_t findLegalMovesBlack() const;
     uint64_t findLegalMovesWhite() const;
     uint64_t findLegalMoves2(Side side) const;
-    //~ uint64_t findLegalMoves3(Side side) const;
-    //~ uint64_t onlyFindLegalMoves(Side side) const;
     int evaluate(int, int, int) const;
-    //~ int evaluate_mobility() const;
     int pos_evaluate() const;
     int evaluateTest() const;
      
-    //~ bool isDone() const;
-    //~ bool hasMoves(Side side) const;
-    //bool hasLegalMoves(Side side);
-    //~ bool checkMove(const int &index, Side side) const;
     void doMove(int x, int y, Side side);
-    //~ Board doMoveOnNewBoard(int x, int y, Side side);
     Board doMoveOnNewBoard(const int &index, const Side &side) const;
     Board doMoveOnNewBoardBlack(const int &index) const;
     Board doMoveOnNewBoardBlackWZH(const int &index) const;
 	Board doMoveOnNewBoardWhite(const int &index) const;
 	Board doMoveOnNewBoardWhiteWZH(const int &index) const;
-    Board doMoveOnNewBoard2(int x, int y, Side side) const;
     int count (Side side) const;
     int countBlack() const;
     int countWhite() const;
@@ -158,23 +144,6 @@ public:
 			result ^= random_numbers[index + 64];
 		}
 		return result;
-		
-		// Independent of side?!
-		//~ return 0;
-		/*
-		size_t result = __builtin_popcountll(taken) - 1;
-		size_t seed = 0;
-		boost::hash_combine(seed, taken);
-		boost::hash_combine(seed, black);
-		result |= seed << 6;
-		return result;
-		*/
-		/*
-		size_t seed = 0;
-		boost::hash_combine(seed, taken);
-		boost::hash_combine(seed, black);
-		return seed;
-		*/
 	}
 	int count() const {return __builtin_popcountll(taken);}
 };

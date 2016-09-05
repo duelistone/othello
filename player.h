@@ -1,9 +1,9 @@
 #ifndef __PLAYER_H__
 #define __PLAYER_H__
 
-#include <iostream>
 #include "common.h"
 #include "board2.h"
+#include <iostream>
 #include <bitset>
 #include <unistd.h>
 #include <climits>
@@ -26,52 +26,20 @@
 
 using namespace std;
 
+// Assembly functions
 extern "C" int min(int x, int y);
 extern "C" int max(int x, int y);
 
 #define MAX(x, y) ((x) >= (y) ? (x) : (y))
 #define MIN(x, y) ((x) <= (y) ? (x) : (y))
 
-#define PERCENTILE (1.5)
-#define PROB_CUT_DEPTH1 4
-#define PROB_CUT_DEPTH2 8
-
-#define ERROR1 4
-#define ERROR2 8
-#define ERROR3 12
-
-#define THRESHOLD 15
-#define NO_MOVES_LEFT_BONUS 25
-
-#define SOMETHING_VALUE 0
-
-// Global counter for how many final nodes endgameMinimax is searching
-extern long long globalEndgameNodeCount;
-extern std::atomic_bool abortEndgameMinimax;
-extern double minutesForMove;
-
 // For memoization
 extern std::unordered_map< BoardWithSide, int > *um2;
 
+// For writing edge configurations
 extern fstream fil;
-
-extern BoardHash tt;
-
-//~ extern unordered_map<int, double> sigma;
-//~ extern unordered_map<int, double> constant_terms;
-//~ extern unordered_map<int, double> coefficients;
-
 extern int *EDGE_VALUES;
 extern int *EDGE_VOLATILITY;
-extern int ordered_moves[64][64];
-
-// To avoid um getting too big
-#define MAX_HASH_SIZE 3000000
-#define STOP_SAVING_THRESHOLD 50
-// At this point it should be quick to compute to the end
-
-// Should correspond to at most a minute of computation
-#define DEFAULT_MAX_NODES (200000000)
 
 using namespace std;
 
@@ -86,9 +54,23 @@ public:
     Board currBoard;
     
     Move *doMove(Move *opponentsMove, int msLeft);
-
-    // Flag to tell if the player is running within the test_minimax context
-    bool testingMinimax;
 };
+
+struct Eval {
+	Board pvBoard;
+	int e;
+	Eval(const Board &b, const int &ev) {
+		pvBoard = b;
+		e = ev;
+	}
+	bool operator==(const Eval &b) const {
+		return pvBoard == b.pvBoard && e == b.e;
+	}
+};
+
+int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX);
+int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX);
+Eval pvsBlack(const Board &b, const int &depth, int alpha = INT_MIN, const int &beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false);
+Eval pvsWhite(const Board &b, const int &depth, const int &alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false);
 
 #endif

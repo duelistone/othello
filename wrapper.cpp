@@ -10,25 +10,19 @@
 using namespace std;
 
 // Global variables...I'll get rid of these if I have time
-long long globalEndgameNodeCount = 0;
 unordered_map< BoardWithSide, int > *um2 = new unordered_map< BoardWithSide, int >;
-atomic_bool abortEndgameMinimax;
-double minutesForMove = 1;
 int *EDGE_VALUES;
 int *EDGE_VOLATILITY;
-int ordered_moves[64][64];
 uint64_t SINGLE_BIT[64];
 fstream fil("c.txt", ios_base::out);
-
 vector< unordered_map< BoardWithSide, int > * > vec_of_ums;
-BoardHash tt(1024);
-
 size_t random_numbers[130];
 
 int main(int argc, char *argv[]) {
     // Read in side the player is on.
-    if (argc != 2)  {
-        cerr << "usage: " << argv[0] << " side" << endl;
+    if (argc < 2)  {
+        cerr << "usage: " << argv[0] << " side [taken] [black] [hash]" << endl;
+        cerr << "If one of the optional arguments is given, then all three must be given." << endl;
         exit(-1);
     }
     Side side = (!strcmp(argv[1], "Black")) ? BLACK : WHITE;
@@ -52,6 +46,15 @@ int main(int argc, char *argv[]) {
     // Tell java wrapper that we are done initializing.
     cout << "Init done" << endl;
     cout.flush();    
+    
+    // Check if given starting position
+    if (argc >= 5) {
+		stringstream ss2(argv[2]), ss3(argv[3]), ss4(argv[4]);
+		ss2 >> player->currBoard.taken;
+		ss3 >> player->currBoard.black;
+		ss4 >> player->currBoard.zobrist_hash;
+		player->doMove(NULL, 960000);
+	}
     
     int moveX, moveY, msLeft;
 

@@ -1,45 +1,43 @@
 #include "player.h"
 
-#define SIMPLE_EVAL 1
 #define IID 1
 #define USE_HASH_IN_ENDGAME_ALPHABETA 1
 #define QSEARCH 1
+#define SHOW_COUNTS 0
 
-// Note: More work necessary to make killer heuristic work, and
-// (when it was working) there was no noticeable speed increase.
-
+// The following definition is necessary for how the program currently works
 #define HASH_DEPTH (MAX_DEPTH - 1)
-
-// 58.5, 413 MB depth 12 no PC
-// 3:11, 1.2 GB depth 13 no PC
-// 1:19, 750 MB depth 13 no PC simple eval
-// 3:35, 1.9 GB depth 14 no PC simple eval
-// 2:39 after improved column extractor
-
-// With no x square penalty (different game),
-// 3:05, 600 MB depth 14 no PC simple eval
-// 3:03 after splitting up legalMoves function
-// 2:57 after removing branching from doMoveOnNewBoard
 #define MAX_DEPTH 14
-#define MAX_DEPTH2 16
+#define MAX_DEPTH2 20
 
-#define THREAT_THRESHOLD 20
+// To avoid um2 getting too big
+#define MAX_HASH_SIZE 3000000
+#define STOP_SAVING_THRESHOLD 50
+// At this point it should be quick to compute to the end
 
-struct Eval {
-	Board pvBoard;
-	int e;
-	Eval(const Board &b, const int &ev) {
-		pvBoard = b;
-		e = ev;
-	}
-};
+// Should correspond to at most a minute of computation
+#define DEFAULT_MAX_NODES (200000000)
 
-Side abortSide;
-int currentDiscs;
-int pVariations[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-Board poisonPositions[1000];
+// Simple global variables
+Side abortSide = BLACK;
+int currentDiscs = 4;
+int abCalls = 0;
+int timeWasted = 0;
+Side playerSide = BLACK;
 int numberOfPoisonPositions = 0;
+int pvsCalls = 0;
+int tthits = 0;
+bool gameSolved = false;
+bool abortEndgameMinimax = false;
+long long globalEndgameNodeCount = 0;
+double minutesForMove = 0;
+BoardHash tt(1024); // A hash table
 
+// Global arrays
+Board poisonPositions[1000];
+int pVariations[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+// Loads edge configurations
 void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int i4 = 0, int i5 = 0, int i6 = 0, int i7 = 0, int depth = 8) {
 	if (depth > 0) {
 		for (int i = -1; i <= 1; i++) {
@@ -61,7 +59,6 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 	int cornerWedgeWeight_1 = 7;
 	int cornerWedgeWeight_3 = 4;
 	int cornerWedgeWeight_5 = 1;
-	//~ int unstableWeightC = -4;
 	int unbalancedEdgeWeight = -6;
     
 	uint16_t data = 0;
@@ -239,56 +236,27 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
 	}
 	
 	EDGE_VALUES[data] = eval;
-	
-	
-	/*
-	for (int i = 0; i < 8; i++) {
-		if (f(i) == -1) fil << '-';
-		else if (f(i) == BLACK) fil << 'X';
-		else fil << 'O';
-	}
-	fil << ' ' << bitset<16>(data) << ' ' << f(5) << f(6) << f(7) << ' ' << eval << endl;
-	*/
-	// ./testgame freezes when you uncomment this for who knows what reason
-	/*
-	bitset<8> bs((unsigned char) (data >> 8));
-	bitset<8> bs2((unsigned char) data);
-	cerr << bs << ' ' << bs2 << ' ' << eval << endl;
-	cerr << "---" << endl;
-	*/
 }
 
-/*
- * Constructor for the player; initialize everything here. The side your AI is
- * on (BLACK or WHITE) is passed in as "side". The constructor must finish 
- * within 30 seconds.
- */
+// Constructor for a player. The values of edge configurations
+// are computed here.
 Player::Player(Side s) : side(s), currBoard(Board()) {
-    // Will be set to true in test_minimax.cpp.
-    testingMinimax = false;
-    
+	// Store side in global variable
+	playerSide = s;
+	
     playerConstructorHelper();
 }
 
+// Destructor for player. Empty for now.
 Player::~Player() {}
-
-// Static evaluation function
-inline int eval(const Board &b2) {
-	int blackMoves = __builtin_popcountll(b2.findLegalMovesBlack() & SAFE_SQUARES);
-	int whiteMoves = __builtin_popcountll(b2.findLegalMovesWhite() & SAFE_SQUARES);
-	return MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b2.pos_evaluate();
-}
 
 // alphabeta declaration
 Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false, const uint64_t &mask = 0b1111111111111111111111111111111111111111111111111111111111111111);
-int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX);
 
-// Quivaluate
+// Quivaluate (a quiescense search (qsearch))
 int quivaluate(const Board &b, const Side &s, const int &alpha, const int &beta, const int &depth2, const int &e, const uint64_t &mask = 0b1111111111111111111111111111111111111111111111111111111111111111) {
-	if (depth2 >= MAX_DEPTH2) {
-		return e;
-	}
-	// if (mask != 0b1111111111111111111111111111111111111111111111111111111111111111) return e;
+	// Capping the depth of qsearch
+	if (depth2 >= MAX_DEPTH2) return e;
 	
 	uint64_t lm = b.findLegalMoves(s);
 	if (__builtin_popcountll(lm) < 5) return alphabeta(b, 2, s, alpha, beta, depth2).e;
@@ -314,25 +282,23 @@ int quivaluate(const Board &b, const Side &s, const int &alpha, const int &beta,
 		if (EDGE_VOLATILITY[(col_taken << 8) | col_black]) new_mask |= EDGE_RIGHT;
 	}
 	
-	// new_mask &= mask;
-	
-	//~ if (new_mask != 0 && depth2 == 10) cerr << bitset<64>(b.taken) << endl << bitset<64>(b.black) << endl; 
-	
 	// Return
 	if (new_mask != 0) return alphabeta(b, 2, s, alpha, beta, depth2, false, new_mask).e;
 	return e;
 }
 
-int abCalls = 0;
-int timeWasted = 0;
-Side playerSide = BLACK;
+// Normal alphabeta search, possibly with qsearch (depending on C preprocessor)
+// No hash is used here, since this will often be used for lower depths
 Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int beta, const int &depth2, const bool &prevPass, const uint64_t &mask) {
 	abCalls++;
 	
 	if (depth <= 0 || depth2 >= MAX_DEPTH2) {
 		// Check if poison position
 		for (int i = 0; i < numberOfPoisonPositions; i++) {
-			if (poisonPositions[i] == b) return Eval(b, playerSide ? INT_MIN : INT_MAX);
+			if (poisonPositions[i] == b) {
+				cerr << "Reached poison position" << endl;
+				return Eval(b, playerSide ? INT_MIN : INT_MAX);
+			}
 		}
 		int blackMoves = __builtin_popcountll(b.findLegalMovesBlack() & SAFE_SQUARES);
 		int whiteMoves = __builtin_popcountll(b.findLegalMovesWhite() & SAFE_SQUARES);
@@ -363,9 +329,6 @@ Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int b
 	
 	// Depth 1
 	#if QSEARCH
-	int loss = (s ? INT_MIN : INT_MAX);
-	int lower = (s ? INT_MIN : 0);
-	int upper = (s ? 0 : INT_MAX);
 	if (depth == 1) {
 		uint8_t besti = 64;
 		if (s) {
@@ -376,16 +339,10 @@ Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int b
 				legalMoves ^= BIT(index);
 				Board b2 = b.doMoveOnNewBoardBlack(index);
 				Eval val = alphabeta(b2, 0, WHITE, alpha, beta, depth2 + 1, false, mask);
-				if (depth2 >= MAX_DEPTH - 1) val.e = quivaluate(b2, WHITE, alpha, beta, depth2 + 1, val.e, mask);
-				//~ if (val.e > v && depth2 >= MAX_DEPTH - 1 && __builtin_popcountll(b2.taken) > 48) { // We're checking too many variations (ignore if alpha >= beta)
-					//~ // Endgame search on PV
-					//~ if (endgame_alphabeta(b2, WHITE, lower, upper) != loss) {
-						//~ pvBoard = b2;
-						//~ besti = index;
-						//~ v = val.e;
-					//~ }
-				//~ }
-				//~ else 
+				if (val.e == INT_MAX || val.e == INT_MIN) {
+					cerr << "Something " << s << ' ' << val.e << endl;
+				}
+				if (depth2 >= MAX_DEPTH - 1 && val.e != INT_MAX && val.e != INT_MIN) val.e = quivaluate(b2, WHITE, alpha, beta, depth2 + 1, val.e, mask);
 				if (val.e > v) {
 					pvBoard = b2;
 					besti = index;
@@ -403,16 +360,10 @@ Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int b
 				legalMoves ^= BIT(index);
 				Board b2 = b.doMoveOnNewBoardWhite(index);
 				Eval val = alphabeta(b2, 0, BLACK, alpha, beta, depth2 + 1, false, mask);
-				if (depth2 >= MAX_DEPTH - 1) val.e = quivaluate(b2, BLACK, alpha, beta, depth2 + 1, val.e, mask);
-				//~ if (val.e < v && depth2 >= MAX_DEPTH - 1 && __builtin_popcountll(b2.taken) > 48) {
-					//~ // Endgame search on PV
-					//~ if (endgame_alphabeta(b2, BLACK, lower, upper) != loss) {
-						//~ pvBoard = b2;
-						//~ besti = index;
-						//~ v = val.e;
-					//~ }
-				//~ }
-				//~ else 
+				if (val.e == INT_MAX || val.e == INT_MIN) {
+					cerr << "Something " << s << ' ' << val.e << endl;
+				}
+				if (depth2 >= MAX_DEPTH - 1 && val.e != INT_MAX && val.e != INT_MIN) val.e = quivaluate(b2, BLACK, alpha, beta, depth2 + 1, val.e, mask);
 				if (val.e < v) {
 					pvBoard = b2;
 					besti = index;
@@ -437,6 +388,9 @@ Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int b
 					pvBoard = val.pvBoard;
 					besti = index;
 					v = val.e;
+				}
+				if (val.e == INT_MIN) {
+					assert(!(pvBoard == val.pvBoard));
 				}
 				alpha = (v > alpha) ? v : alpha;
 			}
@@ -463,26 +417,15 @@ Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int b
 	#endif
 }
 
-Eval pvsBlack(const Board &b, const int &depth, int alpha = INT_MIN, const int &beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false);
-Eval pvsWhite(const Board &b, const int &depth, const int &alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false);
-int pvsCalls = 0;
-int tthits = 0;
-uint8_t killerMoves[MAX_DEPTH][3];
-
-bool isEndgame(const int &currentDiscs, const int &depth) {
-	return false;
-}
-
+// Principle variation search (redirects to correct color)
 Eval pvs(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false) {
 	if (s) return pvsBlack(b, depth, alpha, beta, depth2, prevPass);
 	else return pvsWhite(b, depth, alpha, beta, depth2, prevPass);
 }
 
+// pvs for black
 Eval pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const int &depth2, const bool &prevPass) {
 	pvsCalls++;
-	
-	//~ bool endgame_search = isEndgame(currentDiscs, depth2);
-	//~ if (endgame_search) return endgame_alphabeta(b, depth, BLACK);
 	
 	if (depth <= 1) return alphabeta(b, depth, BLACK, alpha, beta, depth2, prevPass);
 		
@@ -518,6 +461,7 @@ Eval pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, cons
 			besti = index;
 			Eval e = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
 			v = e.e;
+			if (v == INT_MIN) goto no_hash;
 			pvBoard = e.pvBoard;
 			alpha = (v > alpha) ? v : alpha;
 			// Prove that it is indeed the best move
@@ -575,6 +519,7 @@ Eval pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, cons
 		tt.table[hash_index] = besti;
 	}
 	else {
+		no_hash:
 		while (alpha < beta && legalMoves) {	
 			uint8_t index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
@@ -588,6 +533,7 @@ Eval pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, cons
 	return Eval(pvBoard, alpha);
 }
 
+// pvs for white
 Eval pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const int &depth2, const bool &prevPass) {
 	pvsCalls++;
 	
@@ -625,6 +571,7 @@ Eval pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, cons
 			besti = index;
 			Eval e = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
 			v = e.e;
+			if (v == INT_MAX) goto no_hash;
 			pvBoard = e.pvBoard;
 			beta = (v < beta) ? v : beta;
 			// Prove that it is indeed the best move
@@ -680,6 +627,7 @@ Eval pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, cons
 		tt.table[hash_index] = besti;
 	}
 	else {
+		no_hash:
 		while (alpha < beta && legalMoves) {
 			uint8_t index = __builtin_clzl(legalMoves);
 			legalMoves ^= BIT(index);
@@ -693,16 +641,19 @@ Eval pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, cons
 	return Eval(pvBoard, beta);
 }
 
+// Function to display contents of pVariations global variable
 void print_counts() {
 	cerr << "[";
 	for (int i = 0; i < 14; i++) cerr << pVariations[i] << ", ";
 	cerr << pVariations[14] << "}" << endl;
 }
 
+// Function to clear contents of pVariations global variable
 void clear_counts() {
 	for (int i = 0; i < 15; i++) pVariations[i] = 0;
 }
 
+// Starts pvs searchs at increasing depths with gradually larger aspiration windows
 pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, int guess = -1) {
 	Timer tim;
 	
@@ -713,10 +664,16 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 	int eOdd, eEven;
 	// First two plies
 	eOdd = pvs(b, 1, s, INT_MIN, INT_MAX).e;
-	print_counts(); clear_counts();
+	#if SHOW_COUNTS
+	print_counts();
+	clear_counts();
+	#endif
 	cerr << "Finished depth 1: " << eOdd << endl;
 	eEven = pvs(b, 2, s, INT_MIN, INT_MAX).e;
-	print_counts(); clear_counts();
+	#if SHOW_COUNTS
+	print_counts();
+	clear_counts();
+	#endif
 	cerr << "Finished depth 2: " << eEven << endl;
 	
 	// Middle plies
@@ -782,9 +739,13 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 		Eval ev = pvs(b, depth, s, lower, upper, false);
 		eOdd = ev.e;
 		// Check if pv leads to win
-		if (__builtin_popcountll(ev.pvBoard.taken) >= 44 && endgame_alphabeta(ev.pvBoard, other_side(s)) == loss) {
+		if (__builtin_popcountll(ev.pvBoard.taken) >= 44 && (pvs(ev.pvBoard, 8, other_side(s)) == pvs(ev.pvBoard, 0, other_side(s)) || true) && endgame_alphabeta(ev.pvBoard, other_side(s)) == loss) {
 			poisonPositions[numberOfPoisonPositions] = ev.pvBoard;
 			numberOfPoisonPositions++;
+			cerr << bitset<64>(ev.pvBoard.taken) << endl << bitset<64>(ev.pvBoard.black) << endl;
+			cerr << eOdd << endl;
+			cerr << "Poison move " << numberOfPoisonPositions << endl;
+			if (abortEndgameMinimax) exit(0);
 			goto try_again3;
 		}
 		// This is bound to run into issues one day
@@ -817,9 +778,13 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 		Eval ev = pvs(b, depth, s, lower, upper, false);
 		eEven = ev.e;
 		// Check if pv leads to win
-		if (__builtin_popcountll(ev.pvBoard.taken) >= 44 && endgame_alphabeta(ev.pvBoard, s) == loss) {
+		if (__builtin_popcountll(ev.pvBoard.taken) >= 44 && (pvs(ev.pvBoard, 8, s) == pvs(ev.pvBoard, 0, s) || true) && endgame_alphabeta(ev.pvBoard, s) == loss) {
 			poisonPositions[numberOfPoisonPositions] = ev.pvBoard;
 			numberOfPoisonPositions++;
+			cerr << bitset<64>(ev.pvBoard.taken) << endl << bitset<64>(ev.pvBoard.black) << endl;
+			cerr << eEven << endl;
+			cerr << "Poison move " << numberOfPoisonPositions << endl;
+			if (abortEndgameMinimax) exit(0);
 			goto try_again4;
 		}
 		// This is bound to run into issues one day
@@ -845,16 +810,18 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
 	}
 }
 
-int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX) {
+// An endgame search that updates boards in a way that ignores the zobrist hash (for speed)
+int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha, int beta) {
 	int totalCount = __builtin_popcountll(b.taken);
 	
 	if (totalCount == 64) {
-		//auto start = chrono::high_resolution_clock::now();
+		// Triggering aborting mechanism if necessary
 		globalEndgameNodeCount++;
 		if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
 		double maxNodes = minutesForMove * DEFAULT_MAX_NODES;
 		if (globalEndgameNodeCount > maxNodes) abortEndgameMinimax = true;
-		// Simple evaluation here
+		
+		// Return simple evaluation here
 		int diff = __builtin_popcountll(b.black);
 		if (diff > 32) return INT_MAX;
 		else if (diff < 32) return INT_MIN;
@@ -866,38 +833,24 @@ int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, i
 	if (legalMoves == 0) {
 		uint64_t legalMovesOther = b.findLegalMoves(other_side(s));
 		if (legalMovesOther == 0) {
+			// Triggering aborting mechanism if necessary
 			globalEndgameNodeCount++;
 			if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
 			double maxNodes = minutesForMove * DEFAULT_MAX_NODES;
 			if (globalEndgameNodeCount > maxNodes) abortEndgameMinimax = true;
-			// Simple evaluation here
+			
+			// Return simple evaluation here
 			int diff = b.countBlack() - b.countWhite();
 			if (diff > 0) return INT_MAX;
 			else if (diff < 0) return INT_MIN;
 			else return 0;
 		}
+		
+		// Change side to move
 		return deep_endgame_alphabeta(b, other_side(s), alpha, beta);
 	}
-	
-	/*
-	if (totalCount == 63) {
-		int blackCount = __builtin_popcountll(b.black);
-		int diff = 2 * blackCount - 63;
-		if (s == BLACK) {
-			// Black has a legal move, so will gain at 3 disc differential
-			if (diff + 3 > 0) return INT_MAX;
-			if (diff + 37 < 0) return INT_MIN;
-		}
-		else {
-			// White has a legal move, so will gain at most 
-			// 2 * 18 + 1 = 37 differential
-			// Equivalently, we can check that blackCount > 50
-			if (diff - 37 > 0) return INT_MAX;
-			if (diff - 3 < 0) return INT_MIN;
-		}
-	}
-	*/
 
+	// Main alphabeta search
 	if (s) {
 		while (alpha < beta && legalMoves) {
 			int index = __builtin_clzl(legalMoves);
@@ -918,19 +871,23 @@ int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, i
 	return s ? alpha : beta;
 }
 
+// Alphabeta for endgame search
 int endgame_alphabeta(const Board &b, const Side &s, int alpha, int beta) {
+	// Aborting mechanism
 	if (abortEndgameMinimax) return (abortSide == BLACK) ? INT_MIN : INT_MAX;
 	
+	// Check hash
 	BoardWithSide bws(b.taken, b.black, s);
 	if (um2->count(bws) > 0) {
 		return (*um2)[bws];
 	}
 	
+	// Store inputs
 	int original_alpha = alpha;
 	int original_beta = beta;
 	
+	// Check if ready for deep_endgame_alphabeta
 	int totalCount = __builtin_popcountll(b.taken);
-	
 	if (totalCount >= 42 + HASH_DEPTH) return deep_endgame_alphabeta(b, s, alpha, beta);
 	
 	double maxNodes = minutesForMove * DEFAULT_MAX_NODES;
@@ -940,6 +897,7 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha, int beta) {
 	if (legalMoves == 0) {
 		uint64_t legalMovesOther = b.findLegalMoves(other_side(s));
 		if (legalMovesOther == 0) {
+			// Triggering aborting mechanism if necessary
 			globalEndgameNodeCount++;
 			if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
 			if (globalEndgameNodeCount > maxNodes) abortEndgameMinimax = true;
@@ -949,8 +907,9 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha, int beta) {
 			else if (diff < 0) return INT_MIN;
 			else return 0;
 		}
+		// Save result in hash
 		int ret = endgame_alphabeta(b, other_side(s), alpha, beta);
-		if (totalCount < STOP_SAVING_THRESHOLD) {
+		if (totalCount < STOP_SAVING_THRESHOLD && !abortEndgameMinimax) {
 			(*um2)[bws] = ret;
 		}
 		return ret;
@@ -961,7 +920,6 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha, int beta) {
 		size_t hash_index = b.zobrist_hash & (tt.mod - 1);
 		int index = tt.table[hash_index];
 		if (BIT_SAFE(index) & legalMoves) {
-			// The move is valid
 			legalMoves ^= BIT(index);
 			int v = endgame_alphabeta(b.doMoveOnNewBoardBlack(index), WHITE, alpha, beta);
 			alpha = (v > alpha) ? v : alpha;
@@ -992,8 +950,10 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha, int beta) {
 		}
 	}
 	
+	// Result to return
 	int ret = s ? alpha : beta;
-	// Reasoning:
+	
+	// Reasoning for whether eval is correct:
 	// If alpha, beta = -inf, inf, any result is trustworthy. Otherwise... 
 	// ...if black:
 	// -inf, 0 -> -inf, inf
@@ -1001,14 +961,16 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha, int beta) {
 	// ...if white:
 	// -inf, 0 -> -inf, 0
 	// 0, inf -> -inf, inf
-	if ((original_alpha == INT_MIN && original_beta == INT_MAX) || 
+	if (((original_alpha == INT_MIN && original_beta == INT_MAX) || 
 		(s && (alpha == INT_MIN || original_alpha == alpha)) || 
-		(!s && (beta == INT_MAX || original_beta == beta))) {
+		(!s && (beta == INT_MAX || original_beta == beta))) &&
+		!abortEndgameMinimax) {
 		(*um2)[bws] = ret;
 	}
 	return ret;
 }
 
+// Starts endgame search
 pair<int, int> endgame_minimax(Board &b, Side s, int guess = -1) {
 	uint64_t legalMoves = b.findLegalMoves(s);
 	if (legalMoves == 0) return make_pair(-1, -10000); // Second value is meaningless here
@@ -1065,16 +1027,14 @@ pair<int, int> endgame_minimax(Board &b, Side s, int guess = -1) {
 	return make_pair(besti, v);
 }
 
-bool gameSolved = false;
-
 /*
- * Compute the next move given the opponent's last move. Your AI is
- * expected to keep track of the board on its own. If this is the first move,
- * or if the opponent passed on the last move, then opponentsMove will be NULL.
+ * Compute the next move given the opponent's last move. 
+ * If this is the first move, or if the opponent passed on the last move, 
+ * then opponentsMove will be NULL.
  *
  * msLeft represents the time your AI has left for the total game, in
- * milliseconds. doMove() must take no longer than msLeft, or your AI will
- * be disqualified! An msLeft value of -1 indicates no time limit.
+ * milliseconds. doMove() must take no longer than msLeft
+ * An msLeft value of -1 indicates no time limit.
  *
  * The move returned must be legal; if there are no valid moves for your side,
  * return NULL.
@@ -1083,16 +1043,24 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     // Set minutesForMove to half the amount of time left
     if (msLeft > 0) minutesForMove = msLeft / 60.0 / 1000 / 2;
     
+    // Make opponent's move
     if (opponentsMove != NULL) {
 		currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(opponentsMove->x, opponentsMove->y), other_side(side));
 	}
     
-    playerSide = side;
+    // Save state
+    fstream fil("log.txt", ios_base::app);
+	fil << currBoard.taken << ' ' << currBoard.black << ' ' << currBoard.zobrist_hash << endl;
+	fil.close();
     
+    // Get legal moves
     uint64_t legalMoves = currBoard.findLegalMoves(side);
     if (!legalMoves) return NULL;
     
+    // Count discs
     currentDiscs = __builtin_popcountll(currBoard.taken);
+    
+	// First move
     if (currentDiscs == 4) {
 		// Move e6 without thinking
 		currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(4, 5), side);
@@ -1110,26 +1078,12 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 		return move;
 	}
     
-    /*
-    pair<int, int> ret_value = make_pair(-3, -1000);
-    thread t([&ret_value, totalCount] (Board b, Side s) {
-		// mobilityNodes = 0;
-		cerr << "Starting thread" << endl;
-		if (totalCount <= 25) ret_value = main_minimax2(b, s, 11);
-		else if (totalCount <= 41) ret_value = main_minimax2(b, s, 11);
-		else ret_value = make_pair(-3, -1000);
-		if (ret_value.first < 0) return;
-		string letters = "abcdefgh";
-		cerr << "Second thread result: " << letters[FROM_INDEX_X(ret_value.first)] << ' ' << FROM_INDEX_Y(ret_value.first) + 1 << ' ' << ret_value.second << endl; //' ' << mobilityNodes << endl;
-	}, currBoard, side);
-    */
-    
     // Set depth according to how far into game
     int depth;
     if (currentDiscs <= 20) depth = MAX_DEPTH;
     else if (currentDiscs <= 30) depth = MAX_DEPTH;
     else if (currentDiscs <= 41) depth = 44 - currentDiscs;
-    else depth = INT_MAX; // Search to end (much faster)
+    else depth = INT_MAX; // Search to end
 	
     // Set counter, reset abort variables
     globalEndgameNodeCount = 0;
@@ -1140,13 +1094,11 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     abortEndgameMinimax = false;
     abortSide = side;
     
-    int eval = -100; // Just a value
     // Find index of best move via search
+    int eval = -100; // Just a value
     int besti = -1;
     pair<int, int> p;
     if (depth != INT_MAX) {
-		//BoardWithSide bws(currBoard.taken, currBoard.black, side);
-		//if (um->count(bws) > 0) besti = (*um)[bws];
 		p = main_minimax_aw(currBoard, side, depth, besti);
 		besti = p.first;
 		eval = p.second;
@@ -1164,7 +1116,6 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 			if (besti < 0) {
 				besti = p2.first;
 				eval = p2.second;
-				um2->clear(); // For now, some values may be incorrect if search not done, later we may want to prune the hash table, if it's worth it
 			}
 			else {
 				gameSolved = true;
@@ -1178,50 +1129,16 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 		}
 	}
     
-    // Prune um
-    /*
-    cerr << "Pruning um..." << endl;
-    unordered_map<BoardWithSide, vector<int> *>::iterator um_it = um->begin();
-    while (um_it != um->end()) {
-		auto pr = *um_it;
-		if (pr.first.count() <= totalCount && pr.second) {
-			delete pr.second;
-			um_it = um->erase(um_it);
-		}
-		else um_it++;
-	}
-	cerr << "...done pruning." << endl;
-	*/
-	
-    // Temporary
-    //int v1 = main_minimax(currBoard, 4, side).second;
-    //int v2 = main_minimax(currBoard, 8, side).second;
-    //fil << totalCount << ' ' << v1 << ' ' << v2 << endl;
-    
-    // Count collisions
-    //~ int positions = 0;
-    //~ for (size_t i = 0; i < tt.mod; i++) {
-		//~ if (tt.table[i] != 64) positions++;
-	//~ }
-    
     // Output some useful info and return (remove for more speed)
     cerr << currentDiscs + 1 << " eval: " << eval << ' ' << pvsCalls << ' ' << tthits << endl; //' ' << positions << endl;
 	if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount << endl;
-	//~ cerr << "Time wasted " << timeWasted << endl;
-	// if (um->size() > MAX_HASH_SIZE) um->clear(); // Don't want to lose due to too much memory!
 	
-	// Make move
+	// Make move and print it
 	string letters = "abcdefgh";
-	// cerr << ((side == BLACK) ? "Black " : "White ") << "tentative move: " << letters[FROM_INDEX_X(besti)] << ' ' << FROM_INDEX_Y(besti) + 1 << endl; 
-	//t.join();
-    //if (totalCount <= 41 && ret_value.first >= 0 && ((side == BLACK) ? (eval < ret_value.second) : (eval > ret_value.second))) besti = ret_value.first; // Better move
 	int x = FROM_INDEX_X(besti);
 	int y = FROM_INDEX_Y(besti);
 	cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << "       " << besti << endl;
 	currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
-    //bitset<64> bsTaken(currBoard.taken), bsBlack(currBoard.black);
-    //cerr << bsTaken << endl << bsBlack << endl;
     Move *move = new Move(x, y);
-    return move;
-    
+    return move; 
 }
