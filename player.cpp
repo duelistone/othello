@@ -250,9 +250,6 @@ Player::Player(Side s) : side(s), currBoard(Board()) {
 // Destructor for player. Empty for now.
 Player::~Player() {}
 
-// alphabeta declaration
-Eval alphabeta(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, const bool &prevPass = false, const uint64_t &mask = 0b1111111111111111111111111111111111111111111111111111111111111111);
-
 // Quivaluate (a quiescense search (qsearch))
 int quivaluate(const Board &b, const Side &s, const int &alpha, const int &beta, const int &depth2, const int &e, const uint64_t &mask = 0b1111111111111111111111111111111111111111111111111111111111111111) {
 	// Capping the depth of qsearch
