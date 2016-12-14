@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include "common.h"
-#include "board2.h"
+#include "board.h"
 
 using namespace std;
 

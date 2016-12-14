@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include "common.h"
-#include "board2.h"
+#include "board.h"
 #include <bitset>
 #include <unistd.h>
 #include <climits>

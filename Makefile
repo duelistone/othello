@@ -1,6 +1,6 @@
 CC          = g++
 CFLAGS      = -Wall -O3 -msse2 -march=corei7 -ansi -pedantic -std=c++14 -pthread
-OBJS        = player.o board2.o 
+OBJS        = player.o board.o 
 PLAYERNAME  = duelist
 
 all: $(PLAYERNAME) testgame
@@ -17,11 +17,11 @@ testminimax: $(OBJS) testminimax.o
 #%.o: %.cpp
 #	$(CC) -c $(CFLAGS) -x c++ $< -o $@ -pthread
 
-player.o: player.cpp board2.cpp common.h player.h board2.h
+player.o: player.cpp board.cpp common.h player.h board.h
 	$(CC) -c $(CFLAGS) player.cpp -pthread
 
-board2.o: board2.cpp common.h player.h board2.h
-	$(CC) -c $(CFLAGS) board2.cpp -pthread
+board.o: board.cpp common.h player.h board.h
+	$(CC) -c $(CFLAGS) board.cpp -pthread
 
 wrapper.o: wrapper.cpp player.h
 	$(CC) -c $(CFLAGS) wrapper.cpp -pthread
