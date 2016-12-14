@@ -58,7 +58,15 @@
 #define EDGES 0b1111111110000001100000011000000110000001100000011000000111111111ull
 #define SAFE_SQUARES (~X_SQUARES)
 
+#define COL_MASK(x) (EDGE_LEFT >> (x))
+#define ROW_MASK(x) (EDGE_TOP >> (8 * (x)))
+#define COL(bits, x) (((((bits) & COL_MASK(x)) * MAGIC_COL(x)) >> 56) & 0xffull)
+
 #define EDGE_BIT(x) ((uint16_t) 1 << (15 - (x)))
+#define JUST_EDGE_BIT(x) ((uint8_t) 1 << (7 - (x)))
+
+#define MAGIC_COL_NUMBER 0x0002040810204081ull
+#define MAGIC_COL(x) (MAGIC_COL_NUMBER << (x))
 
 #define DOWN_FILTER 0x00FFFFFFFFFFFFFFULL
 #define RIGHT_FILTER 0x7F7F7F7F7F7F7F7FULL
@@ -80,6 +88,9 @@ using namespace std;
 extern "C" int other_side(int);
 
 extern int *EDGE_VALUES;
+extern pair<uint64_t, uint64_t> *EDGE_STABLE;
+extern pair<uint64_t, uint64_t> *EDGE_PSEUDOSTABLE;
+extern uint64_t** BYTE_TO_COL;
 extern uint64_t SINGLE_BIT[64];
 extern size_t random_numbers[130];
 
@@ -127,6 +138,7 @@ public:
     int count (Side side) const;
     int countBlack() const;
     int countWhite() const;
+    pair<uint64_t, uint64_t> stable_discs() const;
     
     size_t make_zobrist_hash(const Side &s = BLACK) const;
 

@@ -19,6 +19,9 @@ unordered_map< BoardWithSide, int > *um5 = new unordered_map< BoardWithSide, int
 atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
 int *EDGE_VALUES;
+pair<uint64_t, uint64_t> *EDGE_STABLE;
+pair<uint64_t, uint64_t> *EDGE_PSEUDOSTABLE;
+uint64_t** BYTE_TO_COL;
 int ordered_moves[64][64];
 uint64_t SINGLE_BIT[64];
 fstream fil("c.txt", ios_base::out);
@@ -36,21 +39,21 @@ BoardHash tt(1024);
 size_t random_numbers[130];
 
 void initialize_hashes() {
-	vec_of_ums.push_back(um_1);
-	//~ vec_of_ums.push_back(um_2);
-	//~ vec_of_ums.push_back(um_3);
-	//~ vec_of_ums.push_back(um_4);
-	//~ vec_of_ums.push_back(um_5);
-	//~ vec_of_ums.push_back(um_6);
+    vec_of_ums.push_back(um_1);
+    //~ vec_of_ums.push_back(um_2);
+    //~ vec_of_ums.push_back(um_3);
+    //~ vec_of_ums.push_back(um_4);
+    //~ vec_of_ums.push_back(um_5);
+    //~ vec_of_ums.push_back(um_6);
 }
 
 void delete_hashes() {
-	delete um_1;
-	delete um_2;
-	delete um_3;
-	delete um_4;
-	delete um_5;
-	delete um_6;
+    delete um_1;
+    delete um_2;
+    delete um_3;
+    delete um_4;
+    delete um_5;
+    delete um_6;
 }
 
 int main(int argc, char *argv[]) {
@@ -60,22 +63,28 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
     Side side = (!strcmp(argv[1], "Black")) ? BLACK : WHITE;
-		
-	// Initialize SINGLE_BIT array
-	for (int i = 0; i < 64; i++) {
-		SINGLE_BIT[i] = BIT(i);
-	}
-	
-	// Allocate for EDGE_VALUES
-	EDGE_VALUES = (int *) malloc(sizeof(int) * (1 << 16));
-	
-	// Initialize hashes
-	//~ initialize_hashes();
-	
-	// Initialize random numbers
-	srand(0);
-	for (int i = 0; i < 130; i++) random_numbers[i] = ((size_t) rand() << 33) | ((size_t) rand() << 2) | ((size_t) rand() & 3);
-	
+        
+    // Initialize SINGLE_BIT array
+    for (int i = 0; i < 64; i++) {
+        SINGLE_BIT[i] = BIT(i);
+    }
+    
+    // Allocate
+    EDGE_VALUES = (int *) malloc(sizeof(int) * (1 << 16));
+    EDGE_STABLE = (pair<uint64_t, uint64_t> *) malloc(sizeof(pair<uint64_t, uint64_t>) * (1 << 16));
+    EDGE_PSEUDOSTABLE = (pair<uint64_t, uint64_t> *) malloc(sizeof(pair<uint64_t, uint64_t>) * (1 << 16));
+    BYTE_TO_COL = (uint64_t **) malloc(sizeof(uint64_t *) * 8);
+    for (int i = 0; i < 8; i++) {
+        BYTE_TO_COL[i] = (uint64_t *) malloc(sizeof(uint64_t *) * (1 << 8));
+    }
+
+    // Initialize hashes
+    //~ initialize_hashes();
+    
+    // Initialize random numbers
+    srand(0);
+    for (int i = 0; i < 130; i++) random_numbers[i] = ((size_t) rand() << 33) | ((size_t) rand() << 2) | ((size_t) rand() & 3);
+    
     // Initialize player.
     Player *player = new Player(side);
     
@@ -106,17 +115,17 @@ int main(int argc, char *argv[]) {
         if (opponentsMove != NULL) delete opponentsMove;
         if (playersMove != NULL) delete playersMove; 
     }
-	
-	// fil.close();
-	
-	// Delete hash table and player
-	delete_hashes();
-	if (um != nullptr) delete um;
-	if (um2 != nullptr) delete um2;
-	if (um3 != nullptr) delete um3;
-	if (um4 != nullptr) delete um4;
-	if (player != nullptr) delete player;
-	
-	
+    
+    // fil.close();
+    
+    // Delete hash table and player
+    delete_hashes();
+    if (um != nullptr) delete um;
+    if (um2 != nullptr) delete um2;
+    if (um3 != nullptr) delete um3;
+    if (um4 != nullptr) delete um4;
+    if (player != nullptr) delete player;
+    
+    
     return 0;
 }
