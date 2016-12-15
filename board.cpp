@@ -3241,17 +3241,8 @@ int Board::pos_evaluate() const {
     ee += EDGE_VALUES[u16];
 
     // Get left and right edges
-    // Idea from http://stackoverflow.com/questions/14537831/isolate-specific-row-column-diagonal-from-a-64-bit-number
-    {
-        const uint64_t column_mask = 0x8080808080808080ull;
-        const uint64_t magic = 0x2040810204081ull;
-        uint64_t col_taken = (((taken & column_mask) * magic) >> 56) & 0xff;
-        uint64_t col_black = (((black & column_mask) * magic) >> 56) & 0xff;
-        ee += EDGE_VALUES[(col_taken << 8) | col_black];
-        col_taken = ((((taken << 7) & column_mask) * magic) >> 56) & 0xff;
-        col_black = ((((black << 7) & column_mask) * magic) >> 56) & 0xff;
-        ee += EDGE_VALUES[(col_taken << 8) | col_black];
-    }
+    ee += EDGE_VALUES[(COL(taken, 0) << 8) | COL(black, 0)];
+    ee += EDGE_VALUES[(COL(taken, 7) << 8) | COL(black, 7)];
     
     return ee;
 }
@@ -3310,18 +3301,20 @@ pair<uint64_t, uint64_t> Board::stable_discs() const {
     {
         // Get top and bottom edge into uint16
         uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
-        black_stable |= EDGE_STABLE[u16].first << 56;
-        white_stable |= EDGE_STABLE[u16].second << 56;
+        RowBoard<8> rb = RowBoard<8>(u16);
+        black_stable |= (uint64_t) rb.all_stable().first << 56;
+        white_stable |= (uint64_t) rb.all_stable().second << 56;
         u16 = ((uint16_t) taken << 8) | ((uint8_t) black);
-        black_stable |= EDGE_STABLE[u16].first;
-        white_stable |= EDGE_STABLE[u16].second;
+        rb = RowBoard<8>(u16);
+        black_stable |= rb.all_stable().first;
+        white_stable |= rb.all_stable().second;
 
         // Get left and right edges
-        pair<uint64_t, uint64_t> stable_data = EDGE_STABLE[(COL(taken, 0) << 8) | COL(black, 0)];
+        pair<uint64_t, uint64_t> stable_data = RowBoard<8>((COL(taken, 0) << 8) | COL(black, 0)).all_stable();
         black_stable |= BYTE_TO_COL[0][stable_data.first];
         white_stable |= BYTE_TO_COL[0][stable_data.second];
         
-        stable_data = EDGE_STABLE[(COL(taken, 7) << 8) | COL(black, 7)];
+        stable_data = RowBoard<8>((COL(taken, 7) << 8) | COL(black, 7)).all_stable();
         black_stable |= BYTE_TO_COL[7][stable_data.first];
         white_stable |= BYTE_TO_COL[7][stable_data.second];
     }

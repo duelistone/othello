@@ -69,8 +69,8 @@ extern BoardHash tt;
 //~ extern unordered_map<int, double> coefficients;
 
 extern int *EDGE_VALUES;
-extern pair<uint64_t, uint64_t> *EDGE_STABLE;
-extern pair<uint64_t, uint64_t> *EDGE_PSEUDOSTABLE;
+extern pair<uint64_t, uint64_t> **STABLE_DISCS;
+extern pair<uint64_t, uint64_t> **PSEUDOSTABLE_DISCS;
 extern uint64_t** BYTE_TO_COL;
 extern int ordered_moves[64][64];
 

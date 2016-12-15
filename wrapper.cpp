@@ -19,8 +19,8 @@ unordered_map< BoardWithSide, int > *um5 = new unordered_map< BoardWithSide, int
 atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
 int *EDGE_VALUES;
-pair<uint64_t, uint64_t> *EDGE_STABLE;
-pair<uint64_t, uint64_t> *EDGE_PSEUDOSTABLE;
+pair<uint64_t, uint64_t> **STABLE_DISCS;
+pair<uint64_t, uint64_t> **PSEUDOSTABLE_DISCS;
 uint64_t** BYTE_TO_COL;
 int ordered_moves[64][64];
 uint64_t SINGLE_BIT[64];
@@ -71,10 +71,12 @@ int main(int argc, char *argv[]) {
     
     // Allocate
     EDGE_VALUES = (int *) malloc(sizeof(int) * (1 << 16));
-    EDGE_STABLE = (pair<uint64_t, uint64_t> *) malloc(sizeof(pair<uint64_t, uint64_t>) * (1 << 16));
-    EDGE_PSEUDOSTABLE = (pair<uint64_t, uint64_t> *) malloc(sizeof(pair<uint64_t, uint64_t>) * (1 << 16));
+    STABLE_DISCS = (pair<uint64_t, uint64_t> **) malloc(sizeof(pair<uint64_t, uint64_t> *) * 8);
+    PSEUDOSTABLE_DISCS = (pair<uint64_t, uint64_t> **) malloc(sizeof(pair<uint64_t, uint64_t> *) * 8);
     BYTE_TO_COL = (uint64_t **) malloc(sizeof(uint64_t *) * 8);
     for (int i = 0; i < 8; i++) {
+        STABLE_DISCS[i] = (pair<uint64_t, uint64_t> *) malloc(sizeof(pair<uint64_t, uint64_t>) * (1 << 16));
+        PSEUDOSTABLE_DISCS[i] = (pair<uint64_t, uint64_t> *) malloc(sizeof(pair<uint64_t, uint64_t>) * (1 << 16));
         BYTE_TO_COL[i] = (uint64_t *) malloc(sizeof(uint64_t *) * (1 << 8));
     }
 

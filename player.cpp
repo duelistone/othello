@@ -21,25 +21,153 @@
 // 3:03 after splitting up legalMoves function
 // 2:57 after removing branching from doMoveOnNewBoard
 #define MAX_DEPTH 14
+#define CORNER_WEIGHT 6
+#define STABLE_WEIGHT 3
 
 Side abortSide;
 
-void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int i4 = 0, int i5 = 0, int i6 = 0, int i7 = 0, int depth = 8) {
-    if (depth > 0) {
-        for (int i = -1; i <= 1; i++) {
-            if (depth == 8) i0 = i;
-            else if (depth == 7) i1 = i;
-            else if (depth == 6) i2 = i;
-            else if (depth == 5) i3 = i;
-            else if (depth == 4) i4 = i;
-            else if (depth == 3) i5 = i;
-            else if (depth == 2) i6 = i;
-            else if (depth == 1) i7 = i;
-            playerConstructorHelper(i0, i1, i2, i3, i4, i5, i6, i7, depth - 1);
-        }
-        return;
-    }
+void playerConstructorHelper() {
+    // To speed things up
+    #define HELPER8(s, n) {for (taken = (1 << (n)) - 1; taken < 1 << (s); taken = snoob(taken)) {uint64_t black = 0; do {RowBoard<(s)> rb(taken, black); rb.set_stable(); EDGE_VALUES[(taken << 8) | black] = STABLE_WEIGHT * (__builtin_popcount(rb.all_stable().first) - __builtin_popcount(rb.all_stable().second)) + CORNER_WEIGHT * (__builtin_popcount(black & CORNERS) - __builtin_popcount(taken & ~black & CORNERS)); black = (black - taken) & taken;} while (black);}}
+    #define HELPER(s, n) {for (taken = (1 << (n)) - 1; taken < 1 << (s); taken = snoob(taken)) {uint64_t black = 0; do {RowBoard<(s)> rb(taken, black); rb.set_stable(); black = (black - taken) & taken;} while (black);}}
     
+    int size = 8;
+    // get next greater value with same number of one bits
+    // Taken from "Hacker's Delight" by Henry S. Warren, Jr.
+    // originally appeared as  HAKMEM ITEM 175 (Bill Gosper)
+    auto snoob = [] (uint64_t x) -> uint64_t {
+       uint64_t smallest, ripple, ones;
+       smallest = x & -x;
+       ripple = x + smallest;
+       ones = x ^ ripple;
+       ones = (ones >> 2) / smallest;
+       return ripple | ones;
+    };
+    // 8 filled
+    uint64_t taken = (1 << 8) - 1;
+    for (uint64_t black = 0; black < 1 << 8; black++) {
+        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+        EDGE_VALUES[(taken << 8) | black] = STABLE_WEIGHT * (2 * __builtin_popcountll(black) - 8) + CORNER_WEIGHT * (2 * __builtin_popcountll(black & CORNERS) - 2);
+    }
+    HELPER8(8, 7);
+    HELPER8(8, 6);
+    HELPER8(8, 5);
+    HELPER8(8, 4);
+    HELPER8(8, 3);
+    HELPER8(8, 2);
+    HELPER8(8, 1);
+    // 0 filled
+    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    EDGE_VALUES[0] = 0;
+
+    size = 7;
+
+    // 7 filled
+    taken = (1 << 7) - 1;
+    for (uint64_t black = 0; black < 1 << 7; black++) {
+        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+    }
+    HELPER(7, 6);
+    HELPER(7, 5);
+    HELPER(7, 4);
+    HELPER(7, 3);
+    HELPER(7, 2);
+    HELPER(7, 1);
+    // 0 filled
+    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    EDGE_VALUES[0] = 0;
+
+    size = 6;
+
+    // 6 filled
+    taken = (1 << 6) - 1;
+    for (uint64_t black = 0; black < 1 << 6; black++) {
+        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+    }
+    // Less filled
+    HELPER(6, 5);
+    HELPER(6, 4);
+    HELPER(6, 3);
+    HELPER(6, 2);
+    HELPER(6, 1);
+    // 0
+    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    EDGE_VALUES[0] = 0;
+
+    size = 5;
+
+    // 5 filled
+    taken = (1 << 5) - 1;
+    for (uint64_t black = 0; black < 1 << 5; black++) {
+        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+    }
+    // Less filled
+    HELPER(5, 4);
+    HELPER(5, 3);
+    HELPER(5, 2);
+    HELPER(5, 1);
+    // 0
+    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    EDGE_VALUES[0] = 0;
+
+    size = 4;
+
+    // 4 filled
+    taken = (1 << 5) - 1;
+    for (uint64_t black = 0; black < 1 << 5; black++) {
+        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+    }
+    // Less filled
+    HELPER(4, 4);
+    HELPER(4, 3);
+    HELPER(4, 2);
+    HELPER(4, 1);
+    // 0
+    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    EDGE_VALUES[0] = 0;
+
+    size = 3;
+
+    // 3 filled
+    taken = (1 << 3) - 1;
+    for (uint64_t black = 0; black < 1 << 3; black++) {
+        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+    }
+    // Less filled
+    HELPER(3, 2);
+    HELPER(3, 1);
+    // 0
+    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    EDGE_VALUES[0] = 0;
+
+    size = 2;
+
+    // 2 filled
+    taken = (1 << 2) - 1;
+    for (uint64_t black = 0; black < 1 << 2; black++) {
+        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+    }
+    // Less filled
+    HELPER(2, 1);
+    // 0
+    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    EDGE_VALUES[0] = 0;
+
+    /*
     uint8_t black_stable_discs = 0;
     uint8_t white_stable_discs = 0;
     uint8_t black_pseudostable_discs = 0;
@@ -142,38 +270,16 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
         }
 
         // Pseudo stable discs
-        x = i;
-        int y = i;
-        y++;
-        while (y < 8 && f(y) != -1) y++;
-        if (y == 8) {
+        x = i - 1;
+        int changes = 0;
+        while (x >= 0 && f(x) != -1) {
+            if (f(x) != f(x + 1)) changes++;
             x--;
-            int changes = 0;
-            while (x >= 0 && f(x) != -1) {
-                if (f(x) != f(x + 1)) changes++;
-                x--;
-            }
-            // Now x + 1 is the number of empty squares
-            // If the number of changes is >= number of empty squares, we're good
-            if (changes > x) {
-                if (s == BLACK) {
-                    eval += stableWeight;
-                    black_pseudostable_discs |= JUST_EDGE_BIT(i);
-                }
-                else {
-                    eval -= stableWeight;
-                    white_pseudostable_discs |= JUST_EDGE_BIT(i);
-                }
-                continue;
-            }
         }
-
-        x = i;
-        y = i;
-        y--;
-        while (y >= 0 && f(y) != -1) y--;
-        if (y == -1) {
-            x++;
+        // Now x + 1 is the number of empty squares
+        // If the number of changes is >= number of empty squares, we're good
+        if (changes > x) {
+            int x = i + 1;
             int changes = 0;
             while (x < 8 && f(x) != -1) {
                 if (f(x) != f(x - 1)) changes++;
@@ -193,9 +299,10 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
                 continue;
             }
         }
+
         
     }
-
+    */
     /*
     // Wedges (these are complicated, maybe we shouldn't deal with
     // them so generally.
@@ -369,7 +476,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
         eval += 5 * stableWeight;
     }
     */
-    
+    /*
     // Unbalanced edge
     if (f(0) == -1 && f(1) == BLACK && f(2) == BLACK && f(3) == BLACK &&
         f(4) == BLACK && f(5) == BLACK && f(6) == -1 && f(7) == -1) {
@@ -408,8 +515,28 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
     }
     
     EDGE_VALUES[data] = eval;
-    EDGE_STABLE[data] = make_pair(black_stable_discs, white_stable_discs);
-    EDGE_PSEUDOSTABLE[data] = make_pair(black_pseudostable_discs, white_pseudostable_discs);
+    STABLE_DISCS[7][data] = make_pair(black_stable_discs, white_stable_discs);
+    PSEUDOSTABLE_DISCS[7][data] = make_pair(black_pseudostable_discs, white_pseudostable_discs);
+    if (f(0) == -1) {
+        STABLE_DISCS[6][data] = make_pair(black_stable_discs, white_stable_discs);
+        PSEUDOSTABLE_DISCS[6][data] = make_pair(black_pseudostable_discs, white_pseudostable_discs);
+        if (f(1) == -1) {
+            STABLE_DISCS[5][data] = make_pair(black_stable_discs, white_stable_discs);
+            PSEUDOSTABLE_DISCS[5][data] = make_pair(black_pseudostable_discs, white_pseudostable_discs);
+            if (f(2) == -1) {
+                STABLE_DISCS[4][data] = make_pair(black_stable_discs, white_stable_discs);
+                PSEUDOSTABLE_DISCS[4][data] = make_pair(black_pseudostable_discs, white_pseudostable_discs);
+                if (f(3) == -1) {
+                    STABLE_DISCS[3][data] = make_pair(black_stable_discs, white_stable_discs);
+                    PSEUDOSTABLE_DISCS[3][data] = make_pair(black_pseudostable_discs, white_pseudostable_discs);
+                    if (f(4) == -1) {
+                        STABLE_DISCS[2][data] = make_pair(black_stable_discs, white_stable_discs);
+                        PSEUDOSTABLE_DISCS[2][data] = make_pair(black_pseudostable_discs, white_pseudostable_discs);
+                    }
+                }
+            }
+        }
+    }
     
     for (int i = 0; i < 8; i++) {
         if (f(i) == -1) fil << '-';
@@ -417,7 +544,7 @@ void playerConstructorHelper(int i0 = 0, int i1 = 0, int i2 = 0, int i3 = 0, int
         else fil << 'O';
     }
     fil << ' ' << bitset<8>(black_pseudostable_discs) << ' ' << bitset<8>(white_pseudostable_discs) << ' ' << eval << endl;
-    
+    */
     // ./testgame freezes when you uncomment this for who knows what reason
     /*
     bitset<8> bs((unsigned char) (data >> 8));
@@ -1744,6 +1871,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
     pair<uint64_t, uint64_t> stable_discs = currBoard.stable_discs();
     cerr << "Stable discs: " << __builtin_popcountll(stable_discs.first) << ' ' << __builtin_popcountll(stable_discs.second) << endl;
+    cerr << bitset<64>(stable_discs.first) << endl << bitset<64>(stable_discs.second) << endl;
     //bitset<64> bsTaken(currBoard.taken), bsBlack(currBoard.black);
     //cerr << bsTaken << endl << bsBlack << endl;
     Move *move = new Move(x, y);

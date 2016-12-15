@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <thread>
 #include <iostream>
+#include <sstream>
 #include <iomanip>
 #include <chrono>
 #include <cassert>
@@ -60,7 +61,7 @@
 
 #define COL_MASK(x) (EDGE_LEFT >> (x))
 #define ROW_MASK(x) (EDGE_TOP >> (8 * (x)))
-#define COL(bits, x) (((((bits) & COL_MASK(x)) * MAGIC_COL(x)) >> 56) & 0xffull)
+#define COL(bits, x) ((((bits) & COL_MASK(x)) * MAGIC_COL(x)) >> 56)
 
 #define EDGE_BIT(x) ((uint16_t) 1 << (15 - (x)))
 #define JUST_EDGE_BIT(x) ((uint8_t) 1 << (7 - (x)))
@@ -88,8 +89,8 @@ using namespace std;
 extern "C" int other_side(int);
 
 extern int *EDGE_VALUES;
-extern pair<uint64_t, uint64_t> *EDGE_STABLE;
-extern pair<uint64_t, uint64_t> *EDGE_PSEUDOSTABLE;
+extern pair<uint64_t, uint64_t> **STABLE_DISCS;
+extern pair<uint64_t, uint64_t> **PSEUDOSTABLE_DISCS;
 extern uint64_t** BYTE_TO_COL;
 extern uint64_t SINGLE_BIT[64];
 extern size_t random_numbers[130];
@@ -143,6 +144,79 @@ public:
     size_t make_zobrist_hash(const Side &s = BLACK) const;
 
     void setBoard(char data[]);
+};
+#define BSP(x) (bitset<8>((unsigned int) (x)))
+template <unsigned int size> class RowBoard {
+public:
+    uint8_t taken;
+    uint8_t black;
+    RowBoard() : taken(0), black(0) {}
+    RowBoard(uint8_t taken, uint8_t black) : taken(taken), black(black) {}
+    RowBoard(uint16_t data) : taken(data >> 8), black(data) {}
+    RowBoard doMoveOnNewBoardBlack(uint8_t bit) const {
+        RowBoard rb(*this);
+        uint8_t original_black = black;
+        uint8_t leftBit = bit << 1;
+        while (leftBit & rb.taken & ~rb.black) {
+            rb.black |= leftBit;
+            leftBit <<= 1;
+        }
+        if (leftBit == 0) rb.black = original_black;
+        original_black = rb.black;
+        uint8_t rightBit = bit >> 1;
+        while (rightBit & rb.taken & ~rb.black) {
+            rb.black |= rightBit;
+            rightBit >>= 1;
+        }
+        if (rightBit == 0) rb.black = original_black;
+        rb.taken |= bit;
+        rb.black |= bit;
+        return rb;
+    }
+    RowBoard doMoveOnNewBoardWhite(uint8_t bit) const {
+        RowBoard rb(*this);
+        uint8_t original_black = black;
+        uint8_t leftBit = bit << 1;
+        while (leftBit & rb.black) {
+            rb.black &= ~leftBit;
+            leftBit <<= 1;
+        }
+        if (leftBit == 0) rb.black = original_black;
+        original_black = rb.black;
+        uint8_t rightBit = bit >> 1;
+        while (rightBit & rb.black) {
+            rb.black &= ~rightBit;
+            rightBit >>= 1;
+        }
+        if (rightBit == 0) rb.black = original_black;
+        rb.taken |= bit;
+        return rb;
+    }
+    pair<uint8_t, uint8_t> stable() const {return STABLE_DISCS[size - 1][((uint16_t) taken << 8 | black)];}
+    pair<uint8_t, uint8_t> pseudostable() const {return PSEUDOSTABLE_DISCS[size - 1][((uint16_t) taken << 8 | black)];}
+    pair<uint8_t, uint8_t> all_stable() const {
+        pair<uint8_t, uint8_t> s = stable();
+        pair<uint8_t, uint8_t> ps = pseudostable();
+        return make_pair(s.first | ps.first, s.second | ps.second);
+    }
+    void set_stable() const {
+        uint8_t black_stable = black;
+        uint8_t white_stable = taken & ~black;
+        uint8_t empty = ~taken;
+        int counter = 0;
+        while (empty && (black_stable || white_stable)) {
+            uint8_t bit = 1 << (31 - __builtin_clz(empty));
+            empty ^= bit;
+            RowBoard rb = doMoveOnNewBoardBlack(bit);
+            black_stable &= rb.all_stable().first;
+            white_stable &= rb.all_stable().second;
+            rb = doMoveOnNewBoardWhite(bit);
+            black_stable &= rb.all_stable().first;
+            white_stable &= rb.all_stable().second;
+            counter++;
+        }
+        PSEUDOSTABLE_DISCS[size - 1][((uint16_t) taken << 8) | black] = make_pair(black_stable, white_stable);
+    }
 };
 
 class BoardWithSide {
