@@ -2,28 +2,11 @@
 
 #define X_SQUARE_PENALTY 1
 
-// rotate bitboard 90° to the left
-uint64_t reflect(uint64_t b) {
-    uint64_t t; // temporary
-    // reflect b against diagonal line going through bits 1<<7 and 1<<56
-    t = (b ^ (b >> 63)) & 0x0000000000000001; b ^= t ^ (t << 63);
-    t = (b ^ (b >> 54)) & 0x0000000000000102; b ^= t ^ (t << 54);
-    t = (b ^ (b >> 45)) & 0x0000000000010204; b ^= t ^ (t << 45);
-    t = (b ^ (b >> 36)) & 0x0000000001020408; b ^= t ^ (t << 36);
-    t = (b ^ (b >> 27)) & 0x0000000102040810; b ^= t ^ (t << 27);
-    t = (b ^ (b >> 18)) & 0x0000010204081020; b ^= t ^ (t << 18);
-    t = (b ^ (b >>  9)) & 0x0001020408102040; b ^= t ^ (t <<  9);
-        
-    return b;
-}
-
-um_data make_hash_data(int eval, int best, int alpha, int beta) {
-    um_data data;
-    data.eval = eval;
-    data.best = best;
-    data.alpha = alpha;
-    data.beta = beta;
-    return data;
+// 6.7 ns average time
+uint64_t reflect(uint64_t x) {
+    x = ((x >> 36) & 0xF0F0F0Full) | ((x << 36) & 0xF0F0F0F000000000ull) | (0x0F0F0F0FF0F0F0F0ull & x);
+    x = ((x << 18) & 0xCCCC0000CCCC0000ull) | ((x >> 18) & 0x0000333300003333ull) | (x & 0x3333CCCC3333CCCCull);
+    return ((x << 9) & 0xAA00AA00AA00AA00ull) | ((x >> 9) & 0x0055005500550055ull) | (x & 0x55AA55AA55AA55AAull);
 }
 
 /*
@@ -64,193 +47,6 @@ size_t Board::make_zobrist_hash(const Side &s) const {
     else result ^= random_numbers[129];
     */
     return result;
-}
-
-uint64_t doMove(uint64_t taken, uint64_t black, Side side, int index) {
-    uint64_t white = ~black & taken;
-    //~ uint64_t empty = ~taken;
-    
-    const uint64_t bi = SINGLE_BIT[index];
-    uint64_t n = bi;
-    
-    if (side == BLACK) {
-        // LEFT
-        n |= white & LEFT_FILTER & (n << 1);
-        n |= white & LEFT_FILTER & (n << 1);
-        n |= white & LEFT_FILTER & (n << 1);
-        n |= white & LEFT_FILTER & (n << 1);
-        n |= white & LEFT_FILTER & (n << 1);
-        n |= white & LEFT_FILTER & (n << 1);
-        //~ n |= white & LEFT_FILTER & (n << 1);
-        if (black & LEFT_FILTER & (n << 1)) black |= n;
-        
-        // RIGHT
-        n = bi;
-        n |= white & RIGHT_FILTER & (n >> 1);
-        n |= white & RIGHT_FILTER & (n >> 1);
-        n |= white & RIGHT_FILTER & (n >> 1);
-        n |= white & RIGHT_FILTER & (n >> 1);
-        n |= white & RIGHT_FILTER & (n >> 1);
-        n |= white & RIGHT_FILTER & (n >> 1);
-        //~ n |= white & RIGHT_FILTER & (n >> 1);
-        if (black & RIGHT_FILTER & (n >> 1)) black |= n;
-        
-        // DOWN
-        n = bi;
-        n |= white & DOWN_FILTER & (n >> 8);
-        n |= white & DOWN_FILTER & (n >> 8);
-        n |= white & DOWN_FILTER & (n >> 8);
-        n |= white & DOWN_FILTER & (n >> 8);
-        n |= white & DOWN_FILTER & (n >> 8);
-        n |= white & DOWN_FILTER & (n >> 8);
-        //~ n |= white & DOWN_FILTER & (n >> 8);
-        if (black & DOWN_FILTER & (n >> 8)) black |= n;
-        
-        // UP
-        n = bi;
-        n |= white & UP_FILTER & (n << 8);
-        n |= white & UP_FILTER & (n << 8);
-        n |= white & UP_FILTER & (n << 8);
-        n |= white & UP_FILTER & (n << 8);
-        n |= white & UP_FILTER & (n << 8);
-        n |= white & UP_FILTER & (n << 8);
-        //~ n |= white & UP_FILTER & (n << 8);
-        if (black & UP_FILTER & (n << 8)) black |= n;
-        
-        // UP_LEFT
-        n = bi;
-        n |= white & UP_LEFT_FILTER & (n << 9);
-        n |= white & UP_LEFT_FILTER & (n << 9);
-        n |= white & UP_LEFT_FILTER & (n << 9);
-        n |= white & UP_LEFT_FILTER & (n << 9);
-        n |= white & UP_LEFT_FILTER & (n << 9);
-        n |= white & UP_LEFT_FILTER & (n << 9);
-        //~ n |= white & UP_LEFT_FILTER & (n << 9);
-        if (black & UP_LEFT_FILTER & (n << 9)) black |= n;
-        
-        // DOWN_RIGHT
-        n = bi;
-        n |= white & DOWN_RIGHT_FILTER & (n >> 9);
-        n |= white & DOWN_RIGHT_FILTER & (n >> 9);
-        n |= white & DOWN_RIGHT_FILTER & (n >> 9);
-        n |= white & DOWN_RIGHT_FILTER & (n >> 9);
-        n |= white & DOWN_RIGHT_FILTER & (n >> 9);
-        n |= white & DOWN_RIGHT_FILTER & (n >> 9);
-        //~ n |= white & DOWN_RIGHT_FILTER & (n >> 9);
-        if (black & DOWN_RIGHT_FILTER & (n >> 9)) black |= n;
-        
-        // UP_RIGHT
-        n = bi;
-        n |= white & UP_RIGHT_FILTER & (n << 7);
-        n |= white & UP_RIGHT_FILTER & (n << 7);
-        n |= white & UP_RIGHT_FILTER & (n << 7);
-        n |= white & UP_RIGHT_FILTER & (n << 7);
-        n |= white & UP_RIGHT_FILTER & (n << 7);
-        n |= white & UP_RIGHT_FILTER & (n << 7);
-        //~ n |= white & UP_RIGHT_FILTER & (n << 7);
-        if (black & UP_RIGHT_FILTER & (n << 7)) black |= n;
-        
-        // DOWN_LEFT
-        n = bi;
-        n |= white & DOWN_LEFT_FILTER & (n >> 7);
-        n |= white & DOWN_LEFT_FILTER & (n >> 7);
-        n |= white & DOWN_LEFT_FILTER & (n >> 7);
-        n |= white & DOWN_LEFT_FILTER & (n >> 7);
-        n |= white & DOWN_LEFT_FILTER & (n >> 7);
-        n |= white & DOWN_LEFT_FILTER & (n >> 7);
-        //~ n |= white & DOWN_LEFT_FILTER & (n >> 7);
-        if (black & DOWN_LEFT_FILTER & (n >> 7)) black |= n;
-        
-    }
-    else {
-        // LEFT
-        n |= black & LEFT_FILTER & (n << 1);
-        n |= black & LEFT_FILTER & (n << 1);
-        n |= black & LEFT_FILTER & (n << 1);
-        n |= black & LEFT_FILTER & (n << 1);
-        n |= black & LEFT_FILTER & (n << 1);
-        n |= black & LEFT_FILTER & (n << 1);
-        //~ n |= black & LEFT_FILTER & (n << 1);
-        if (white & LEFT_FILTER & (n << 1)) black &= ~n;
-        
-        // RIGHT
-        n = bi;
-        n |= black & RIGHT_FILTER & (n >> 1);
-        n |= black & RIGHT_FILTER & (n >> 1);
-        n |= black & RIGHT_FILTER & (n >> 1);
-        n |= black & RIGHT_FILTER & (n >> 1);
-        n |= black & RIGHT_FILTER & (n >> 1);
-        n |= black & RIGHT_FILTER & (n >> 1);
-        //~ n |= black & RIGHT_FILTER & (n >> 1);
-        if (white & RIGHT_FILTER & (n >> 1)) black &= ~n;
-        
-        // DOWN
-        n = bi;
-        n |= black & DOWN_FILTER & (n >> 8);
-        n |= black & DOWN_FILTER & (n >> 8);
-        n |= black & DOWN_FILTER & (n >> 8);
-        n |= black & DOWN_FILTER & (n >> 8);
-        n |= black & DOWN_FILTER & (n >> 8);
-        n |= black & DOWN_FILTER & (n >> 8);
-        //~ n |= black & DOWN_FILTER & (n >> 8);
-        if (white & DOWN_FILTER & (n >> 8)) black &= ~n;
-        
-        // UP
-        n = bi;
-        n |= black & UP_FILTER & (n << 8);
-        n |= black & UP_FILTER & (n << 8);
-        n |= black & UP_FILTER & (n << 8);
-        n |= black & UP_FILTER & (n << 8);
-        n |= black & UP_FILTER & (n << 8);
-        n |= black & UP_FILTER & (n << 8);
-        //~ n |= black & UP_FILTER & (n << 8);
-        if (white & UP_FILTER & (n << 8)) black &= ~n;
-        
-        // UP_LEFT
-        n = bi;
-        n |= black & UP_LEFT_FILTER & (n << 9);
-        n |= black & UP_LEFT_FILTER & (n << 9);
-        n |= black & UP_LEFT_FILTER & (n << 9);
-        n |= black & UP_LEFT_FILTER & (n << 9);
-        n |= black & UP_LEFT_FILTER & (n << 9);
-        n |= black & UP_LEFT_FILTER & (n << 9);
-        //~ n |= black & UP_LEFT_FILTER & (n << 9);
-        if (white & UP_LEFT_FILTER & (n << 9)) black &= ~n;
-        
-        // DOWN_RIGHT
-        n = bi;
-        n |= black & DOWN_RIGHT_FILTER & (n >> 9);
-        n |= black & DOWN_RIGHT_FILTER & (n >> 9);
-        n |= black & DOWN_RIGHT_FILTER & (n >> 9);
-        n |= black & DOWN_RIGHT_FILTER & (n >> 9);
-        n |= black & DOWN_RIGHT_FILTER & (n >> 9);
-        n |= black & DOWN_RIGHT_FILTER & (n >> 9);
-        //~ n |= black & DOWN_RIGHT_FILTER & (n >> 9);
-        if (white & DOWN_RIGHT_FILTER & (n >> 9)) black &= ~n;
-        
-        // UP_RIGHT
-        n = bi;
-        n |= black & UP_RIGHT_FILTER & (n << 7);
-        n |= black & UP_RIGHT_FILTER & (n << 7);
-        n |= black & UP_RIGHT_FILTER & (n << 7);
-        n |= black & UP_RIGHT_FILTER & (n << 7);
-        n |= black & UP_RIGHT_FILTER & (n << 7);
-        n |= black & UP_RIGHT_FILTER & (n << 7);
-        //~ n |= black & UP_RIGHT_FILTER & (n << 7);
-        if (white & UP_RIGHT_FILTER & (n << 7)) black &= ~n;
-        
-        // DOWN_LEFT
-        n = bi;
-        n |= black & DOWN_LEFT_FILTER & (n >> 7);
-        n |= black & DOWN_LEFT_FILTER & (n >> 7);
-        n |= black & DOWN_LEFT_FILTER & (n >> 7);
-        n |= black & DOWN_LEFT_FILTER & (n >> 7);
-        n |= black & DOWN_LEFT_FILTER & (n >> 7);
-        n |= black & DOWN_LEFT_FILTER & (n >> 7);
-        //~ n |= black & DOWN_LEFT_FILTER & (n >> 7);
-        if (white & DOWN_LEFT_FILTER & (n >> 7)) black &= ~n;
-    }
-    return black;
 }
 
 uint64_t Board::findLegalMoves2(Side side) const {
@@ -1580,50 +1376,6 @@ bool Board::checkMove(const int &index, Side side) const {
 }
 #endif
 
-/*
- * Modifies the board to reflect the specified move.
- */
-void Board::doMove(int X, int Y, Side side) {
-    // A NULL move means pass.
-    if (X == -1) return;
-
-    Side other = (side == BLACK) ? WHITE : BLACK;
-    for (int dx = -1; dx <= 1; dx++) {
-        for (int dy = -1; dy <= 1; dy++) {
-            if (dy == 0 && dx == 0) continue;
-            
-            int x = X;
-            int y = Y;
-            int xx = X + dx;
-            int yy = Y + dy;
-            
-            // For legal moves function
-            // A square adjacent to an unoccupied square should be 1 in black
-            if (ON_BOARD(xx, yy) && !OCCUPIED(xx, yy, taken)) {
-                black |= SINGLE_BIT[TO_INDEX(xx, yy)];
-            }
-            
-            do {
-                x += dx;
-                y += dy;
-            } while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black));
-
-            if (ON_BOARD(x, y) && OCCUPIED_SIDE(side, x, y, taken, black)) {
-                x = X;
-                y = Y;
-                x += dx;
-                y += dy;
-                while (ON_BOARD(x, y) && OCCUPIED_SIDE(other, x, y, taken, black)) {
-                    PLACE_DISC(side, x, y, taken, black);
-                    x += dx;
-                    y += dy;
-                }
-            }
-        }
-    }
-    PLACE_DISC(side, X, Y, taken, black);
-}
-
 Board Board::doMoveOnNewBoard2(int x, int y, Side side) const {
     // Makes move on new board using bit operations
     
@@ -2173,7 +1925,7 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     //~ auto start = chrono::high_resolution_clock::now();
     uint64_t white = ~black & taken;
     
-    const uint64_t bi = SINGLE_BIT[index];
+    const uint64_t bi = BIT(index);
     uint64_t n = bi;
     
     uint64_t newblack = black;
@@ -2188,7 +1940,8 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     n |= filtered & (n << 1);
     n |= filtered & (n << 1);
     //~ n |= white & LEFT_FILTER & (n << 1);
-    newblack = (black & LEFT_FILTER & (n << 1)) ? newblack | n : newblack;
+    newblack = ((black & LEFT_FILTER & (n << 1))) ? newblack | n : newblack;
+
     // RIGHT
     n = bi;
     filtered = white & RIGHT_FILTER;
@@ -2447,8 +2200,8 @@ Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
     n |= filtered & (n << 1);
     n |= filtered & (n << 1);
     n |= filtered & (n << 1);
-    //~ n |= white & LEFT_FILTER & (n << 1);
-    newblack = (black & LEFT_FILTER & (n << 1)) ? newblack | n : newblack;
+    if (black & LEFT_FILTER & (n << 1)) newblack |= n;
+
     // RIGHT
     n = bi;
     filtered = white & RIGHT_FILTER;
@@ -2458,8 +2211,7 @@ Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
     n |= filtered & (n >> 1);
     n |= filtered & (n >> 1);
     n |= filtered & (n >> 1);
-    //~ n |= white & RIGHT_FILTER & (n >> 1);
-    newblack = (black & RIGHT_FILTER & (n >> 1)) ? newblack | n : newblack;
+    if (black & RIGHT_FILTER & (n >> 1)) newblack |= n;
     
     // DOWN
     n = bi;
@@ -2470,8 +2222,7 @@ Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
     n |= filtered & (n >> 8);
     n |= filtered & (n >> 8);
     n |= filtered & (n >> 8);
-    //~ n |= white & DOWN_FILTER & (n >> 8);
-    newblack = (black & DOWN_FILTER & (n >> 8)) ? newblack | n : newblack;
+    if (black & DOWN_FILTER & (n >> 8)) newblack |= n;
     
     // UP
     n = bi;
@@ -2483,7 +2234,7 @@ Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
     n |= filtered & (n << 8);
     n |= filtered & (n << 8);
     //~ n |= white & UP_FILTER & (n << 8);
-    newblack = (black & UP_FILTER & (n << 8)) ? newblack | n : newblack;
+    if (black & UP_FILTER & (n << 8)) newblack |= n;
     
     // UP_LEFT
     n = bi;
@@ -2495,7 +2246,7 @@ Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
     n |= filtered & (n << 9);
     n |= filtered & (n << 9);
     //~ n |= white & UP_LEFT_FILTER & (n << 9);
-    newblack = (black & UP_LEFT_FILTER & (n << 9)) ? newblack | n : newblack;
+    if (black & UP_LEFT_FILTER & (n << 9)) newblack |= n;
     
     // DOWN_RIGHT
     n = bi;
@@ -2507,7 +2258,7 @@ Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
     n |= filtered & (n >> 9);
     n |= filtered & (n >> 9);
     //~ n |= white & DOWN_RIGHT_FILTER & (n >> 9);
-    newblack = (black & DOWN_RIGHT_FILTER & (n >> 9)) ? newblack | n : newblack;
+    if (black & DOWN_RIGHT_FILTER & (n >> 9)) newblack |= n;
     
     // UP_RIGHT
     n = bi;
@@ -2519,7 +2270,7 @@ Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
     n |= filtered & (n << 7);
     n |= filtered & (n << 7);
     //~ n |= white & UP_RIGHT_FILTER & (n << 7);
-    newblack = (black & UP_RIGHT_FILTER & (n << 7)) ? newblack | n : newblack;
+    if (black & UP_RIGHT_FILTER & (n << 7)) newblack |= n;
     
     // DOWN_LEFT
     n = bi;
@@ -2531,7 +2282,7 @@ Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
     n |= filtered & (n >> 7);
     n |= filtered & (n >> 7);
     //~ n |= white & DOWN_LEFT_FILTER & (n >> 7);
-    newblack = (black & DOWN_LEFT_FILTER & (n >> 7)) ? newblack | n : newblack;
+    if (black & DOWN_LEFT_FILTER & (n >> 7)) newblack |= n;
 
     //~ cerr << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
     return Board(taken | bi, newblack, 0);
@@ -2565,7 +2316,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
     n |= filtered & (n << 1);
     n |= filtered & (n << 1);
     //~ n |= black & LEFT_FILTER & (n << 1);
-    newwhite = (white & LEFT_FILTER & (n << 1)) ? newwhite | n : newwhite;
+    if (white & LEFT_FILTER & (n << 1)) newwhite |= n;
     
     // RIGHT
     n = bi;
@@ -2577,7 +2328,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
     n |= filtered & (n >> 1);
     n |= filtered & (n >> 1);
     //~ n |= black & RIGHT_FILTER & (n >> 1);
-    newwhite = (white & RIGHT_FILTER & (n >> 1)) ? newwhite | n : newwhite;
+    if (white & RIGHT_FILTER & (n >> 1)) newwhite |= n;
     
     // DOWN
     n = bi;
@@ -2589,7 +2340,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
     n |= filtered & (n >> 8);
     n |= filtered & (n >> 8);
     //~ n |= black & DOWN_FILTER & (n >> 8);
-    newwhite = (white & DOWN_FILTER & (n >> 8)) ? newwhite | n : newwhite;
+    if (white & DOWN_FILTER & (n >> 8)) newwhite |= n;
     
     // UP
     n = bi;
@@ -2601,7 +2352,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
     n |= filtered & (n << 8);
     n |= filtered & (n << 8);
     //~ n |= black & UP_FILTER & (n << 8);
-    newwhite = (white & UP_FILTER & (n << 8)) ? newwhite | n : newwhite;
+    if (white & UP_FILTER & (n << 8)) newwhite |= n;
     
     // UP_LEFT
     n = bi;
@@ -2613,7 +2364,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
     n |= filtered & (n << 9);
     n |= filtered & (n << 9);
     //~ n |= black & UP_LEFT_FILTER & (n << 9);
-    newwhite = (white & UP_LEFT_FILTER & (n << 9)) ? newwhite | n : newwhite;
+    if (white & UP_LEFT_FILTER & (n << 9)) newwhite |= n;
     
     // DOWN_RIGHT
     n = bi;
@@ -2625,7 +2376,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
     n |= filtered & (n >> 9);
     n |= filtered & (n >> 9);
     //~ n |= black & DOWN_RIGHT_FILTER & (n >> 9);
-    newwhite = (white & DOWN_RIGHT_FILTER & (n >> 9)) ? newwhite | n : newwhite;
+    if (white & DOWN_RIGHT_FILTER & (n >> 9)) newwhite |= n;
             
     // UP_RIGHT
     n = bi;
@@ -2637,7 +2388,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
     n |= filtered & (n << 7);
     n |= filtered & (n << 7);
     //~ n |= black & UP_RIGHT_FILTER & (n << 7);
-    newwhite = (white & UP_RIGHT_FILTER & (n << 7)) ? newwhite | n : newwhite;
+    if (white & UP_RIGHT_FILTER & (n << 7)) newwhite |= n;
     
     // DOWN_LEFT
     n = bi;
@@ -2649,7 +2400,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
     n |= filtered & (n >> 7);
     n |= filtered & (n >> 7);
     //~ n |= filtered & (n >> 7);
-    newwhite = (white & DOWN_LEFT_FILTER & (n >> 7)) ? newwhite | n : newwhite;
+    if (white & DOWN_LEFT_FILTER & (n >> 7)) newwhite |= n;
         
     //~ cerr << chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now() - start).count()<<endl;
     return Board(taken | bi, ~newwhite & taken, 0);
@@ -3233,11 +2984,16 @@ int Board::pos_evaluate() const {
         int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
         ee += discdiff / 5;
     }
-    
+    else if (totalCount > 45) {
+        uint64_t stable_not_edge = stable_discs() & ~EDGES;
+        ee += 3 * __builtin_popcountll(stable_not_edge & black);
+        ee -= 3 * __builtin_popcountll(stable_not_edge & taken & ~black);
+    }
+
     // Get top and bottom edge into uint16
     uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
     ee += EDGE_VALUES[u16];
-    u16 = ((taken << 56) >> 48) | ((black << 56) >> 56);
+    u16 = (taken << 8) | black;
     ee += EDGE_VALUES[u16];
 
     // Get left and right edges
@@ -3293,31 +3049,64 @@ bool operator==(const BoardWithSide& l, const BoardWithSide& r) {
     return (l.taken == r.taken) && (l.black == r.black) && (l.side == r.side);
 }
 
-pair<uint64_t, uint64_t> Board::stable_discs() const {
-    uint64_t black_stable = 0;
-    uint64_t white_stable = 0;
 
+// 64-68 ns
+uint64_t Board::stable_discs() const {
+    uint64_t reflected_taken = reflect(taken);
+    uint64_t reflected_black = reflect(black);
+    
     // Pattern recognition on edges
-    {
-        // Get top and bottom edge into uint16
-        uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
-        RowBoard<8> rb = RowBoard<8>(u16);
-        black_stable |= (uint64_t) rb.all_stable().first << 56;
-        white_stable |= (uint64_t) rb.all_stable().second << 56;
-        u16 = ((uint16_t) taken << 8) | ((uint8_t) black);
-        rb = RowBoard<8>(u16);
-        black_stable |= rb.all_stable().first;
-        white_stable |= rb.all_stable().second;
+    // Get top and bottom edge into uint16
+    uint64_t stable = (uint64_t) ALL_STABLE_DISCS[7][((taken >> 48) & 0xFF00) | (black >> 56)] << 56;
+    stable |= ALL_STABLE_DISCS[7][((taken << 8) & 0xFF00) | (black & 0xFF)];
+    
+    // Get left and right edges
+    uint64_t reflected_stable = ALL_STABLE_DISCS[7][((reflected_taken << 8) & 0xFF00) | (reflected_black & 0xFF)];
+    reflected_stable |= (uint64_t) ALL_STABLE_DISCS[7][((reflected_taken >> 48) & 0xFF00) | (reflected_black >> 56)] << 56;
 
-        // Get left and right edges
-        pair<uint64_t, uint64_t> stable_data = RowBoard<8>((COL(taken, 0) << 8) | COL(black, 0)).all_stable();
-        black_stable |= BYTE_TO_COL[0][stable_data.first];
-        white_stable |= BYTE_TO_COL[0][stable_data.second];
-        
-        stable_data = RowBoard<8>((COL(taken, 7) << 8) | COL(black, 7)).all_stable();
-        black_stable |= BYTE_TO_COL[7][stable_data.first];
-        white_stable |= BYTE_TO_COL[7][stable_data.second];
-    }
+    // Other row/column stability 
+    #define ROW_COL_CHECK_HELPER(i) ((uint64_t) STABLE_DISCS[7][((taken >> (40 - 8 * i)) & 0xFF00) | (0xFF & (black >> (48 - 8 * i)))] << (48 - 8 * i));
+    #define ROW_CHECK(i) stable |= ROW_COL_CHECK_HELPER(i)
+    #define COL_CHECK(i) reflected_stable |= ROW_COL_CHECK_HELPER(i)
+    ROW_CHECK(0);
+    ROW_CHECK(1);
+    ROW_CHECK(2);
+    ROW_CHECK(3);
+    ROW_CHECK(4);
+    ROW_CHECK(5);
+    COL_CHECK(0);
+    COL_CHECK(1);
+    COL_CHECK(2);
+    COL_CHECK(3);
+    COL_CHECK(4);
+    COL_CHECK(5);
+    stable &= reflect(reflected_stable);
 
-    return make_pair(black_stable, white_stable);
+    // Diagonals
+    #define LOOP_INNER(i) stable &= ~pattern_mask[i] | BYTE_TO_PATTERN[i][STABLE_DISCS[pattern_size[i] - 1][((uint16_t) PATTERN_TO_BYTE(i, taken & pattern_mask[i]) << 8) | PATTERN_TO_BYTE(i, black & pattern_mask[i])]]; 
+    #define LOOP_INNER_SE(i) stable &= ~pattern_mask[i] | BYTE_TO_PATTERN[i][STABLE_DISCS[pattern_size[i] - 1][((uint16_t) PATTERN_TO_BYTE_SE(i, taken & pattern_mask[i]) << 8) | PATTERN_TO_BYTE_SE(i, black & pattern_mask[i])]]; 
+    #define LOOP_INNER_NW(i) stable &= ~pattern_mask[i] | BYTE_TO_PATTERN[i][STABLE_DISCS[pattern_size[i] - 1][((uint16_t) PATTERN_TO_BYTE_NW(i, taken & pattern_mask[i]) << 8) | PATTERN_TO_BYTE_NW(i, black & pattern_mask[i])]];
+    LOOP_INNER_NW(12);
+    LOOP_INNER(13);
+    LOOP_INNER(14);
+    LOOP_INNER_SE(15);
+    LOOP_INNER_NW(16);
+    LOOP_INNER(17);
+    LOOP_INNER(18);
+    LOOP_INNER_SE(19);
+    LOOP_INNER_NW(20);
+    LOOP_INNER(21);
+    LOOP_INNER(22);
+    LOOP_INNER_SE(23);
+    LOOP_INNER_NW(24);
+    LOOP_INNER(25);
+    LOOP_INNER(26);
+    LOOP_INNER_SE(27);
+    LOOP_INNER_NW(28);
+    LOOP_INNER(29);
+    LOOP_INNER(30);
+    LOOP_INNER_SE(31);
+    LOOP_INNER_NW(32);
+    LOOP_INNER(33);
+    return stable;
 }

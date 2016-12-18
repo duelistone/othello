@@ -28,7 +28,7 @@ Side abortSide;
 
 void playerConstructorHelper() {
     // To speed things up
-    #define HELPER8(s, n) {for (taken = (1 << (n)) - 1; taken < 1 << (s); taken = snoob(taken)) {uint64_t black = 0; do {RowBoard<(s)> rb(taken, black); rb.set_stable(); EDGE_VALUES[(taken << 8) | black] = STABLE_WEIGHT * (__builtin_popcount(rb.all_stable().first) - __builtin_popcount(rb.all_stable().second)) + CORNER_WEIGHT * (__builtin_popcount(black & CORNERS) - __builtin_popcount(taken & ~black & CORNERS)); black = (black - taken) & taken;} while (black);}}
+    #define HELPER8(s, n) {for (taken = (1 << (n)) - 1; taken < 1 << (s); taken = snoob(taken)) {uint64_t black = 0; do {RowBoard<(s)> rb(taken, black); rb.set_stable(); EDGE_VALUES[(taken << 8) | black] = STABLE_WEIGHT * (__builtin_popcount(rb.all_stable() & black) - __builtin_popcount(rb.all_stable() & ~black)) + CORNER_WEIGHT * (__builtin_popcount(black & CORNERS) - __builtin_popcount(taken & ~black & CORNERS)); black = (black - taken) & taken;} while (black);}}
     #define HELPER(s, n) {for (taken = (1 << (n)) - 1; taken < 1 << (s); taken = snoob(taken)) {uint64_t black = 0; do {RowBoard<(s)> rb(taken, black); rb.set_stable(); black = (black - taken) & taken;} while (black);}}
     
     int size = 8;
@@ -46,8 +46,9 @@ void playerConstructorHelper() {
     // 8 filled
     uint64_t taken = (1 << 8) - 1;
     for (uint64_t black = 0; black < 1 << 8; black++) {
-        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
-        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+        STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = 0;
+        ALL_STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
         EDGE_VALUES[(taken << 8) | black] = STABLE_WEIGHT * (2 * __builtin_popcountll(black) - 8) + CORNER_WEIGHT * (2 * __builtin_popcountll(black & CORNERS) - 2);
     }
     HELPER8(8, 7);
@@ -58,8 +59,8 @@ void playerConstructorHelper() {
     HELPER8(8, 2);
     HELPER8(8, 1);
     // 0 filled
-    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
-    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    STABLE_DISCS[size - 1][0] = 0;
+    PSEUDOSTABLE_DISCS[size - 1][0] = 0;
     EDGE_VALUES[0] = 0;
 
     size = 7;
@@ -67,8 +68,9 @@ void playerConstructorHelper() {
     // 7 filled
     taken = (1 << 7) - 1;
     for (uint64_t black = 0; black < 1 << 7; black++) {
-        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
-        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+        STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = 0;
+        ALL_STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
     }
     HELPER(7, 6);
     HELPER(7, 5);
@@ -77,8 +79,8 @@ void playerConstructorHelper() {
     HELPER(7, 2);
     HELPER(7, 1);
     // 0 filled
-    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
-    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    STABLE_DISCS[size - 1][0] = 0;
+    PSEUDOSTABLE_DISCS[size - 1][0] = 0;
     EDGE_VALUES[0] = 0;
 
     size = 6;
@@ -86,8 +88,9 @@ void playerConstructorHelper() {
     // 6 filled
     taken = (1 << 6) - 1;
     for (uint64_t black = 0; black < 1 << 6; black++) {
-        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
-        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+        STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = 0;
+        ALL_STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
     }
     // Less filled
     HELPER(6, 5);
@@ -96,8 +99,9 @@ void playerConstructorHelper() {
     HELPER(6, 2);
     HELPER(6, 1);
     // 0
-    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
-    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    STABLE_DISCS[size - 1][0] = 0;
+    PSEUDOSTABLE_DISCS[size - 1][0] = 0;
+    ALL_STABLE_DISCS[size - 1][0] = 0;
     EDGE_VALUES[0] = 0;
 
     size = 5;
@@ -105,8 +109,9 @@ void playerConstructorHelper() {
     // 5 filled
     taken = (1 << 5) - 1;
     for (uint64_t black = 0; black < 1 << 5; black++) {
-        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
-        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+        STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = 0;
+        ALL_STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
     }
     // Less filled
     HELPER(5, 4);
@@ -114,26 +119,28 @@ void playerConstructorHelper() {
     HELPER(5, 2);
     HELPER(5, 1);
     // 0
-    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
-    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    STABLE_DISCS[size - 1][0] = 0;
+    PSEUDOSTABLE_DISCS[size - 1][0] = 0;
+    ALL_STABLE_DISCS[size - 1][0] = 0;
     EDGE_VALUES[0] = 0;
 
     size = 4;
 
     // 4 filled
-    taken = (1 << 5) - 1;
-    for (uint64_t black = 0; black < 1 << 5; black++) {
-        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
-        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+    taken = (1 << 4) - 1;
+    for (uint64_t black = 0; black < 1 << 4; black++) {
+        STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = 0;
+        ALL_STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
     }
     // Less filled
-    HELPER(4, 4);
     HELPER(4, 3);
     HELPER(4, 2);
     HELPER(4, 1);
     // 0
-    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
-    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    STABLE_DISCS[size - 1][0] = 0;
+    PSEUDOSTABLE_DISCS[size - 1][0] = 0;
+    ALL_STABLE_DISCS[size - 1][0] = 0;
     EDGE_VALUES[0] = 0;
 
     size = 3;
@@ -141,15 +148,17 @@ void playerConstructorHelper() {
     // 3 filled
     taken = (1 << 3) - 1;
     for (uint64_t black = 0; black < 1 << 3; black++) {
-        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
-        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+        STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = 0;
+        ALL_STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
     }
     // Less filled
     HELPER(3, 2);
     HELPER(3, 1);
     // 0
-    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
-    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    STABLE_DISCS[size - 1][0] = 0;
+    PSEUDOSTABLE_DISCS[size - 1][0] = 0;
+    ALL_STABLE_DISCS[size - 1][0] = 0;
     EDGE_VALUES[0] = 0;
 
     size = 2;
@@ -157,14 +166,16 @@ void playerConstructorHelper() {
     // 2 filled
     taken = (1 << 2) - 1;
     for (uint64_t black = 0; black < 1 << 2; black++) {
-        STABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(black, taken & ~black);
-        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = make_pair(0, 0);
+        STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
+        PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = 0;
+        ALL_STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
     }
     // Less filled
     HELPER(2, 1);
     // 0
-    STABLE_DISCS[size - 1][0] = make_pair(0, 0);
-    PSEUDOSTABLE_DISCS[size - 1][0] = make_pair(0, 0);
+    STABLE_DISCS[size - 1][0] = 0;
+    PSEUDOSTABLE_DISCS[size - 1][0] = 0;
+    ALL_STABLE_DISCS[size - 1][0] = 0;
     EDGE_VALUES[0] = 0;
 
     /*
@@ -556,6 +567,7 @@ void playerConstructorHelper() {
 
 /* Sets arrays that map byte to column or other important bit pattern */
 void playerConstructorHelper2() {
+    cerr << "Starting second helper." << endl;
     for (int i = 0; i < 8; i++) {
         BYTE_TO_COL[i][0] = 0;
     }
@@ -568,6 +580,29 @@ void playerConstructorHelper2() {
             BYTE_TO_COL[i][j] = curr;
         }
     }
+
+    // BYTE_TO_PATTERN
+    for (int i = 0; i < NUM_PATTERNS; i++) {
+        BYTE_TO_PATTERN[i][0] = 0;
+    }
+    for (int i = 0; i < NUM_PATTERNS; i++) {
+        uint64_t bit_pattern = pattern_mask[i];
+        uint64_t curr = 0;
+        if (pattern_size[i] == 8) {
+            for (uint8_t j = 1; j != 0; j++) {
+                curr = (curr - bit_pattern) & bit_pattern;
+                BYTE_TO_PATTERN[i][j] = curr;
+            }
+        }
+        else {
+            for (uint8_t j = 1; j < (1 << pattern_size[i]); j++) {
+                curr = (curr - bit_pattern) & bit_pattern;
+                BYTE_TO_PATTERN[i][j] = curr;
+            }
+        }
+    }
+    
+    cerr << "Ending second helper." << endl;
 }
 
 /*
@@ -593,8 +628,7 @@ inline int eval(const Board &b2) {
 }
 
 int abCalls = 0;
-int timeWasted = 0;
-int alphabeta(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, bool prevPass = false) {
+int alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int beta, const int &depth2, bool prevPass) {
     abCalls++;
     
     //~ assert(alpha < beta);
@@ -1238,7 +1272,8 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
 
 pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, int guess = -1) {
     Timer tim;
-    
+    int totalCount = __builtin_popcountll(b.taken);
+
     #if KILLER_HEURISTIC
     // Reset killerMoves
     for (int i = 0; i < MAX_DEPTH; i++) {
@@ -1258,7 +1293,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
     // Middle plies
     for (int d = 3; d < depth; d++) {
         if (d % 2) {
-            int diff = abs(eOdd) / 8 + 2;
+            int diff = abs(eOdd) / 8 + 2 + (totalCount > 25 ? 2 : 0);
             int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
             int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
             int counter = 1;
@@ -1282,7 +1317,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
             tim.endms();
         }
         else {
-            int diff = abs(eEven) / 8 + 2;
+            int diff = abs(eEven) / 8 + 2 + (totalCount > 25 ? 2 : 0);
             int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
             int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
             int counter = 1;
@@ -1309,7 +1344,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
     // Last one
     if (depth % 2) {
         int counter = 1;
-        int diff = abs(eOdd) / 8 + 2;
+        int diff = abs(eOdd) / 8 + 2 + (totalCount > 25 ? 2 : 0);
         int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
         int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
         try_again3:
@@ -1336,7 +1371,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
     }
     else {
         int counter = 1;
-        int diff = abs(eEven) / 8 + 2;
+        int diff = abs(eEven) / 8 + 2 + (totalCount > 25 ? 2 : 0);
         int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
         int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
         try_again4:
@@ -1364,7 +1399,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
     // Okay, maybe one more
     if ((depth  + 1) % 2) {
         int counter = 1;
-        int diff = abs(eOdd) / 8 + 2;
+        int diff = abs(eOdd) / 8 + 2 + (totalCount > 25 ? 2 : 0);
         int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
         int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
         try_again5:
@@ -1391,7 +1426,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
     }
     else {
         int counter = 1;
-        int diff = abs(eEven) / 8 + 2;
+        int diff = abs(eEven) / 8 + 2 + (totalCount > 25 ? 2 : 0);
         int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
         int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
         try_again6:
@@ -1516,82 +1551,244 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
     return result;*/
 }
 
-int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX) {
-    int totalCount = __builtin_popcountll(b.taken);
-    
-    if (totalCount == 64) {
-        //auto start = chrono::high_resolution_clock::now();
-        globalEndgameNodeCount++;
-        if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
-        double maxNodes = minutesForMove * DEFAULT_MAX_NODES;
-        if (globalEndgameNodeCount > maxNodes) abortEndgameMinimax = true;
-        // Simple evaluation here
-        int diff = __builtin_popcountll(b.black);
-        if (diff > 32) return INT_MAX;
-        else if (diff < 32) return INT_MIN;
-        else return 0;
-    }
-    
-    uint64_t legalMoves = b.findLegalMoves(s);
-    
-    if (legalMoves == 0) {
-        uint64_t legalMovesOther = b.findLegalMoves(other_side(s));
-        if (legalMovesOther == 0) {
-            globalEndgameNodeCount++;
-            if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
-            double maxNodes = minutesForMove * DEFAULT_MAX_NODES;
-            if (globalEndgameNodeCount > maxNodes) abortEndgameMinimax = true;
-            // Simple evaluation here
-            int diff = b.countBlack() - b.countWhite();
-            if (diff > 0) return INT_MAX;
-            else if (diff < 0) return INT_MIN;
-            else return 0;
-        }
-        return deep_endgame_alphabeta(b, other_side(s), alpha, beta);
-    }
-    
-    /*
-    if (totalCount == 63) {
-        int blackCount = __builtin_popcountll(b.black);
-        int diff = 2 * blackCount - 63;
-        if (s == BLACK) {
-            // Black has a legal move, so will gain at 3 disc differential
-            if (diff + 3 > 0) return INT_MAX;
-            if (diff + 37 < 0) return INT_MIN;
-        }
-        else {
-            // White has a legal move, so will gain at most 
-            // 2 * 18 + 1 = 37 differential
-            // Equivalently, we can check that blackCount > 50
-            if (diff - 37 > 0) return INT_MAX;
-            if (diff - 3 < 0) return INT_MIN;
-        }
-    }
-    */
+size_t hits63 = 0;
+size_t hits62 = 0;
+size_t hits61 = 0;
+size_t hits60 = 0;
 
-    if (s) {
-        while (alpha < beta && legalMoves) {
-            int index = __builtin_clzl(legalMoves);
-            legalMoves ^= BIT(index);
-            int v = deep_endgame_alphabeta(b.doMoveOnNewBoardBlackWZH(index), WHITE, alpha, beta);
-            alpha = (v > alpha) ? v : alpha;
+inline int deep_endgame_alphabeta_black(const Board &, int alpha = -1, int beta = 1, bool prevPass = false);
+inline int deep_endgame_alphabeta_black_59(const Board &, int alpha = -1, int beta = 1, bool prevPass = false);
+inline int deep_endgame_alphabeta_black_60(const Board &, int alpha = -1, int beta = 1, bool prevPass = false);
+inline int deep_endgame_alphabeta_black_61(const Board &, int alpha = -1, int beta = 1, bool prevPass = false);
+inline int deep_endgame_alphabeta_black_62(const Board &, int alpha = -1, int beta = 1, bool prevPass = false);
+inline int deep_endgame_alphabeta_black_63(const Board &, bool prevPass = false);
+inline int deep_endgame_alphabeta_white(const Board &, int alpha = -1, int beta = 1, bool prevPass = false);
+inline int deep_endgame_alphabeta_white_59(const Board &, int alpha = -1, int beta = 1, bool prevPass = false);
+inline int deep_endgame_alphabeta_white_60(const Board &, int alpha = -1, int beta = 1, bool prevPass = false);
+inline int deep_endgame_alphabeta_white_61(const Board &, int alpha = -1, int beta = 1, bool prevPass = false);
+inline int deep_endgame_alphabeta_white_62(const Board &, int alpha = -1, int beta = 1, bool prevPass = false);
+inline int deep_endgame_alphabeta_white_63(const Board &, bool prevPass = false);
+
+inline int deep_endgame_alphabeta_black_63(const Board &b, bool prevPass) {
+    uint64_t newblack = b.doMoveOnNewBoardBlackWZH(__builtin_clzll(~b.taken)).black;
+    hits63++;
+
+    if (b.black == newblack) {
+        if (prevPass) {
+            return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         }
+        return deep_endgame_alphabeta_white_63(b, true);
     }
-    else {
-        while (alpha < beta && legalMoves) {
-            int index = __builtin_clzl(legalMoves);
-            legalMoves ^= BIT(index);
-            int v = deep_endgame_alphabeta(b.doMoveOnNewBoardWhiteWZH(index), BLACK, alpha, beta);
-            beta = (v < beta) ? v : beta;
-        }
-    }
-    
-    return s ? alpha : beta;
+    return __builtin_popcountll(newblack) - 32;
 }
 
-int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int beta = INT_MAX) {
-    if (abortEndgameMinimax) return (abortSide == BLACK) ? INT_MIN : INT_MAX;
+inline int deep_endgame_alphabeta_white_63(const Board &b, bool prevPass) {
+    uint64_t newblack = b.doMoveOnNewBoardWhiteWZH(__builtin_clzll(~b.taken)).black;
+    hits63++; 
+
+    if (b.black == newblack) {
+        if (prevPass) {
+            return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        }
+        return deep_endgame_alphabeta_black_63(b, true);
+    }
+    return __builtin_popcountll(newblack) - 32;
+}
+
+inline int deep_endgame_alphabeta_black_62(const Board &b, int alpha, int beta, bool prevPass) {
+    uint64_t legalMoves = b.findLegalMovesBlack();
+    hits62++;
+    if (legalMoves == 0) {
+        if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        return deep_endgame_alphabeta_white(b, alpha, beta, true);
+    }
     
+    while (alpha < beta && legalMoves) {
+        int index = __builtin_clzll(legalMoves);
+        legalMoves ^= BIT(index);
+        int v = deep_endgame_alphabeta_white_63(b.doMoveOnNewBoardBlackWZH(index));
+        alpha= (v > alpha) ? v : alpha;
+    }
+
+    return alpha;
+}
+
+inline int deep_endgame_alphabeta_white_62(const Board &b, int alpha, int beta, bool prevPass) {
+    uint64_t legalMoves = b.findLegalMovesWhite();
+    hits62++;
+    if (legalMoves == 0) {
+        if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        return deep_endgame_alphabeta_black(b, alpha, beta, true);
+    }
+    
+    while (alpha < beta && legalMoves) {
+        int index = __builtin_clzll(legalMoves);
+        legalMoves ^= BIT(index);
+        int v = deep_endgame_alphabeta_black_63(b.doMoveOnNewBoardWhiteWZH(index));
+        beta = (v < beta) ? v : beta;
+    }
+
+    return beta;
+}
+
+inline int deep_endgame_alphabeta_black_61(const Board &b, int alpha, int beta, bool prevPass) {
+    uint64_t legalMoves = b.findLegalMovesBlack();
+    hits61++;
+    if (legalMoves == 0) {
+        if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        return deep_endgame_alphabeta_white(b, alpha, beta, true);
+    }
+    
+    while (alpha < beta && legalMoves) {
+        int index = __builtin_clzll(legalMoves);
+        legalMoves ^= BIT(index);
+        int v = deep_endgame_alphabeta_white_62(b.doMoveOnNewBoardBlackWZH(index), alpha, beta);
+        alpha= (v > alpha) ? v : alpha;
+    }
+
+    return alpha;
+}
+
+inline int deep_endgame_alphabeta_white_61(const Board &b, int alpha, int beta, bool prevPass) {
+    uint64_t legalMoves = b.findLegalMovesWhite();
+    hits61++;
+    if (legalMoves == 0) {
+        if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        return deep_endgame_alphabeta_black(b, alpha, beta, true);
+    }
+    
+    while (alpha < beta && legalMoves) {
+        int index = __builtin_clzll(legalMoves);
+        legalMoves ^= BIT(index);
+        int v = deep_endgame_alphabeta_black_62(b.doMoveOnNewBoardWhiteWZH(index), alpha, beta);
+        beta = (v < beta) ? v : beta;
+    }
+
+    return beta;
+}
+
+inline int deep_endgame_alphabeta_black_60(const Board &b, int alpha, int beta, bool prevPass) {
+    uint64_t legalMoves = b.findLegalMovesBlack();
+    hits60++;
+    if (legalMoves == 0) {
+        if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        return deep_endgame_alphabeta_white(b, alpha, beta, true);
+    }
+    
+    while (alpha < beta && legalMoves) {
+        int index = __builtin_clzll(legalMoves);
+        legalMoves ^= BIT(index);
+        int v = deep_endgame_alphabeta_white_61(b.doMoveOnNewBoardBlackWZH(index), alpha, beta);
+        alpha= (v > alpha) ? v : alpha;
+    }
+
+    return alpha;
+}
+
+inline int deep_endgame_alphabeta_white_60(const Board &b, int alpha, int beta, bool prevPass) {
+    uint64_t legalMoves = b.findLegalMovesWhite();
+    hits60++;
+    if (legalMoves == 0) {
+        if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        return deep_endgame_alphabeta_black(b, alpha, beta, true);
+    }
+    
+    while (alpha < beta && legalMoves) {
+        int index = __builtin_clzll(legalMoves);
+        legalMoves ^= BIT(index);
+        int v = deep_endgame_alphabeta_black_61(b.doMoveOnNewBoardWhiteWZH(index), alpha, beta);
+        beta = (v < beta) ? v : beta;
+    }
+
+    return beta;
+}
+
+inline int deep_endgame_alphabeta_black_59(const Board &b, int alpha, int beta, bool prevPass) {
+    uint64_t legalMoves = b.findLegalMovesBlack();
+    hits60++;
+    if (legalMoves == 0) {
+        if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        return deep_endgame_alphabeta_white(b, alpha, beta, true);
+    }
+    
+    while (alpha < beta && legalMoves) {
+        int index = __builtin_clzll(legalMoves);
+        legalMoves ^= BIT(index);
+        int v = deep_endgame_alphabeta_white_60(b.doMoveOnNewBoardBlackWZH(index), alpha, beta);
+        alpha= (v > alpha) ? v : alpha;
+    }
+
+    return alpha;
+}
+
+inline int deep_endgame_alphabeta_white_59(const Board &b, int alpha, int beta, bool prevPass) {
+    uint64_t legalMoves = b.findLegalMovesWhite();
+    hits60++;
+    if (legalMoves == 0) {
+        if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        return deep_endgame_alphabeta_black(b, alpha, beta, true);
+    }
+    
+    while (alpha < beta && legalMoves) {
+        int index = __builtin_clzll(legalMoves);
+        legalMoves ^= BIT(index);
+        int v = deep_endgame_alphabeta_black_60(b.doMoveOnNewBoardWhiteWZH(index), alpha, beta);
+        beta = (v < beta) ? v : beta;
+    }
+
+    return beta;
+}
+inline int deep_endgame_alphabeta_black(const Board &b, int alpha, int beta, bool prevPass) {
+    uint64_t legalMoves = b.findLegalMovesBlack();
+    
+    if (legalMoves == 0) {
+        if (prevPass) {
+            return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        }
+        return deep_endgame_alphabeta_white(b, alpha, beta, true);
+    }
+
+    while (alpha < beta && legalMoves) {
+        int index = __builtin_clzll(legalMoves);
+        legalMoves ^= BIT(index);
+        int v;
+        if (__builtin_popcountll(b.taken) == 58) v = deep_endgame_alphabeta_white_59(b.doMoveOnNewBoardBlackWZH(index), alpha, beta, false);
+        else v = deep_endgame_alphabeta_white(b.doMoveOnNewBoardBlackWZH(index), alpha, beta, false);
+        alpha = (v > alpha) ? v : alpha;
+    }
+
+    return alpha;
+}
+
+
+inline int deep_endgame_alphabeta_white(const Board &b, int alpha, int beta, bool prevPass) {
+    uint64_t legalMoves = b.findLegalMovesWhite();
+    
+    if (legalMoves == 0) {
+        if (prevPass) {
+            return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
+        }
+        return deep_endgame_alphabeta_black(b, alpha, beta, true);
+    }
+
+    while (alpha < beta && legalMoves) {
+        int index = __builtin_clzll(legalMoves);
+        legalMoves ^= BIT(index);
+        int v;
+        if (__builtin_popcountll(b.taken) == 58) v = deep_endgame_alphabeta_black_59(b.doMoveOnNewBoardWhiteWZH(index), alpha, beta, false);
+        else v = deep_endgame_alphabeta_black(b.doMoveOnNewBoardWhiteWZH(index), alpha, beta, false);
+        beta = (v < beta) ? v : beta;
+    }
+
+    return beta;
+}
+
+int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha = -1, int beta = 1) {
+    if (s) return deep_endgame_alphabeta_black(b, (alpha == 0) ? 0 : -1, (beta == 0) ? 0 : 1);
+    return deep_endgame_alphabeta_white(b, (alpha == 0) ? 0 : -1, (beta == 0) ? 0 : 1);
+}
+
+int endgame_alphabeta(const Board &b, const Side &s, int alpha = -1, int beta = 1) {
     BoardWithSide bws(b.taken, b.black, s);
     if (um2->count(bws) > 0) {
         return (*um2)[bws];
@@ -1599,23 +1796,44 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = INT_MIN, int be
     
     int totalCount = __builtin_popcountll(b.taken);
     
-    if (totalCount >= 42 + HASH_DEPTH) return deep_endgame_alphabeta(b, s, alpha, beta);
+    if (s) {
+        switch (totalCount) {
+            case 63:
+                return deep_endgame_alphabeta_black_63(b);
+            case 62:
+                return deep_endgame_alphabeta_black_62(b, alpha, beta);
+            case 61:
+                return deep_endgame_alphabeta_black_61(b, alpha, beta);
+            case 60:
+                return deep_endgame_alphabeta_black_60(b, alpha, beta);
+            case 59:
+                return deep_endgame_alphabeta_black_59(b, alpha, beta);
+        }
+    }
+    else {
+        switch (totalCount) {
+            case 63:
+                return deep_endgame_alphabeta_white_63(b);
+            case 62:
+                return deep_endgame_alphabeta_white_62(b, alpha, beta);
+            case 61:
+                return deep_endgame_alphabeta_white_61(b, alpha, beta);
+            case 60:
+                return deep_endgame_alphabeta_white_60(b, alpha, beta);
+            case 59:
+                return deep_endgame_alphabeta_white_59(b, alpha, beta);
+        }
+    }
     
-    double maxNodes = minutesForMove * DEFAULT_MAX_NODES;
+    if (totalCount >= 42 + HASH_DEPTH) return deep_endgame_alphabeta(b, s, alpha, beta);
     
     uint64_t legalMoves = b.findLegalMoves(s);
     
     if (legalMoves == 0) {
         uint64_t legalMovesOther = b.findLegalMoves(other_side(s));
         if (legalMovesOther == 0) {
-            globalEndgameNodeCount++;
-            if (globalEndgameNodeCount % (DEFAULT_MAX_NODES / 10) == 0) cerr << globalEndgameNodeCount << endl;
-            if (globalEndgameNodeCount > maxNodes) abortEndgameMinimax = true;
             // Simple evaluation here
-            int diff = b.countBlack() - b.countWhite();
-            if (diff > 0) return INT_MAX;
-            else if (diff < 0) return INT_MIN;
-            else return 0;
+            return b.countBlack() - b.countWhite();
         }
         int ret = endgame_alphabeta(b, other_side(s), alpha, beta);
         if (totalCount < STOP_SAVING_THRESHOLD) {
@@ -1674,20 +1892,20 @@ pair<int, int> endgame_minimax(Board &b, Side s, int guess = -1) {
     int besti = -1;
     int v;
     if (s == BLACK) {
-        v = INT_MIN;
+        v = -1;
         if (guess > -1) {
             legalMoves ^= SINGLE_BIT[guess];
             Board b2 = b.doMoveOnNewBoard(guess, s);
-            int val = endgame_alphabeta(b2, other_side(s), v, INT_MAX);
+            int val = endgame_alphabeta(b2, other_side(s), v, 1);
             besti = guess;
             v = val;
         }
-        while (legalMoves && v != INT_MAX) {
+        while (legalMoves && v <= 0) {
             int index = __builtin_clzl(legalMoves);
             legalMoves ^= BIT(index);
             
             Board b2 = b.doMoveOnNewBoard(index, s);
-            int val = endgame_alphabeta(b2, other_side(s), v, INT_MAX);
+            int val = endgame_alphabeta(b2, other_side(s), v, 1);
             if (val > v) {
                 besti = index;
                 v = val;
@@ -1695,20 +1913,20 @@ pair<int, int> endgame_minimax(Board &b, Side s, int guess = -1) {
         }
     }
     else {
-        v = INT_MAX;
+        v = 1;
         if (guess > -1) {
             legalMoves ^= SINGLE_BIT[guess];
             Board b2 = b.doMoveOnNewBoard(guess, s);
-            int val = endgame_alphabeta(b2, other_side(s), INT_MIN, v);
+            int val = endgame_alphabeta(b2, other_side(s), -1, v);
             besti = guess;
             v = val;
         }
-        while (legalMoves && v != INT_MIN) {
+        while (legalMoves && v >= 0) {
             int index = __builtin_clzl(legalMoves);
             legalMoves ^= BIT(index);
             
             Board b2 = b.doMoveOnNewBoard(index, s);
-            int val = endgame_alphabeta(b2, other_side(s), INT_MIN, v);
+            int val = endgame_alphabeta(b2, other_side(s), -1, v);
             if (val < v) {
                 besti = index;
                 v = val;
@@ -1812,7 +2030,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
             besti = p.first;
             eval = p.second;
             // If could not calculate a win or draw, fall back to other algorithm
-            if (p.second == ((side == BLACK) ? INT_MIN : INT_MAX)) {
+            if ((side && p.second < 0) || (!side && p.second > 0)) {
                 besti = p2.first;
                 eval = p2.second;
                 um2->clear(); // For now, some values may be incorrect if search not done, later we may want to prune the hash table, if it's worth it
@@ -1856,8 +2074,8 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     
     // Output some useful info and return (remove for more speed)
     cerr << totalCount + 1 << " eval: " << eval << ' ' << pvsCalls << ' ' << tthits << ' ' << um->size() << endl; //' ' << positions << endl;
+    if (gameSolved) cerr << "(Endgame eval)" << endl;
     if (depth == INT_MAX) cerr << ' ' << globalEndgameNodeCount << endl;
-    //~ cerr << "Time wasted " << timeWasted << endl;
     // if (um->size() > MAX_HASH_SIZE) um->clear(); // Don't want to lose due to too much memory!
     
     // Make move
@@ -1869,9 +2087,11 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     int y = FROM_INDEX_Y(besti);
     cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << endl;
     currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
-    pair<uint64_t, uint64_t> stable_discs = currBoard.stable_discs();
-    cerr << "Stable discs: " << __builtin_popcountll(stable_discs.first) << ' ' << __builtin_popcountll(stable_discs.second) << endl;
-    cerr << bitset<64>(stable_discs.first) << endl << bitset<64>(stable_discs.second) << endl;
+    uint64_t stable = currBoard.stable_discs();
+    cerr << "<61-hits " << hits61 << " 62-hits " << hits62 << " 63-hits " << hits63 << endl;
+    //cerr << "Stability returns" << stability_returns << '/' << stability_tries << endl;
+    cerr << "Stable discs: " << __builtin_popcountll(stable & currBoard.black) << ' ' << __builtin_popcountll(stable & ~currBoard.black) << endl;
+    cerr << bitset<64>(stable & currBoard.black) << endl << bitset<64>(stable & ~currBoard.black) << endl;
     //bitset<64> bsTaken(currBoard.taken), bsBlack(currBoard.black);
     //cerr << bsTaken << endl << bsBlack << endl;
     Move *move = new Move(x, y);

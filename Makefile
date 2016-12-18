@@ -17,16 +17,16 @@ testminimax: $(OBJS) testminimax.o
 #%.o: %.cpp
 #	$(CC) -c $(CFLAGS) -x c++ $< -o $@ -pthread
 
-player.o: player.cpp board.cpp common.h player.h board.h
+player.o: player.cpp common.h player.h board.h defs.h
 	$(CC) -c $(CFLAGS) player.cpp -pthread
 
-board.o: board.cpp common.h player.h board.h
+board.o: board.cpp common.h player.h board.h defs.h
 	$(CC) -c $(CFLAGS) board.cpp -pthread
 
-wrapper.o: wrapper.cpp player.h
+wrapper.o: wrapper.cpp common.h player.h board.h defs.h
 	$(CC) -c $(CFLAGS) wrapper.cpp -pthread
 
-testgame.o: testgame.cpp
+testgame.o: testgame.cpp defs.h
 	$(CC) -c $(CFLAGS) testgame.cpp -pthread
 
 timer.o: timer.cpp timer.h
@@ -34,7 +34,10 @@ timer.o: timer.cpp timer.h
 
 math.o: math.s
 	as -o math.o math.s
-	
+
+board:
+	$(CC) -c $(CFLAGS) -S board.cpp
+
 java:
 	make -C java/
 

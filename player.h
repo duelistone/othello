@@ -69,9 +69,7 @@ extern BoardHash tt;
 //~ extern unordered_map<int, double> coefficients;
 
 extern int *EDGE_VALUES;
-extern pair<uint64_t, uint64_t> **STABLE_DISCS;
-extern pair<uint64_t, uint64_t> **PSEUDOSTABLE_DISCS;
-extern uint64_t** BYTE_TO_COL;
+extern uint64_t ** BYTE_TO_COL;
 extern int ordered_moves[64][64];
 
 // To avoid um getting too big
@@ -83,6 +81,7 @@ extern int ordered_moves[64][64];
 #define DEFAULT_MAX_NODES (200000000)
 
 using namespace std;
+
 
 class Player {
 private:
@@ -99,5 +98,8 @@ public:
     // Flag to tell if the player is running within the test_minimax context
     bool testingMinimax;
 };
+
+
+int alphabeta(const Board &b, const int &depth, const Side &s, int alpha = INT_MIN, int beta = INT_MAX, const int &depth2 = 0, bool prevPass = false);
 
 #endif
