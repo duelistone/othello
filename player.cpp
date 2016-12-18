@@ -681,8 +681,8 @@ int alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int be
         #endif
     }        
 
-    BoardWithSide bws(b.taken, b.black, s);
-    size_t hash_index = (depth <= HASH_DEPTH) ? bws.hash_value() & (tt.mod - 1) : 0; // Hopefully compiler won't always do computation here
+    BoardWithSide bws(b.taken, b.black, b.zobrist_hash, s);
+    size_t hash_index = b.zobrist_hash;
     uint64_t legalMoves = b.findLegalMoves(s);
     
     // Special case
@@ -702,7 +702,7 @@ int alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int be
         // Best move
         uint8_t index = 64;
         if (depth2 <= HASH_DEPTH) {
-            index = tt.table[hash_index];
+            index = tt[hash_index];
             if (index < 64 && (BIT(index) & legalMoves)) {
                 // The move is valid
                 legalMoves ^= BIT(index);
@@ -719,7 +719,7 @@ int alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int be
             v = (val > v) ? val : v;
             alpha = (v > alpha) ? v : alpha;
         }
-        if (depth2 <= HASH_DEPTH) tt.table[hash_index] = besti;
+        if (depth2 <= HASH_DEPTH) tt[hash_index] = besti;
         return alpha;
     }
     else {
@@ -727,7 +727,7 @@ int alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int be
         // Best move
         uint8_t index = 64;
         if (depth2 <= HASH_DEPTH) {
-            index = tt.table[hash_index];
+            index = tt[hash_index];
             if (index < 64 && (BIT(index) & legalMoves)) {
                 // The move is valid
                 legalMoves ^= BIT(index);
@@ -744,7 +744,7 @@ int alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int be
             v = (val < v) ? val : v;
             beta = (v < beta) ? v : beta;
         }
-        if (depth2 <= HASH_DEPTH) tt.table[hash_index] = besti;
+        if (depth2 <= HASH_DEPTH) tt[hash_index] = besti;
         return beta;
     }
 }
@@ -812,7 +812,7 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
         #endif
     }
     
-    BoardWithSide bws(b.taken, b.black, BLACK);
+    BoardWithSide bws(b.taken, b.black, b.zobrist_hash, BLACK);
     uint64_t legalMoves = b.findLegalMovesBlack();
         
     // Special case
@@ -838,8 +838,8 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
         uint8_t index = 64;
         uint8_t besti = 64;
         if (depth2 <= HASH_DEPTH) {
-            size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-            index = tt.table[hash_index];
+            size_t hash_index = b.zobrist_hash;
+            index = tt[hash_index];
             if (BIT_SAFE(index) & legalMoves) {
                 // The move is valid
                 tthits++;
@@ -889,7 +889,7 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
                 v = temp ? val : v;
                 alpha = (v > alpha) ? v : alpha;
             }
-            tt.table[hash_index] = besti;
+            tt[hash_index] = besti;
         }
         else {
             while (alpha < beta && legalMoves) {    
@@ -917,8 +917,8 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
     // Best move
     uint8_t index = 64;
     if (depth2 <= HASH_DEPTH) {
-        size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-        index = tt.table[hash_index];
+        size_t hash_index = b.zobrist_hash;
+        index = tt[hash_index];
         if (BIT_SAFE(index) & legalMoves) {
             use_hash:
             // The move is valid
@@ -949,7 +949,7 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
         else {
             #if IID
             pvsBlack(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
-            index = tt.table[b.zobrist_hash & (tt.mod - 1)];
+            index = tt[b.zobrist_hash];
             goto use_hash;
             #endif
             // Fall back to normal search
@@ -992,7 +992,7 @@ int pvsBlack(const Board &b, const int &depth, int alpha, const int &beta, const
                 alpha = (v > alpha) ? v : alpha;
             }
         }
-        tt.table[hash_index] = besti;
+        tt[hash_index] = besti;
     }
     else {
         while (alpha < beta && legalMoves) {    
@@ -1065,7 +1065,7 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
         #endif
     }
     
-    BoardWithSide bws(b.taken, b.black, WHITE);
+    BoardWithSide bws(b.taken, b.black, b.zobrist_hash, WHITE);
     uint64_t legalMoves = b.findLegalMovesWhite();
         
     // Special case
@@ -1088,12 +1088,12 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
     // Maybe this case is rare enough to not need to consider it.
     if (depth == 1) {
         int v = INT_MAX;
-        size_t hash_index = b.zobrist_hash & (tt.mod - 1);
+        size_t hash_index = b.zobrist_hash;
         // Best move
         uint8_t index = 64;
         uint8_t besti = 64;
         if (depth2 <= HASH_DEPTH) {
-            index = tt.table[hash_index];
+            index = tt[hash_index];
             if (BIT_SAFE(index) & legalMoves) {
                 // The move is valid
                 tthits++;
@@ -1143,7 +1143,7 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
                 v = temp ? val : v;
                 beta = (v < beta) ? v : beta;
             }
-            tt.table[hash_index] = besti;
+            tt[hash_index] = besti;
         }
         else {
             while (alpha < beta && legalMoves) {    
@@ -1171,8 +1171,8 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
     // Best move
     if (depth2 <= HASH_DEPTH) {
         int v = INT_MAX;
-        size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-        index = tt.table[hash_index];
+        size_t hash_index = b.zobrist_hash;
+        index = tt[hash_index];
         if (BIT_SAFE(index) & legalMoves) {
             use_hash:
             // The move is valid
@@ -1202,7 +1202,7 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
             // Fall back to normal search
             #if IID
             pvsWhite(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
-            index = tt.table[b.zobrist_hash & (tt.mod - 1)];
+            index = tt[b.zobrist_hash];
             goto use_hash;
             #endif
             #if KILLER_HEURISTIC
@@ -1244,7 +1244,7 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
                 beta = (val < beta) ? val : beta;
             }
         }
-        tt.table[hash_index] = besti;
+        tt[hash_index] = besti;
     }
     else {
         #if IID
@@ -1350,7 +1350,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
         try_again3:
         eOdd = pvs(b, depth, s, lower, upper, false);
         // This is bound to run into issues one day
-        pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], eOdd);
+        pair<int, int> result = make_pair(tt[b.zobrist_hash], eOdd);
         if (result.second <= lower && lower != INT_MIN) {
             tim.endms("Recalculating (failed low) ");
             lower -= (diff - 1) * counter;
@@ -1377,7 +1377,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
         try_again4:
         eEven = pvs(b, depth, s, lower, upper, false);
         // This is bound to run into issues one day
-        pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], eEven);
+        pair<int, int> result = make_pair(tt[b.zobrist_hash], eEven);
         if (result.second <= lower && lower != INT_MIN) {
             tim.endms("Recalculating (failed low) ");
             lower -= (diff - 1) * counter;
@@ -1405,7 +1405,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
         try_again5:
         eOdd = pvs(b, depth + 1, s, lower, upper, false, -1); // The -1 is to fool pvs into hashing
         // This is bound to run into issues one day
-        pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], eOdd);
+        pair<int, int> result = make_pair(tt[b.zobrist_hash], eOdd);
         if (result.second <= lower && lower != INT_MIN) {
             tim.endms("Recalculating (failed low) ");
             lower -= (diff - 1) * counter;
@@ -1432,7 +1432,7 @@ pair<int, int> main_minimax_aw(const Board &b, const Side &s, const int &depth, 
         try_again6:
         eEven = pvs(b, depth + 1, s, lower, upper, false, -1); // The -1 is to fool pvs into hashing
         // This is bound to run into issues one day
-        pair<int, int> result = make_pair(tt.table[b.zobrist_hash & (tt.mod - 1)], eEven);
+        pair<int, int> result = make_pair(tt[b.zobrist_hash & (tt.mod - 1)], eEven);
         if (result.second <= lower && lower != INT_MIN) {
             tim.endms("Recalculating (failed low) ");
             lower -= (diff - 1) * counter;
@@ -1787,7 +1787,7 @@ int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha = -1, int be
 }
 
 int endgame_alphabeta(const Board &b, const Side &s, int alpha = -1, int beta = 1) {
-    BoardWithSide bws(b.taken, b.black, s);
+    BoardWithSide bws(b.taken, b.black, b.zobrist_hash, s);
     if (um2->count(bws) > 0) {
         return (*um2)[bws];
     }
@@ -1842,8 +1842,8 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = -1, int beta = 
     
     if (s) {
         #if USE_HASH_IN_ENDGAME_ALPHABETA
-        size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-        int index = tt.table[hash_index];
+        size_t hash_index = b.zobrist_hash;
+        int index = tt[hash_index];
         if (BIT_SAFE(index) & legalMoves) {
             // The move is valid
             legalMoves ^= BIT(index);
@@ -1861,7 +1861,7 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = -1, int beta = 
     else {
         #if USE_HASH_IN_ENDGAME_ALPHABETA
         size_t hash_index = b.zobrist_hash & (tt.mod - 1);
-        int index = tt.table[hash_index];
+        int index = tt[hash_index];
         if (BIT_SAFE(index) & legalMoves) {
             legalMoves ^= BIT(index);
             int v = endgame_alphabeta(b.doMoveOnNewBoardWhite(index), BLACK, alpha, beta);

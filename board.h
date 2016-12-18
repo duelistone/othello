@@ -279,12 +279,13 @@ class BoardWithSide {
 public:
 	uint64_t taken;
 	uint64_t black;
+    uint64_t hash_value;
 	Side side;
 	
-	BoardWithSide(uint64_t t, uint64_t b, Side s) : taken(t), black(b), side(s) {}
+	BoardWithSide(uint64_t t, uint64_t b, size_t zh, Side s) : taken(t), black(b), hash_value(zh), side(s) {}
 	BoardWithSide(const BoardWithSide& bws) : taken(bws.taken), black(bws.black), side(bws.side) {}
 	
-	inline size_t hash_value() const {
+	/*inline size_t hash_value() const {
 		uint64_t blackCopy = black;
 		uint64_t whiteCopy = taken & ~black;
 		size_t result = side ? random_numbers[128] : random_numbers[129];
@@ -300,7 +301,7 @@ public:
 			result ^= random_numbers[index + 64];
 		}
 		return result;
-		
+	*/	
 		// Independent of side?!
 		//~ return 0;
 		/*
@@ -317,7 +318,7 @@ public:
 		boost::hash_combine(seed, black);
 		return seed;
 		*/
-	}
+	//}
 	int count() const {return __builtin_popcountll(taken);}
 };
 

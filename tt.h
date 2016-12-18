@@ -15,12 +15,18 @@ struct BoardHash {
 		table = new uint8_t[mod];
 		fill_n(table, mod, 64); // Set to invalid value to mark unused
 	}
+    inline uint8_t operator[] (const size_t &zh) const {
+        return table[zh & (mod - 1)];
+    }
+    inline uint8_t & operator[] (const size_t &zh) {
+        return table[zh & (mod - 1)];
+    }/*
 	inline uint8_t operator[] (const BoardWithSide &bws) const {
-		return table[bws.hash_value() & (mod - 1)];
+		return table[bws.hash_value & (mod - 1)];
 	}
 	inline uint8_t & operator[] (const BoardWithSide &bws) {
-		return table[bws.hash_value() & (mod - 1)];
-	}
+		return table[bws.hash_value & (mod - 1)];
+	}*/
 	~BoardHash() { delete table; }
 	
 };
