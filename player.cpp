@@ -1571,7 +1571,6 @@ inline int deep_endgame_alphabeta_white_63(const Board &, bool prevPass = false)
 
 inline int deep_endgame_alphabeta_black_63(const Board &b, bool prevPass) {
     uint64_t newblack = b.doMoveOnNewBoardBlackWZH(__builtin_clzll(~b.taken)).black;
-    hits63++;
 
     if (b.black == newblack) {
         if (prevPass) {
@@ -1584,7 +1583,6 @@ inline int deep_endgame_alphabeta_black_63(const Board &b, bool prevPass) {
 
 inline int deep_endgame_alphabeta_white_63(const Board &b, bool prevPass) {
     uint64_t newblack = b.doMoveOnNewBoardWhiteWZH(__builtin_clzll(~b.taken)).black;
-    hits63++; 
 
     if (b.black == newblack) {
         if (prevPass) {
@@ -1597,7 +1595,7 @@ inline int deep_endgame_alphabeta_white_63(const Board &b, bool prevPass) {
 
 inline int deep_endgame_alphabeta_black_62(const Board &b, int alpha, int beta, bool prevPass) {
     uint64_t legalMoves = b.findLegalMovesBlack();
-    hits62++;
+
     if (legalMoves == 0) {
         if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         return deep_endgame_alphabeta_white(b, alpha, beta, true);
@@ -1615,7 +1613,7 @@ inline int deep_endgame_alphabeta_black_62(const Board &b, int alpha, int beta, 
 
 inline int deep_endgame_alphabeta_white_62(const Board &b, int alpha, int beta, bool prevPass) {
     uint64_t legalMoves = b.findLegalMovesWhite();
-    hits62++;
+
     if (legalMoves == 0) {
         if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         return deep_endgame_alphabeta_black(b, alpha, beta, true);
@@ -1633,7 +1631,7 @@ inline int deep_endgame_alphabeta_white_62(const Board &b, int alpha, int beta, 
 
 inline int deep_endgame_alphabeta_black_61(const Board &b, int alpha, int beta, bool prevPass) {
     uint64_t legalMoves = b.findLegalMovesBlack();
-    hits61++;
+    
     if (legalMoves == 0) {
         if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         return deep_endgame_alphabeta_white(b, alpha, beta, true);
@@ -1651,7 +1649,7 @@ inline int deep_endgame_alphabeta_black_61(const Board &b, int alpha, int beta, 
 
 inline int deep_endgame_alphabeta_white_61(const Board &b, int alpha, int beta, bool prevPass) {
     uint64_t legalMoves = b.findLegalMovesWhite();
-    hits61++;
+
     if (legalMoves == 0) {
         if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         return deep_endgame_alphabeta_black(b, alpha, beta, true);
@@ -1669,7 +1667,7 @@ inline int deep_endgame_alphabeta_white_61(const Board &b, int alpha, int beta, 
 
 inline int deep_endgame_alphabeta_black_60(const Board &b, int alpha, int beta, bool prevPass) {
     uint64_t legalMoves = b.findLegalMovesBlack();
-    hits60++;
+
     if (legalMoves == 0) {
         if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         return deep_endgame_alphabeta_white(b, alpha, beta, true);
@@ -1687,7 +1685,7 @@ inline int deep_endgame_alphabeta_black_60(const Board &b, int alpha, int beta, 
 
 inline int deep_endgame_alphabeta_white_60(const Board &b, int alpha, int beta, bool prevPass) {
     uint64_t legalMoves = b.findLegalMovesWhite();
-    hits60++;
+
     if (legalMoves == 0) {
         if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         return deep_endgame_alphabeta_black(b, alpha, beta, true);
@@ -1705,7 +1703,7 @@ inline int deep_endgame_alphabeta_white_60(const Board &b, int alpha, int beta, 
 
 inline int deep_endgame_alphabeta_black_59(const Board &b, int alpha, int beta, bool prevPass) {
     uint64_t legalMoves = b.findLegalMovesBlack();
-    hits60++;
+
     if (legalMoves == 0) {
         if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         return deep_endgame_alphabeta_white(b, alpha, beta, true);
@@ -1723,7 +1721,7 @@ inline int deep_endgame_alphabeta_black_59(const Board &b, int alpha, int beta, 
 
 inline int deep_endgame_alphabeta_white_59(const Board &b, int alpha, int beta, bool prevPass) {
     uint64_t legalMoves = b.findLegalMovesWhite();
-    hits60++;
+
     if (legalMoves == 0) {
         if (prevPass) return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         return deep_endgame_alphabeta_black(b, alpha, beta, true);
@@ -2088,7 +2086,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << endl;
     currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
     uint64_t stable = currBoard.stable_discs();
-    cerr << "<61-hits " << hits61 << " 62-hits " << hits62 << " 63-hits " << hits63 << endl;
+    //cerr << "<61-hits " << hits61 << " 62-hits " << hits62 << " 63-hits " << hits63 << endl;
     //cerr << "Stability returns" << stability_returns << '/' << stability_tries << endl;
     cerr << "Stable discs: " << __builtin_popcountll(stable & currBoard.black) << ' ' << __builtin_popcountll(stable & ~currBoard.black) << endl;
     cerr << bitset<64>(stable & currBoard.black) << endl << bitset<64>(stable & ~currBoard.black) << endl;
