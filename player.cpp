@@ -1247,9 +1247,6 @@ int pvsWhite(const Board &b, const int &depth, const int &alpha, int beta, const
         tt[hash_index] = besti;
     }
     else {
-        #if IID
-        pvsWhite(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
-        #endif
         while (alpha < beta && legalMoves) {    
             uint8_t index = __builtin_clzl(legalMoves);
             legalMoves ^= BIT(index);
