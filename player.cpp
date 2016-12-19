@@ -630,7 +630,7 @@ inline int eval(const Board &b2) {
 int abCalls = 0;
 int alphabeta(const Board &b, const int &depth, const Side &s, int alpha, int beta, const int &depth2, bool prevPass) {
     abCalls++;
-    
+
     //~ assert(alpha < beta);
     
     //~ cerr << "ab called with " << depth << ' ' << alpha << ' ' << beta << endl;

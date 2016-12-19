@@ -1940,7 +1940,7 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     n |= filtered & (n << 1);
     n |= filtered & (n << 1);
     //~ n |= white & LEFT_FILTER & (n << 1);
-    newblack = ((black & LEFT_FILTER & (n << 1))) ? newblack | n : newblack;
+    if (black & LEFT_FILTER & (n << 1)) newblack |= n;
 
     // RIGHT
     n = bi;
@@ -1952,7 +1952,7 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     n |= filtered & (n >> 1);
     n |= filtered & (n >> 1);
     //~ n |= white & RIGHT_FILTER & (n >> 1);
-    newblack = (black & RIGHT_FILTER & (n >> 1)) ? newblack | n : newblack;
+    if (black & RIGHT_FILTER & (n >> 1)) newblack |= n;
     
     // DOWN
     n = bi;
@@ -1964,7 +1964,7 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     n |= filtered & (n >> 8);
     n |= filtered & (n >> 8);
     //~ n |= white & DOWN_FILTER & (n >> 8);
-    newblack = (black & DOWN_FILTER & (n >> 8)) ? newblack | n : newblack;
+    if (black & DOWN_FILTER & (n >> 8)) newblack |= n;
     
     // UP
     n = bi;
@@ -1976,7 +1976,7 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     n |= filtered & (n << 8);
     n |= filtered & (n << 8);
     //~ n |= white & UP_FILTER & (n << 8);
-    newblack = (black & UP_FILTER & (n << 8)) ? newblack | n : newblack;
+    if (black & UP_FILTER & (n << 8)) newblack |= n;
     
     // UP_LEFT
     n = bi;
@@ -1988,7 +1988,7 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     n |= filtered & (n << 9);
     n |= filtered & (n << 9);
     //~ n |= white & UP_LEFT_FILTER & (n << 9);
-    newblack = (black & UP_LEFT_FILTER & (n << 9)) ? newblack | n : newblack;
+    if (black & UP_LEFT_FILTER & (n << 9)) newblack |= n;
     
     // DOWN_RIGHT
     n = bi;
@@ -2000,7 +2000,7 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     n |= filtered & (n >> 9);
     n |= filtered & (n >> 9);
     //~ n |= white & DOWN_RIGHT_FILTER & (n >> 9);
-    newblack = (black & DOWN_RIGHT_FILTER & (n >> 9)) ? newblack | n : newblack;
+    if (black & DOWN_RIGHT_FILTER & (n >> 9)) newblack |= n;
     
     // UP_RIGHT
     n = bi;
@@ -2012,7 +2012,7 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     n |= filtered & (n << 7);
     n |= filtered & (n << 7);
     //~ n |= white & UP_RIGHT_FILTER & (n << 7);
-    newblack = (black & UP_RIGHT_FILTER & (n << 7)) ? newblack | n : newblack;
+    if (black & UP_RIGHT_FILTER & (n << 7)) newblack |= n;
     
     // DOWN_LEFT
     n = bi;
@@ -2024,7 +2024,7 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     n |= filtered & (n >> 7);
     n |= filtered & (n >> 7);
     //~ n |= white & DOWN_LEFT_FILTER & (n >> 7);
-    newblack = (black & DOWN_LEFT_FILTER & (n >> 7)) ? newblack | n : newblack;
+    if (black & DOWN_LEFT_FILTER & (n >> 7)) newblack |= n;
 
     // Zobrist hash stuff
     size_t zobrist_hash_copy = zobrist_hash;
@@ -2069,7 +2069,7 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
     n |= filtered & (n << 1);
     n |= filtered & (n << 1);
     //~ n |= black & LEFT_FILTER & (n << 1);
-    newwhite = (white & LEFT_FILTER & (n << 1)) ? newwhite | n : newwhite;
+    if (white & LEFT_FILTER & (n << 1)) newwhite |= n;
     
     // RIGHT
     n = bi;
@@ -2081,7 +2081,7 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
     n |= filtered & (n >> 1);
     n |= filtered & (n >> 1);
     //~ n |= black & RIGHT_FILTER & (n >> 1);
-    newwhite = (white & RIGHT_FILTER & (n >> 1)) ? newwhite | n : newwhite;
+    if (white & RIGHT_FILTER & (n >> 1)) newwhite |= n;
     
     // DOWN
     n = bi;
@@ -2093,7 +2093,7 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
     n |= filtered & (n >> 8);
     n |= filtered & (n >> 8);
     //~ n |= black & DOWN_FILTER & (n >> 8);
-    newwhite = (white & DOWN_FILTER & (n >> 8)) ? newwhite | n : newwhite;
+    if (white & DOWN_FILTER & (n >> 8)) newwhite |= n;
     
     // UP
     n = bi;
@@ -2105,7 +2105,7 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
     n |= filtered & (n << 8);
     n |= filtered & (n << 8);
     //~ n |= black & UP_FILTER & (n << 8);
-    newwhite = (white & UP_FILTER & (n << 8)) ? newwhite | n : newwhite;
+    if (white & UP_FILTER & (n << 8)) newwhite |= n;
     
     // UP_LEFT
     n = bi;
@@ -2117,7 +2117,7 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
     n |= filtered & (n << 9);
     n |= filtered & (n << 9);
     //~ n |= black & UP_LEFT_FILTER & (n << 9);
-    newwhite = (white & UP_LEFT_FILTER & (n << 9)) ? newwhite | n : newwhite;
+    if (white & UP_LEFT_FILTER & (n << 9)) newwhite |= n;
     
     // DOWN_RIGHT
     n = bi;
@@ -2129,7 +2129,7 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
     n |= filtered & (n >> 9);
     n |= filtered & (n >> 9);
     //~ n |= black & DOWN_RIGHT_FILTER & (n >> 9);
-    newwhite = (white & DOWN_RIGHT_FILTER & (n >> 9)) ? newwhite | n : newwhite;
+    if (white & DOWN_RIGHT_FILTER & (n >> 9)) newwhite |= n;
             
     // UP_RIGHT
     n = bi;
@@ -2141,7 +2141,7 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
     n |= filtered & (n << 7);
     n |= filtered & (n << 7);
     //~ n |= black & UP_RIGHT_FILTER & (n << 7);
-    newwhite = (white & UP_RIGHT_FILTER & (n << 7)) ? newwhite | n : newwhite;
+    if (white & UP_RIGHT_FILTER & (n << 7)) newwhite |= n;
     
     // DOWN_LEFT
     n = bi;
@@ -2153,7 +2153,7 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
     n |= filtered & (n >> 7);
     n |= filtered & (n >> 7);
     //~ n |= filtered & (n >> 7);
-    newwhite = (white & DOWN_LEFT_FILTER & (n >> 7)) ? newwhite | n : newwhite;
+    if (white & DOWN_LEFT_FILTER & (n >> 7)) newwhite |= n;
     
     // Zobrist hash stuff
     //~ Timer tim;
