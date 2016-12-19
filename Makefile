@@ -11,9 +11,6 @@ $(PLAYERNAME): $(OBJS) timer.o math.o wrapper.o
 testgame: testgame.o 
 	$(CC) -o $@ $^ -pthread
 
-testminimax: $(OBJS) testminimax.o
-	$(CC) -o $@ $^ -pthread
-
 #%.o: %.cpp
 #	$(CC) -c $(CFLAGS) -x c++ $< -o $@ -pthread
 
@@ -45,6 +42,6 @@ cleanjava:
 	make -C java/ clean
 
 clean:
-	rm -f *.o $(PLAYERNAME) testgame testminimax
+	rm -f *.o $(PLAYERNAME) testgame 
 	
-.PHONY: java testminimax
+.PHONY: java

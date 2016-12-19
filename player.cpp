@@ -611,9 +611,6 @@ void playerConstructorHelper2() {
  * within 30 seconds.
  */
 Player::Player(Side s) : side(s), currBoard(Board()) {
-    // Will be set to true in test_minimax.cpp.
-    testingMinimax = false;
-    
     playerConstructorHelper();
     playerConstructorHelper2();
 }
