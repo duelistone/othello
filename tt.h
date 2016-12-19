@@ -7,6 +7,11 @@
 
 using namespace std;
 
+typedef struct {
+    int e;
+    BoardWithSide b;
+} EvalAndBoard;
+
 struct BoardHash {
 	size_t mod; // Should be a power of 2!
 	uint8_t *table;
@@ -20,14 +25,26 @@ struct BoardHash {
     }
     inline uint8_t & operator[] (const size_t &zh) {
         return table[zh & (mod - 1)];
-    }/*
-	inline uint8_t operator[] (const BoardWithSide &bws) const {
-		return table[bws.hash_value & (mod - 1)];
-	}
-	inline uint8_t & operator[] (const BoardWithSide &bws) {
-		return table[bws.hash_value & (mod - 1)];
-	}*/
+    }
 	~BoardHash() { delete table; }
+	
+};
+
+struct EndgameBoardHash {
+	size_t mod; // Should be a power of 2!
+	EvalAndBoard *table;
+	
+	EndgameBoardHash(const int &size_in_mb) : mod(size_in_mb * 1024 * 1024) {
+		table = new EvalAndBoard[mod];
+		for (size_t i = 0; i < mod; i++) table[i].e = 64;
+	}
+    inline EvalAndBoard operator[] (const size_t &zh) const {
+        return table[zh & (mod - 1)];
+    }
+    inline EvalAndBoard & operator[] (const size_t &zh) {
+        return table[zh & (mod - 1)];
+	}
+	~EndgameBoardHash() { delete table; }
 	
 };
 

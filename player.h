@@ -28,12 +28,10 @@ using namespace std;
 
 extern double minutesForMove;
 
-extern std::unordered_map< BoardWithSide, int > *um2;
-
 extern fstream fil;
 
 extern BoardHash tt;
-
+extern EndgameBoardHash endgameTT;
 extern int *EDGE_VALUES;
 extern uint64_t ** BYTE_TO_COL;
 

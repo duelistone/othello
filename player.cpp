@@ -950,8 +950,8 @@ int deep_endgame_alphabeta(const Board &b, const Side &s, int alpha = -1, int be
 
 int endgame_alphabeta(const Board &b, const Side &s, int alpha = -1, int beta = 1) {
     BoardWithSide bws(b.taken, b.black, b.zobrist_hash, s);
-    if (um2->count(bws) > 0) {
-        return (*um2)[bws];
+    if (endgameTT[b.zobrist_hash].e < 64 && endgameTT[b.zobrist_hash].b == bws) {
+        return endgameTT[b.zobrist_hash].e;
     }
     
     int totalCount = __builtin_popcountll(b.taken);
@@ -996,9 +996,8 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = -1, int beta = 
             return b.countBlack() - b.countWhite();
         }
         int ret = endgame_alphabeta(b, !s, alpha, beta);
-        if (totalCount < STOP_SAVING_THRESHOLD) {
-            (*um2)[bws] = ret;
-        }
+        endgameTT[b.zobrist_hash].e = ret;
+        endgameTT[b.zobrist_hash].b = bws;
         return ret;
     }
     
@@ -1040,7 +1039,8 @@ int endgame_alphabeta(const Board &b, const Side &s, int alpha = -1, int beta = 
     
     int ret = s ? alpha : beta;
     if (alpha != 0 || beta != 0) {
-        (*um2)[bws] = ret;
+       endgameTT[b.zobrist_hash].e = ret;
+       endgameTT[b.zobrist_hash].b = bws;
     }
     return ret;
 }
@@ -1146,9 +1146,6 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     else if (totalCount <= 41) depth = MAX_DEPTH;
     else depth = INT_MAX; // Search to end (much faster)
     
-    // Set counter, reset abort variables
-    um2->clear();
-    
     int eval = -100; // Just a value
 
     // Find index of best move via search
@@ -1172,7 +1169,6 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
             if ((side && p.second < 0) || (!side && p.second > 0)) {
                 besti = p2.first;
                 eval = p2.second;
-                um2->clear(); // For now, some values may be incorrect if search not done, later we may want to prune the hash table, if it's worth it
             }
             else {
                 gameSolved = true;

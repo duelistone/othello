@@ -9,7 +9,7 @@ import java.io.OutputStreamWriter;
  * back and forth using stdin/stdout.
  */
 public class WrapperPlayer implements OthelloPlayer {
-    private final static int MAX_MEMORY_KB = 786432 * 4;
+    private final static int MAX_MEMORY_KB = 786432 * 6;
     private Process p;
     private BufferedReader br;
     private BufferedReader stderr;    

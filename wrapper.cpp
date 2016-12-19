@@ -10,7 +10,6 @@
 using namespace std;
 
 // Global variables
-unordered_map< BoardWithSide, int > *um2 = new unordered_map< BoardWithSide, int >;
 double minutesForMove = 1;
 int *EDGE_VALUES;
 uint8_t **STABLE_DISCS;
@@ -22,6 +21,7 @@ uint64_t SINGLE_BIT[64];
 fstream fil("c.txt", ios_base::out);
 
 BoardHash tt(1024);
+EndgameBoardHash endgameTT(64);
 
 size_t random_numbers[130];
 
@@ -109,7 +109,6 @@ tim.end(); cerr << NUM_REPETITIONS << endl;   exit(0);
     // fil.close();
     
     // Delete hash table and player
-    if (um2 != nullptr) delete um2;
     if (player != nullptr) delete player;
     
     

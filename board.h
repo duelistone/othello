@@ -266,6 +266,7 @@ public:
     uint64_t hash_value;
 	Side side;
 	
+    BoardWithSide() {}
 	BoardWithSide(uint64_t t, uint64_t b, size_t zh, Side s) : taken(t), black(b), hash_value(zh), side(s) {}
 	BoardWithSide(const BoardWithSide& bws) : taken(bws.taken), black(bws.black), side(bws.side) {}
 };
