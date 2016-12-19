@@ -9,14 +9,8 @@
 
 using namespace std;
 
-// Global variables...I'll get rid of these if I have time
-long long globalEndgameNodeCount = 0;
-unordered_map< BoardWithSide, vector<int> * > *um = new unordered_map< BoardWithSide, vector<int> * >;
+// Global variables
 unordered_map< BoardWithSide, int > *um2 = new unordered_map< BoardWithSide, int >;
-unordered_map< BoardWithSide, int > *um3 = new unordered_map< BoardWithSide, int >;
-unordered_map< BoardWithSide, int > *um4 = new unordered_map< BoardWithSide, int >;
-unordered_map< BoardWithSide, int > *um5 = new unordered_map< BoardWithSide, int >;
-atomic_bool abortEndgameMinimax;
 double minutesForMove = 1;
 int *EDGE_VALUES;
 uint8_t **STABLE_DISCS;
@@ -24,39 +18,12 @@ uint8_t **PSEUDOSTABLE_DISCS;
 uint8_t **ALL_STABLE_DISCS;
 uint64_t** BYTE_TO_COL;
 uint64_t** BYTE_TO_PATTERN;
-int ordered_moves[64][64];
 uint64_t SINGLE_BIT[64];
 fstream fil("c.txt", ios_base::out);
-
-vector< unordered_map< BoardWithSide, int > * > vec_of_ums;
-unordered_map< BoardWithSide, int > *um_1 = new unordered_map< BoardWithSide, int >;
-unordered_map< BoardWithSide, int > *um_2 = new unordered_map< BoardWithSide, int >;
-unordered_map< BoardWithSide, int > *um_3 = new unordered_map< BoardWithSide, int >;
-unordered_map< BoardWithSide, int > *um_4 = new unordered_map< BoardWithSide, int >;
-unordered_map< BoardWithSide, int > *um_5 = new unordered_map< BoardWithSide, int >;
-unordered_map< BoardWithSide, int > *um_6 = new unordered_map< BoardWithSide, int >;
 
 BoardHash tt(1024);
 
 size_t random_numbers[130];
-
-void initialize_hashes() {
-    vec_of_ums.push_back(um_1);
-    //~ vec_of_ums.push_back(um_2);
-    //~ vec_of_ums.push_back(um_3);
-    //~ vec_of_ums.push_back(um_4);
-    //~ vec_of_ums.push_back(um_5);
-    //~ vec_of_ums.push_back(um_6);
-}
-
-void delete_hashes() {
-    delete um_1;
-    delete um_2;
-    delete um_3;
-    delete um_4;
-    delete um_5;
-    delete um_6;
-}
 
 int main(int argc, char *argv[]) {
     // Read in side the player is on.
@@ -89,9 +56,6 @@ int main(int argc, char *argv[]) {
     }
     cerr << "Arrays allocated." << endl;
 
-    // Initialize hashes
-    //~ initialize_hashes();
-    
     // Initialize random numbers
     srand(0);
     for (int i = 0; i < 130; i++) random_numbers[i] = ((size_t) rand() << 33) | ((size_t) rand() << 2) | ((size_t) rand() & 3);
@@ -113,6 +77,7 @@ Timer tim;
     for (int i = 0; i < NUM_REPETITIONS; i++) {alphabeta(b, 0, WHITE);}
 tim.end(); cerr << NUM_REPETITIONS << endl;   exit(0);
 */    
+
     // Tell java wrapper that we are done initializing.
     cout << "Init done" << endl;
     cout.flush();    
@@ -144,11 +109,7 @@ tim.end(); cerr << NUM_REPETITIONS << endl;   exit(0);
     // fil.close();
     
     // Delete hash table and player
-    delete_hashes();
-    if (um != nullptr) delete um;
     if (um2 != nullptr) delete um2;
-    if (um3 != nullptr) delete um3;
-    if (um4 != nullptr) delete um4;
     if (player != nullptr) delete player;
     
     

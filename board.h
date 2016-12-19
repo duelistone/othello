@@ -149,29 +149,13 @@ public:
     uint64_t findLegalMoves(const Side &side) const;
     uint64_t findLegalMovesBlack() const;
     uint64_t findLegalMovesWhite() const;
-    uint64_t findLegalMoves2(Side side) const;
-    //~ uint64_t findLegalMoves3(Side side) const;
-    //~ uint64_t onlyFindLegalMoves(Side side) const;
-    int evaluate(int, int, int) const;
-    //~ int evaluate_mobility() const;
     int pos_evaluate() const;
-    int evaluateTest() const;
      
-    //~ bool isDone() const;
-    //~ bool hasMoves(Side side) const;
-    //bool hasLegalMoves(Side side);
-    //~ bool checkMove(const int &index, Side side) const;
-    //void doMove(int x, int y, Side side);
-    //void doMoveBlack(const int index);
-    //void doMoveWhite(const int index);
-    //~ Board doMoveOnNewBoard(int x, int y, Side side);
     Board doMoveOnNewBoard(const int &index, const Side &side) const;
     Board doMoveOnNewBoardBlack(const int &index) const;
     Board doMoveOnNewBoardBlackWZH(const int &index) const;
 	Board doMoveOnNewBoardWhite(const int &index) const;
 	Board doMoveOnNewBoardWhiteWZH(const int &index) const;
-    Board doMoveOnNewBoard2(int x, int y, Side side) const;
-    Board doMoveOnNewBoard3(int x, int y, Side side) const;
     int count (Side side) const;
     int countBlack() const;
     int countWhite() const;
@@ -284,42 +268,6 @@ public:
 	
 	BoardWithSide(uint64_t t, uint64_t b, size_t zh, Side s) : taken(t), black(b), hash_value(zh), side(s) {}
 	BoardWithSide(const BoardWithSide& bws) : taken(bws.taken), black(bws.black), side(bws.side) {}
-	
-	/*inline size_t hash_value() const {
-		uint64_t blackCopy = black;
-		uint64_t whiteCopy = taken & ~black;
-		size_t result = side ? random_numbers[128] : random_numbers[129];
-		
-		while (blackCopy) {
-			int index = __builtin_clzl(blackCopy);
-			blackCopy ^= BIT(index);
-			result ^= random_numbers[index];
-		}
-		while (whiteCopy) {
-			int index = __builtin_clzl(whiteCopy);
-			whiteCopy ^= BIT(index);
-			result ^= random_numbers[index + 64];
-		}
-		return result;
-	*/	
-		// Independent of side?!
-		//~ return 0;
-		/*
-		size_t result = __builtin_popcountll(taken) - 1;
-		size_t seed = 0;
-		boost::hash_combine(seed, taken);
-		boost::hash_combine(seed, black);
-		result |= seed << 6;
-		return result;
-		*/
-		/*
-		size_t seed = 0;
-		boost::hash_combine(seed, taken);
-		boost::hash_combine(seed, black);
-		return seed;
-		*/
-	//}
-	int count() const {return __builtin_popcountll(taken);}
 };
 
 bool operator==(const BoardWithSide&, const BoardWithSide&);

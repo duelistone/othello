@@ -26,59 +26,19 @@
 
 using namespace std;
 
-extern "C" int min(int x, int y);
-extern "C" int max(int x, int y);
-
-#define MAX(x, y) ((x) >= (y) ? (x) : (y))
-#define MIN(x, y) ((x) <= (y) ? (x) : (y))
-
-#define PERCENTILE (1.5)
-#define PROB_CUT_DEPTH1 4
-#define PROB_CUT_DEPTH2 8
-
-#define ERROR1 4
-#define ERROR2 8
-#define ERROR3 12
-
-#define THRESHOLD 15
-#define NO_MOVES_LEFT_BONUS 25
-
-#define SOMETHING_VALUE 0
-
-// Global counter for how many final nodes endgameMinimax is searching
-extern long long globalEndgameNodeCount;
-extern std::atomic_bool abortEndgameMinimax;
 extern double minutesForMove;
 
-// For memoization
-// Question: Is it worth it?
-// Can run through the values it can store pretty quickly
-extern std::unordered_map< BoardWithSide, vector<int> * > *um;
 extern std::unordered_map< BoardWithSide, int > *um2;
-extern std::unordered_map< BoardWithSide, int > *um3;
-extern std::unordered_map< BoardWithSide, int > *um4;
-extern std::unordered_map< BoardWithSide, int > *um5;
-extern std::vector<unordered_map<BoardWithSide, int> *> vec_of_ums;
 
 extern fstream fil;
 
 extern BoardHash tt;
 
-//~ extern unordered_map<int, double> sigma;
-//~ extern unordered_map<int, double> constant_terms;
-//~ extern unordered_map<int, double> coefficients;
-
 extern int *EDGE_VALUES;
 extern uint64_t ** BYTE_TO_COL;
-extern int ordered_moves[64][64];
 
 // To avoid um getting too big
-#define MAX_HASH_SIZE 3000000
 #define STOP_SAVING_THRESHOLD 50
-// At this point it should be quick to compute to the end
-
-// Should correspond to at most a minute of computation
-#define DEFAULT_MAX_NODES (200000000)
 
 using namespace std;
 
