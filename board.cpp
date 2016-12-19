@@ -1920,6 +1920,10 @@ Board Board::doMoveOnNewBoardBlack(const int &index) const {
     // Observe that if the move is illegal, taken will be updated, 
     // but black will remain the same.
     
+    // Note: the if statements here lead to a surprising slight increase
+    // in speed. The compiler apparently know how to optimize them
+    // better than spelling out to the compiler how not to branch.
+
     //~ assert(SINGLE_BIT[index] & findLegalMoves(side));
     
     //~ auto start = chrono::high_resolution_clock::now();
