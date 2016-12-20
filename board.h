@@ -161,7 +161,7 @@ public:
     int countWhite() const;
     uint64_t stable_discs() const;
     
-    size_t make_zobrist_hash(const Side &s = BLACK) const;
+    size_t make_zobrist_hash() const;
 
     void setBoard(char data[]);
 };

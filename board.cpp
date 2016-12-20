@@ -26,7 +26,7 @@ Board::Board() : taken(0), black(0) {
 Board::Board(uint64_t t, uint64_t b) : taken(t), black(b), zobrist_hash(make_zobrist_hash()) {}
 Board::Board(uint64_t t, uint64_t b, size_t z) : taken(t), black(b), zobrist_hash(z) {}
 
-size_t Board::make_zobrist_hash(const Side &s) const {
+size_t Board::make_zobrist_hash() const {
     uint64_t blackCopy = black;
     uint64_t whiteCopy = taken & ~black;
     size_t result = 0;
