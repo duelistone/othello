@@ -195,7 +195,7 @@ void playerConstructorHelper2() {
 /*
  * Constructor for the player; initialize everything here. The side your AI is
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish 
- * within 30 secondsi if using the Java tester.
+ * within 30 seconds if using the Java tester.
  */
 Player::Player(Side s) : side(s), currBoard(Board()) {
     playerConstructorHelper();
@@ -204,29 +204,18 @@ Player::Player(Side s) : side(s), currBoard(Board()) {
 
 Player::~Player() {}
 
-// Static evaluation function
-inline int eval(Board b2) {
-    int blackMoves = __builtin_popcountll(b2.findLegalMovesBlack() & SAFE_SQUARES);
-    int whiteMoves = __builtin_popcountll(b2.findLegalMovesWhite() & SAFE_SQUARES);
-    return MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b2.pos_evaluate();
-}
+// Search functions
 
 int alphabeta(Board b, const int depth, const Side s, int alpha, int beta, const int depth2, const bool prevPass) {
-    if (depth <= 0) {
-        int blackMoves = __builtin_popcountll(b.findLegalMovesBlack() & SAFE_SQUARES);
-        int whiteMoves = __builtin_popcountll(b.findLegalMovesWhite() & SAFE_SQUARES);
-        int result = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b.pos_evaluate();
-        return result;
-    }        
+    if (depth <= 0) return b.pos_evaluate();
 
-    BoardWithSide bws(b.taken, b.black, b.zobrist_hash, s);
     uint64_t legalMoves = b.findLegalMoves(s);
     
     // Special case
     if (!legalMoves) {
         if (prevPass) {
-            int blacks = b.countBlack();
-            int whites = b.countWhite();
+            int blacks = __builtin_popcountll(b.black);
+            int whites = __builtin_popcountll(b.taken & ~b.black); 
             return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
         }
         return alphabeta(b, depth - 1, !s, alpha, beta, depth2 + 1, true);
@@ -295,15 +284,15 @@ int pvs(Board b, const int depth, const Side s, int alpha = INT_MIN, int beta = 
 }
 
 int pvsBlack(Board b, const int depth, int alpha, const int beta, const int depth2, const bool prevPass) {
+    //string padding;
+    //for (int i = 0; i < depth2; i++) padding += " ";
+    //cerr << padding + "Entering pvsBlack with depth " << depth << " and depth2 " << depth2 <<  endl;
     // Should rarely be called
     if (__builtin_expect(depth <= 0, 0)) {
-        int blackMoves = __builtin_popcountll(b.findLegalMovesBlack() & SAFE_SQUARES);
-        int whiteMoves = __builtin_popcountll(b.findLegalMovesWhite() & SAFE_SQUARES);
-        int result = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b.pos_evaluate();
-        return result;
+        //cerr << padding + "Returning evaluation" << endl;
+        return b.pos_evaluate();
     }
     
-    BoardWithSide bws(b.taken, b.black, b.zobrist_hash, BLACK);
     uint64_t legalMoves = b.findLegalMovesBlack();
         
     // Special case
@@ -328,13 +317,13 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
                 // The move is valid
                 legalMoves ^= BIT(index);
                 besti = index;
-                v = eval(b.doMoveOnNewBoardBlack(index));
+                v = b.doMoveOnNewBoardBlack(index).pos_evaluate();
                 alpha = (v > alpha) ? v : alpha;
             }
             while (alpha < beta && legalMoves) {    
                 uint8_t index = __builtin_clzl(legalMoves);
                 legalMoves ^= BIT(index);
-                int val = eval(b.doMoveOnNewBoardBlack(index));
+                int val = b.doMoveOnNewBoardBlack(index).pos_evaluate();
                 bool temp = (val > v);
                 besti = temp ? index : besti;
                 v = temp ? val : v;
@@ -346,10 +335,11 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
             while (alpha < beta && legalMoves) {    
                 uint8_t index = __builtin_clzl(legalMoves);
                 legalMoves ^= BIT(index);
-                int val = eval(b.doMoveOnNewBoardBlack(index));
+                int val = b.doMoveOnNewBoardBlack(index).pos_evaluate();
                 alpha = (val > alpha) ? val : alpha;
             }
         }
+        //cerr << padding + "Returning alpha when depth 1 " << alpha << endl;
         return alpha;
     }
     
@@ -412,19 +402,19 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
             alpha = (val > alpha) ? val : alpha;
         }
     }
+    //cerr << padding + "Returning alpha " << alpha << endl;
     return alpha;
 }
 
 int pvsWhite(Board b, const int depth, const int alpha, int beta, const int depth2, const bool prevPass) {
+    //string padding;
+    //for (int i = 0; i < depth2; i++) padding += " ";
+    //cerr << padding + "Entering pvsWhite with depth " << depth << " and depth2 " << depth2 << " and alpha " << alpha << " and beta " << beta << endl;
     // Should rarely be called
     if (__builtin_expect(depth <= 0, 0)) {
-        int blackMoves = __builtin_popcountll(b.findLegalMovesBlack() & SAFE_SQUARES);
-        int whiteMoves = __builtin_popcountll(b.findLegalMovesWhite() & SAFE_SQUARES);
-        int result = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 2) + b.pos_evaluate();
-        return (result <= beta) ? result : beta;
+        return b.pos_evaluate();
     }
     
-    BoardWithSide bws(b.taken, b.black, b.zobrist_hash, WHITE);
     uint64_t legalMoves = b.findLegalMovesWhite();
         
     // Special case
@@ -450,13 +440,13 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
                 // The move is valid
                 legalMoves ^= BIT(index);
                 besti = index;
-                v = eval(b.doMoveOnNewBoardWhite(index));
+                v = b.doMoveOnNewBoardWhite(index).pos_evaluate();
                 beta = (v < beta) ? v : beta;
             }
             while (alpha < beta && legalMoves) {
                 uint8_t index = __builtin_clzl(legalMoves);
                 legalMoves ^= BIT(index);
-                int val = eval(b.doMoveOnNewBoardWhite(index));
+                int val = b.doMoveOnNewBoardWhite(index).pos_evaluate();
                 bool temp = (val < v);
                 besti = temp ? index : besti;
                 v = temp ? val : v;
@@ -468,10 +458,11 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
             while (alpha < beta && legalMoves) {    
                 uint8_t index = __builtin_clzl(legalMoves);
                 legalMoves ^= BIT(index);
-                int val = eval(b.doMoveOnNewBoardWhite(index));
+                int val = b.doMoveOnNewBoardWhite(index).pos_evaluate();
                 beta = (val < beta) ? val : beta;
             }
         }
+        //cerr << padding + "Returning depth1 beta " << beta << endl;
         return beta;
     }
     
@@ -532,13 +523,14 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
             beta = (val < beta) ? val : beta;
         }
     }
+    //cerr << padding + "Returning beta " << beta << endl;
     return beta;
 }
-
-pair<int, int> main_minimax_aw(Board b, const Side s, const int depth, int guess = -1) {
+int last_depth_4 = INT_MIN;
+pair<int, int> main_minimax_aw(Board b, const Side s, int guess = -1) {
     Timer tim;
-    int totalCount = __builtin_popcountll(b.taken);
 
+    pair<int, int> result;
     int eOdd, eEven;
     // First two plies
     eOdd = pvs(b, 1, s, INT_MIN, INT_MAX);
@@ -546,61 +538,75 @@ pair<int, int> main_minimax_aw(Board b, const Side s, const int depth, int guess
     cerr << "Finished depth 1: " << eOdd << endl;
     cerr << "Finished depth 2: " << eEven << endl;
     
-    // Middle plies
-    for (int d = 3; d < depth; d++) {
+    // Other plies
+    int d = 3;
+    for (; ; d++) {
         if (d % 2) {
-            int diff = abs(eOdd) / 8 + 2 + (totalCount > 25 ? 2 : 0);
+            int diff = abs(eOdd) / DIVISOR_FOR_AW + 5; 
             int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
             int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
             int counter = 1;
             try_again1:
             eOdd = pvs(b, d, s, lower, upper);
+            result = make_pair(tt[b.zobrist_hash], eOdd);
             if (eOdd <= lower && lower != INT_MIN) {
                 tim.endms("Recalculating (failed low) ");
-                lower -= (diff - 1) * counter;
+                diff *= 2;
+                upper = eOdd + 1;
+                lower = upper - diff;
                 counter++;
-                if (counter > 3) lower = INT_MIN;
+                if (counter > 4) lower = INT_MIN;
                 goto try_again1;
             }
             else if (eOdd >= upper && upper != INT_MAX) {
                 tim.endms("Recalculating (failed high) ");
-                upper += (diff - 1) * counter;
+                diff *= 2;
+                lower = eOdd - 1;
+                upper = lower + diff; 
                 counter++;
-                if (counter > 3) upper = INT_MAX;
+                if (counter > 4) upper = INT_MAX;
                 goto try_again1;
             }
             cerr << "Finished depth " << d << " search: " << eOdd << ' ';
             tim.endms();
         }
         else {
-            int diff = abs(eEven) / 8 + 2 + (totalCount > 25 ? 2 : 0);
+            int diff = abs(eEven) / DIVISOR_FOR_AW + 5;
             int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
             int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
             int counter = 1;
             try_again2:
             eEven = pvs(b, d, s, lower, upper);
+            if (d == 4) last_depth_4 = eEven;
+            result = make_pair(tt[b.zobrist_hash], eEven);
             if (eEven <= lower && lower != INT_MIN) {
                 tim.endms("Recalculating (failed low) ");
-                lower -= (diff - 1) * counter;
+                diff *= 2;
+                upper = eEven + 1;
+                lower = upper - diff;
                 counter++;
-                if (counter > 3) lower = INT_MIN;
+                if (counter > 4) lower = INT_MIN;
                 goto try_again2;
             }
             else if (eEven >= upper && upper != INT_MAX) {
                 tim.endms("Recalculating (failed high) ");
-                upper += (diff - 1) * counter;
+                diff *= 2;
+                lower = eEven - 1;
+                upper = lower + diff;
                 counter++;
-                if (counter > 3) upper = INT_MAX;
+                if (counter > 4) upper = INT_MAX;
                 goto try_again2;
             }
             cerr << "Finished depth " << d << " search: " << eEven << ' ';
             tim.endms();
         }
+        if (tim.getms() / 1000 > MAX_PENULTIMATE_DEPTH_TIME || d >= MAX_DEPTH) return result;
     }
+    /*
     // Last one
     if (depth % 2) {
         int counter = 1;
-        int diff = abs(eOdd) / 8 + 2 + (totalCount > 25 ? 2 : 0);
+        int diff = abs(eOdd) / DIVISOR_FOR_AW + 10;
         int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
         int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
         try_again3:
@@ -609,25 +615,26 @@ pair<int, int> main_minimax_aw(Board b, const Side s, const int depth, int guess
         pair<int, int> result = make_pair(tt[b.zobrist_hash], eOdd);
         if (result.second <= lower && lower != INT_MIN) {
             tim.endms("Recalculating (failed low) ");
-            lower -= (diff - 1) * counter;
+            upper = eOdd + 1;
+            lower = upper - (diff - 1 + totalCount / 4) * counter;
             counter++;
-            if (counter > 3) lower = INT_MIN;
+            if (counter > 4) lower = INT_MIN;
             goto try_again3;
         }
         else if (result.second >= upper && upper != INT_MAX) {
             tim.endms("Recalculating (failed high) ");
-            upper += (diff - 1) * counter;
+            lower = eOdd - 1;
+            upper = lower - (diff - 1 + totalCount / 4) * counter;
             counter++;
-            if (counter > 3) upper = INT_MAX;
+            if (counter > 4) upper = INT_MAX;
             goto try_again3;
         }
         cerr << "Finished depth " << depth + 1 << " search: " << result.second << ' ';
-        tim.endms();
-        if (counter < 3) return result;
+        return result;
     }
     else {
         int counter = 1;
-        int diff = abs(eEven) / 8 + 2 + (totalCount > 25 ? 2 : 0);
+        int diff = (abs(eEven) / DIVISOR_FOR_AW + 10);
         int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
         int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
         try_again4:
@@ -636,44 +643,50 @@ pair<int, int> main_minimax_aw(Board b, const Side s, const int depth, int guess
         pair<int, int> result = make_pair(tt[b.zobrist_hash], eEven);
         if (result.second <= lower && lower != INT_MIN) {
             tim.endms("Recalculating (failed low) ");
-            lower -= (diff - 1) * counter;
+            diff *= 2;
+            upper = eEven + 1;
+            lower = upper - diff;
             counter++;
-            if (counter > 3) lower = INT_MIN;
+            if (counter > 4) lower = INT_MIN;
             goto try_again4;
         }
         else if (result.second >= upper && upper != INT_MAX) {
             tim.endms("Recalculating (failed high) ");
-            upper += (diff - 1) * counter;
+            diff *= 2;
+            lower = eEven - 1;
+            upper = lower + diff;
             counter++;
-            if (counter > 3) upper = INT_MAX;
+            if (counter > 4) upper = INT_MAX;
             goto try_again4;
         }
         cerr << "Finished depth " << depth << " search: " << result.second << ' ';
         tim.endms();
-        if (counter < 3) return result;
-    }
+        return result;
+    }*//*
     // Okay, maybe one more
     if ((depth  + 1) % 2) {
         int counter = 1;
-        int diff = abs(eOdd) / 8 + 2 + (totalCount > 25 ? 2 : 0);
+        int diff = abs(eOdd) / DIVISOR_FOR_AW + 10;
         int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
         int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
         try_again5:
         eOdd = pvs(b, depth + 1, s, lower, upper, false, -1); // The -1 is to fool pvs into hashing
         // This is bound to run into issues one day
         pair<int, int> result = make_pair(tt[b.zobrist_hash], eOdd);
-        if (result.second <= lower && lower != INT_MIN) {
+        if (result.second <= lower && lower != INT_MIN && eEven * sign < GOOD_ENOUGH) {
             tim.endms("Recalculating (failed low) ");
-            lower -= (diff - 1) * counter;
+            upper = eOdd + 1;
+            lower = upper - (diff - 1 + totalCount / 4) * counter;
             counter++;
-            if (counter > 3) lower = INT_MIN;
+            if (counter > 4) lower = INT_MIN;
             goto try_again5;
         }
-        else if (result.second >= upper && upper != INT_MAX) {
+        else if (result.second >= upper && upper != INT_MAX && eEven * sign < GOOD_ENOUGH) {
             tim.endms("Recalculating (failed high) ");
-            upper += (diff - 1) * counter;
+            lower = eOdd - 1;
+            upper = lower + (diff - 1 + totalCount / 4) * counter;
             counter++;
-            if (counter > 3) upper = INT_MAX;
+            if (counter > 4) upper = INT_MAX;
             goto try_again5;
         }
         cerr << "Finished depth " << depth + 1 << " search: " << result.second << ' ';
@@ -682,31 +695,33 @@ pair<int, int> main_minimax_aw(Board b, const Side s, const int depth, int guess
     }
     else {
         int counter = 1;
-        int diff = abs(eEven) / 8 + 2 + (totalCount > 25 ? 2 : 0);
+        int diff = abs(eEven) / DIVISOR_FOR_AW + 10;
         int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
         int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
         try_again6:
         eEven = pvs(b, depth + 1, s, lower, upper, false, -1); // The -1 is to fool pvs into hashing
         // This is bound to run into issues one day
         pair<int, int> result = make_pair(tt[b.zobrist_hash & (tt.mod - 1)], eEven);
-        if (result.second <= lower && lower != INT_MIN) {
+        if (result.second <= lower && lower != INT_MIN && eEven * sign < GOOD_ENOUGH) {
             tim.endms("Recalculating (failed low) ");
-            lower -= (diff - 1) * counter;
+            upper = eEven + 1;
+            lower = upper - (diff - 1 + totalCount / 4) * counter;
             counter++;
-            if (counter > 3) lower = INT_MIN;
+            if (counter > 4) lower = INT_MIN;
             goto try_again6;
         }
-        else if (result.second >= upper && upper != INT_MAX) {
+        else if (result.second >= upper && upper != INT_MAX && eEven * sign < GOOD_ENOUGH) {
             tim.endms("Recalculating (failed high) ");
-            upper += (diff - 1) * counter;
+            lower = eEven - 1;
+            upper = lower + (diff - 1 + totalCount / 4) * counter;
             counter++;
-            if (counter > 3) upper = INT_MAX;
+            if (counter > 4) upper = INT_MAX;
             goto try_again6;
         }
         cerr << "Finished depth " << depth + 1 << " search: " << result.second << ' ';
         tim.endms();
         return result;
-    }
+    }*/
 }
 
 inline int deep_endgame_alphabeta_black(Board, int alpha = -1, int beta = 1, bool prevPass = false);
@@ -1135,13 +1150,13 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     else if (totalCount <= 41) depth = MAX_DEPTH;
     else depth = INT_MAX; // Search to end (much faster)
     
-    int eval = -100; // Just a value
+    int eval = -10000; // Just a value
 
     // Find index of best move via search
     int besti = -1;
     pair<int, int> p;
     if (depth != INT_MAX) {
-        p = main_minimax_aw(currBoard, side, depth, besti);
+        p = main_minimax_aw(currBoard, side, besti);
         besti = p.first;
         eval = p.second;
     }
@@ -1186,6 +1201,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     int y = FROM_INDEX_Y(besti);
     cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << endl;
     currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
+    currBoard.print_eval_stats();
     Move *move = new Move(x, y);
     return move;
     

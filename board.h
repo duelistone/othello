@@ -149,6 +149,8 @@ public:
     uint64_t findLegalMoves(const Side &side) const;
     uint64_t findLegalMovesBlack() const;
     uint64_t findLegalMovesWhite() const;
+    uint64_t flippableBlack() const;
+    uint64_t flippableWhite() const;
     int pos_evaluate() const;
      
     Board doMoveOnNewBoard(const int &index, const Side &side) const;
@@ -164,6 +166,8 @@ public:
     size_t make_zobrist_hash() const;
 
     void setBoard(char data[]);
+    void print_eval_stats() const;
+    uint64_t stable_discs_log() const;
 };
 
 template <unsigned int size> class RowBoard {
@@ -175,40 +179,60 @@ public:
     RowBoard(uint16_t data) : taken(data >> 8), black(data) {}
     RowBoard doMoveOnNewBoardBlack(uint8_t bit) const {
         RowBoard rb(*this);
-        uint8_t original_black = black;
-        uint8_t leftBit = bit << 1;
-        while (leftBit & rb.taken & ~rb.black) {
-            rb.black |= leftBit;
-            leftBit <<= 1;
-        }
-        if (leftBit == 0) rb.black = original_black;
-        original_black = rb.black;
-        uint8_t rightBit = bit >> 1;
-        while (rightBit & rb.taken & ~rb.black) {
-            rb.black |= rightBit;
-            rightBit >>= 1;
-        }
-        if (rightBit == 0) rb.black = original_black;
+        uint8_t white = ~black & taken;
+        uint8_t n = bit;
+        uint8_t newblack = black;
+        
+        // LEFT
+        n |= white & (n << 1);
+        n |= white & (n << 1);
+        n |= white & (n << 1);
+        n |= white & (n << 1);
+        n |= white & (n << 1);
+        n |= white & (n << 1);
+        if (black & (n << 1)) newblack |= n;
+        
+        n = bit;
+        // RIGHT
+        n |= white & (n >> 1);
+        n |= white & (n >> 1);
+        n |= white & (n >> 1);
+        n |= white & (n >> 1);
+        n |= white & (n >> 1);
+        n |= white & (n >> 1);
+        if (black & (n >> 1)) newblack |= n;
+
+        rb.black = newblack;
         rb.taken |= bit;
         rb.black |= bit;
         return rb;
     }
     RowBoard doMoveOnNewBoardWhite(uint8_t bit) const {
         RowBoard rb(*this);
-        uint8_t original_black = black;
-        uint8_t leftBit = bit << 1;
-        while (leftBit & rb.black) {
-            rb.black &= ~leftBit;
-            leftBit <<= 1;
-        }
-        if (leftBit == 0) rb.black = original_black;
-        original_black = rb.black;
-        uint8_t rightBit = bit >> 1;
-        while (rightBit & rb.black) {
-            rb.black &= ~rightBit;
-            rightBit >>= 1;
-        }
-        if (rightBit == 0) rb.black = original_black;
+        uint8_t white = ~black & taken;
+        uint8_t n = bit;
+        uint8_t newwhite = white;
+        
+        // LEFT
+        n |= black & (n << 1);
+        n |= black & (n << 1);
+        n |= black & (n << 1);
+        n |= black & (n << 1);
+        n |= black & (n << 1);
+        n |= black & (n << 1);
+        if (white & (n << 1)) newwhite |= n;
+        
+        n = bit;
+        // RIGHT
+        n |= black & (n >> 1);
+        n |= black & (n >> 1);
+        n |= black & (n >> 1);
+        n |= black & (n >> 1);
+        n |= black & (n >> 1);
+        n |= black & (n >> 1);
+        if (white & (n >> 1)) newwhite |= n;
+        
+        rb.black = taken & ~newwhite;
         rb.taken |= bit;
         return rb;
     }
@@ -216,38 +240,38 @@ public:
     uint8_t pseudostable() const {return PSEUDOSTABLE_DISCS[size - 1][((uint16_t) taken << 8 | black)];}
     uint8_t all_stable() const {return stable() | pseudostable();}
     void set_stable() const {
-        uint8_t stable = 0;
+        uint8_t stable = taken;
         uint8_t empty = ~taken;
         while (empty && stable) {
             uint8_t bit = 1 << (31 - __builtin_clz(empty));
             empty ^= bit;
             RowBoard rb = doMoveOnNewBoardBlack(bit);
-            stable &= rb.all_stable();
+            stable &= ~(rb.black ^ black) & rb.all_stable();
             rb = doMoveOnNewBoardWhite(bit);
-            stable &= rb.all_stable();
+            stable &= ~(rb.black ^ black) & rb.all_stable();
         }
         uint8_t really_stable = 0;
-        uint8_t bit = JUST_EDGE_BIT(0);
+        uint8_t bit = 1 << (size - 1);
         // Left stable chain?
         while (bit & black) {
             really_stable |= bit;
             stable &= ~bit;
             bit >>= 1;
         }
-        bit = JUST_EDGE_BIT(0);
+        bit = 1 << (size - 1);
         while (bit & taken & ~black) {
             really_stable |= bit;
             stable &= ~bit;
             bit >>= 1;
         }
         // Right chain?
-        bit = JUST_EDGE_BIT(7);
+        bit = 1;
         while (bit & black) {
             really_stable |= bit;
             stable &= ~bit;
             bit <<= 1;
         }
-        bit = JUST_EDGE_BIT(7);
+        bit = 1;
         while (bit & taken & ~black) {
             really_stable |= bit;
             stable &= ~bit;

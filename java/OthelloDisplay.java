@@ -247,7 +247,7 @@ class MoveEvent extends ActionEvent
  **/
 class BoardComponent extends JPanel
 {
-   public static final int squareSize = 48;
+   public static final int squareSize = 84;//48;
    public static final int canvasSize = squareSize*8;
 
    // TODO: Come up with a better way of doing this.

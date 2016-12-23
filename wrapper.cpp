@@ -62,7 +62,21 @@ int main(int argc, char *argv[]) {
     
     // Initialize player.
     Player *player = new Player(side);
+    
+    // Test stable discs
+    #define PS(s, x) cerr << x << endl;  PRINTBS((uint64_t) STABLE_DISCS[s - 1][x])
+   // PS(7, 0b0000100000001000);
+   // PS(6, 0b0010100000000000);
+   // PS(7, 0b0111100000000000);
+   // exit(0);
 
+    /*
+    cerr << "Further testing: " <<endl;
+    for (int i = 12; i < 16; i++) {
+        for (int j = 0; j < (1 << pattern_size[i]) - 1; j++) {
+            cerr << i << ' ' << bitset<8>(j) << ' ' << bitset<64>(BYTE_TO_PATTERN[pattern_size[i] - 1][j]) << endl;
+        }
+    }*/
     // Test masks
     //for (int i = 0; i < NUM_PATTERNS; i++) {
     //    cerr << bitset<64>(pattern_mask[i]) << endl;
@@ -110,7 +124,4 @@ tim.end(); cerr << NUM_REPETITIONS << endl;   exit(0);
     
     // Delete hash table and player
     if (player != nullptr) delete player;
-    
-    
-    return 0;
 }

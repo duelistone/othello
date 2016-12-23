@@ -55,7 +55,6 @@ uint64_t Board::findLegalMoves(const Side &side) const {
 }
 
 uint64_t Board::findLegalMovesBlack() const {
-    
     uint64_t moves = 0;
     uint64_t white = ~black & taken;
     uint64_t w, t;
@@ -245,6 +244,195 @@ uint64_t Board::findLegalMovesWhite() const {
     return moves & ~taken;
 }
 
+uint64_t Board::flippableBlack() const {
+    uint64_t moves = 0;
+    uint64_t white = ~black & taken;
+    uint64_t w, t;
+    
+    // RIGHT
+    w = white & RIGHT_FILTER;
+    t = w & (black >> 1);
+    t |= (w & (t >> 1));
+    t |= (w & (t >> 1));
+    t |= (w & (t >> 1));
+    t |= (w & (t >> 1));
+    t |= (w & (t >> 1));
+    moves |= RIGHT_FILTER & (t >> 1);
+    
+    // LEFT
+    w = white & LEFT_FILTER;
+    t = w & (black << 1);
+    t |= w & (t << 1);
+    t |= w & (t << 1);
+    t |= w & (t << 1);
+    t |= w & (t << 1);
+    t |= w & (t << 1);
+    
+    moves |= LEFT_FILTER & (t << 1);
+    
+    // DOWN
+    w = white & DOWN_FILTER;
+    t = w & (black >> 8);
+    t |= w & (t >> 8);
+    t |= w & (t >> 8);
+    t |= w & (t >> 8);
+    t |= w & (t >> 8);
+    t |= w & (t >> 8);
+    
+    moves |= DOWN_FILTER & (t >> 8);
+    
+    // UP
+    w = white & UP_FILTER;
+    t = w & (black << 8);
+    t |= w & (t << 8);
+    t |= w & (t << 8);
+    t |= w & (t << 8);
+    t |= w & (t << 8);
+    t |= w & (t << 8);
+    
+    moves |= UP_FILTER & (t << 8);
+    
+    // UP_LEFT
+    w = white & UP_LEFT_FILTER;
+    t = w & (black << 9);
+    t |= w & (t << 9);
+    t |= w & (t << 9);
+    t |= w & (t << 9);
+    t |= w & (t << 9);
+    t |= w & (t << 9);
+    
+    moves |= UP_LEFT_FILTER & (t << 9);
+    
+    // DOWN_RIGHT
+    w = white & DOWN_RIGHT_FILTER;
+    t = w & (black >> 9);
+    t |= w & (t >> 9);
+    t |= w & (t >> 9);
+    t |= w & (t >> 9);
+    t |= w & (t >> 9);
+    t |= w & (t >> 9);
+    
+    moves |= DOWN_RIGHT_FILTER & (t >> 9);
+    
+    // UP_RIGHT
+    w = white & UP_RIGHT_FILTER;
+    t = w & (black << 7);
+    t |= w & (t << 7);
+    t |= w & (t << 7);
+    t |= w & (t << 7);
+    t |= w & (t << 7);
+    t |= w & (t << 7);
+    
+    moves |= UP_RIGHT_FILTER & (t << 7);
+    
+    // DOWN_LEFT
+    w = white & DOWN_LEFT_FILTER;
+    t = w & (black >> 7);
+    t |= w & (t >> 7);
+    t |= w & (t >> 7);
+    t |= w & (t >> 7);
+    t |= w & (t >> 7);
+    t |= w & (t >> 7);
+    
+    moves |= DOWN_LEFT_FILTER & (t >> 7);
+    
+    return moves;
+}
+
+uint64_t Board::flippableWhite() const {
+    uint64_t moves = 0;
+    uint64_t white = ~black & taken;
+    uint64_t w, t;
+    
+    // RIGHT
+    w = black & RIGHT_FILTER;
+    t = w & (white >> 1);
+    t |= (w & (t >> 1));
+    t |= (w & (t >> 1));
+    t |= (w & (t >> 1));
+    t |= (w & (t >> 1));
+    t |= (w & (t >> 1));
+    moves |= RIGHT_FILTER & (t >> 1);
+    
+    // LEFT
+    w = black & LEFT_FILTER;
+    t = w & (white << 1);
+    t |= w & (t << 1);
+    t |= w & (t << 1);
+    t |= w & (t << 1);
+    t |= w & (t << 1);
+    t |= w & (t << 1);
+    
+    moves |= LEFT_FILTER & (t << 1);
+    
+    // DOWN
+    w = black & DOWN_FILTER;
+    t = w & (white >> 8);
+    t |= w & (t >> 8);
+    t |= w & (t >> 8);
+    t |= w & (t >> 8);
+    t |= w & (t >> 8);
+    t |= w & (t >> 8);
+    
+    moves |= DOWN_FILTER & (t >> 8);
+    
+    // UP
+    w = black & UP_FILTER;
+    t = w & (white << 8);
+    t |= w & (t << 8);
+    t |= w & (t << 8);
+    t |= w & (t << 8);
+    t |= w & (t << 8);
+    t |= w & (t << 8);
+    
+    moves |= UP_FILTER & (t << 8);
+    
+    // UP_LEFT
+    w = black & UP_LEFT_FILTER;
+    t = w & (white << 9);
+    t |= w & (t << 9);
+    t |= w & (t << 9);
+    t |= w & (t << 9);
+    t |= w & (t << 9);
+    t |= w & (t << 9);
+    
+    moves |= UP_LEFT_FILTER & (t << 9);
+    
+    // DOWN_RIGHT
+    w = black & DOWN_RIGHT_FILTER;
+    t = w & (white >> 9);
+    t |= w & (t >> 9);
+    t |= w & (t >> 9);
+    t |= w & (t >> 9);
+    t |= w & (t >> 9);
+    t |= w & (t >> 9);
+    
+    moves |= DOWN_RIGHT_FILTER & (t >> 9);
+    
+    // UP_RIGHT
+    w = black & UP_RIGHT_FILTER;
+    t = w & (white << 7);
+    t |= w & (t << 7);
+    t |= w & (t << 7);
+    t |= w & (t << 7);
+    t |= w & (t << 7);
+    t |= w & (t << 7);
+    
+    moves |= UP_RIGHT_FILTER & (t << 7);
+    
+    // DOWN_LEFT
+    w = black & DOWN_LEFT_FILTER;
+    t = w & (white >> 7);
+    t |= w & (t >> 7);
+    t |= w & (t >> 7);
+    t |= w & (t >> 7);
+    t |= w & (t >> 7);
+    t |= w & (t >> 7);
+    
+    moves |= DOWN_LEFT_FILTER & (t >> 7);
+
+    return moves;
+}
 
 Board Board::doMoveOnNewBoard(const int &index, const Side &side) const {
     if (side) return doMoveOnNewBoardBlack(index);
@@ -697,67 +885,120 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
     return Board(taken | bi, ~newwhite & taken, 0);
 }
 
+void Board::print_eval_stats() const {
+    cerr << "Position: " << endl;
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            if (BIT(8 * i + j) & taken) {
+                if (BIT(8 * i + j) & black) cerr << 'X';
+                else cerr << 'O';
+            }
+            else cerr << ' ';
+        }
+        cerr << endl;
+    }
+
+    cerr << endl;
+
+    uint64_t white = taken & ~black;
+    int totalCount = __builtin_popcountll(taken);
+    uint64_t stable_not_edge = stable_discs_log();
+    PRINTBS(stable_not_edge)
+
+    // Compute frontier + stability + mobility
+    uint64_t empty = ~taken;
+    uint64_t frontier = (empty >> 1) & taken;
+    frontier |= (empty << 1) & taken;
+    frontier |= (empty << 8) & taken;
+    frontier |= (empty >> 8) & taken;
+    frontier |= (empty << 9) & taken;
+    frontier |= (empty >> 9) & taken;
+    frontier |= (empty << 7) & taken;
+    frontier |= (empty >> 7) & taken;
+    frontier &= ~EDGES;
+    frontier &= ~stable_not_edge;
+    
+    int blackFrontiers = __builtin_popcountll(black & frontier);
+    int whiteFrontiers = __builtin_popcountll(white & frontier);
+    int blackMoves = __builtin_popcountll(findLegalMovesBlack());
+    int whiteMoves = __builtin_popcountll(findLegalMovesWhite());
+    
+    cerr << "Frontier score: " << FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0) << endl;
+    cerr << "Stable nonedges score: " << STABLE_NONEDGES_WEIGHT * (__builtin_popcountll(stable_not_edge & black) - __builtin_popcountll(stable_not_edge & taken & ~black)) / 36.0 << endl;
+    cerr << "Mobility score: " << MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0) * (1 - totalCount / 60) * (1 - 0.1 * (totalCount / 50)) << endl;
+    
+    if (totalCount < 40) {
+        // Penalty for risky squares if corner not filled
+        int x_square_penalty = -(!(taken & CORNER_TL) && (BIT(9) & black));
+        x_square_penalty += (!(taken & CORNER_TL) && (BIT(9) & white));
+        x_square_penalty -= (!(taken & CORNER_TR) && (BIT(14) & black));
+        x_square_penalty += (!(taken & CORNER_TR) && (BIT(14) & white));
+        x_square_penalty -= (!(taken & CORNER_BL) && (BIT(49) & black));
+        x_square_penalty += (!(taken & CORNER_BL) && (BIT(49) & white));
+        x_square_penalty -= (!(taken & CORNER_BR) && (BIT(54) & black));
+        x_square_penalty += (!(taken & CORNER_BR) && (BIT(54) & white));
+        x_square_penalty *= X_SQUARE_PENALTY / 4.0;
+        cerr << "X square penalty: " << x_square_penalty << endl;
+    }
+    
+    // Get top and bottom edge into uint16
+    cerr << "Edge top: " << EDGE_VALUES[((taken >> 56) << 8) | (black >> 56)] << endl;
+    cerr << "Edge bottom: " << EDGE_VALUES[(uint16_t) (taken << 8) | (uint8_t) black] << endl;
+    cerr << "Edges: " << EDGE_WEIGHT * (1 - (totalCount / 70.0)) * (EDGE_VALUES[((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[(uint16_t) (taken << 8) | (uint8_t) black] + EDGE_VALUES[(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0) << endl;
+    
+    // Minimize discs early
+    int discdiff = __builtin_popcountll(white) - __builtin_popcountll(black);
+    cerr << "Disc difference: " << ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0 << endl;
+}
 
 int Board::pos_evaluate() const {
-    int ee = 0;
     uint64_t white = taken & ~black;
+    int totalCount = __builtin_popcountll(taken);
+    uint64_t stable_not_edge = stable_discs();
+
+    // Compute frontier + stability + mobility
+    uint64_t empty = ~taken;
+    uint64_t frontier = (empty >> 1) & taken;
+    frontier |= (empty << 1) & taken;
+    frontier |= (empty << 8) & taken;
+    frontier |= (empty >> 8) & taken;
+    frontier |= (empty << 9) & taken;
+    frontier |= (empty >> 9) & taken;
+    frontier |= (empty << 7) & taken;
+    frontier |= (empty >> 7) & taken;
+    frontier &= ~EDGES;
+    frontier &= ~stable_not_edge;
     
-    #if X_SQUARE_PENALTY
-    {
-        // Penalty for risky squares if corner not filled
-        ee -= (!(taken & CORNER_TL) && (BIT(9) & black));
-        ee += (!(taken & CORNER_TL) && (BIT(9) & white));
-        ee -= (!(taken & CORNER_TR) && (BIT(14) & black));
-        ee += (!(taken & CORNER_TR) && (BIT(14) & white));
-        ee -= (!(taken & CORNER_BL) && (BIT(49) & black));
-        ee += (!(taken & CORNER_BL) && (BIT(49) & white));
-        ee -= (!(taken & CORNER_BR) && (BIT(54) & black));
-        ee += (!(taken & CORNER_BR) && (BIT(54) & white));
-        ee *= X_SQUARE_PENALTY;
-        
-        /*
-        uint64_t temp = ((taken & CORNER_TL) >> 63) ^ 1;
-        ee -= (temp & ((BIT(9) & black) >> (63 - 9)));
-        ee += (temp & ((BIT(9) & white) >> (63 - 9)));
-        
-        temp = ((taken & CORNER_TR) >> (63 - 7)) ^ 1;
-        ee -= (temp & ((BIT(14) & black) >> (63 - 14)));
-        ee += (temp & ((BIT(14) & white) >> (63 - 14)));
-        
-        temp = ((taken & CORNER_BL) >> (63 - 56)) ^ 1;
-        ee -= (temp & ((BIT(49) & black) >> (63 - 49)));
-        ee += (temp & ((BIT(49) & white) >> (63 - 49)));
-        
-        temp = (taken & CORNER_BR) ^ 1;
-        ee -= (temp & ((BIT(54) & black) >> (63 - 54)));
-        ee += (temp & ((BIT(54) & white) >> (63 - 54)));
-        */
-    }
-    #endif
-    
-    const int totalCount = __builtin_popcountll(taken);
-    // Minimize discs early
+    int blackFrontiers = __builtin_popcountll(black & frontier);
+    int whiteFrontiers = __builtin_popcountll(white & frontier);
+    int blackMoves = __builtin_popcountll(findLegalMovesBlack());
+    int whiteMoves = __builtin_popcountll(findLegalMovesWhite());
+    double ee = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0) + STABLE_NONEDGES_WEIGHT * (__builtin_popcountll(stable_not_edge & black) - __builtin_popcountll(stable_not_edge & taken & ~black)) / 36.0 + MOBILITY_WEIGHT * (1 - totalCount / 60) * (1 - 0.1 * (totalCount / 50)) * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
+
     if (totalCount < 40) {
-        int discdiff = (__builtin_popcountll(white) - __builtin_popcountll(black));
-        ee += discdiff / 5;
+        // Penalty for risky squares if corner not filled
+        int x_square_penalty = -(!(taken & CORNER_TL) && (BIT(9) & black));
+        x_square_penalty += (!(taken & CORNER_TL) && (BIT(9) & white));
+        x_square_penalty -= (!(taken & CORNER_TR) && (BIT(14) & black));
+        x_square_penalty += (!(taken & CORNER_TR) && (BIT(14) & white));
+        x_square_penalty -= (!(taken & CORNER_BL) && (BIT(49) & black));
+        x_square_penalty += (!(taken & CORNER_BL) && (BIT(49) & white));
+        x_square_penalty -= (!(taken & CORNER_BR) && (BIT(54) & black));
+        x_square_penalty += (!(taken & CORNER_BR) && (BIT(54) & white));
+        x_square_penalty *= X_SQUARE_PENALTY / 4.0;
+        ee += x_square_penalty;
     }
-    else if (totalCount > 45) {
-        // Consider some non-edge stable discs toward the end
-        uint64_t stable_not_edge = stable_discs() & ~EDGES;
-        ee += 3 * __builtin_popcountll(stable_not_edge & black);
-        ee -= 3 * __builtin_popcountll(stable_not_edge & taken & ~black);
-    }
-
-    // Get top and bottom edge into uint16
-    uint16_t u16 = ((taken >> 56) << 8) | (black >> 56);
-    ee += EDGE_VALUES[u16];
-    u16 = (taken << 8) | black;
-    ee += EDGE_VALUES[u16];
-
-    // Get left and right edges
-    ee += EDGE_VALUES[(COL(taken, 0) << 8) | COL(black, 0)];
-    ee += EDGE_VALUES[(COL(taken, 7) << 8) | COL(black, 7)];
     
+    // Get top and bottom edge into uint16
+    double ee2 = EDGE_WEIGHT * (1 - (totalCount / 70.0)) * (EDGE_VALUES[((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[(uint16_t) ((taken << 8) | (uint8_t) black)] + EDGE_VALUES[(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0);
+    
+    // Prefer balanced positions if winning
+    ee = (ee + ee2) * (1 - (ee * ee2 < 0) * INBALANCED_POSITION_PENALTY);
+
+    // Minimize discs early
+    int discdiff = __builtin_popcountll(white) - __builtin_popcountll(black);
+    ee += ((79 - totalCount) / 40) * discdiff;
+
     return ee;
 }
 
@@ -800,11 +1041,14 @@ bool operator==(const BoardWithSide& l, const BoardWithSide& r) {
 }
 
 
-// 64-68 ns
+// 64-68 ns, maybe less after edge stability no longer computed
 uint64_t Board::stable_discs() const {
     uint64_t reflected_taken = reflect(taken);
     uint64_t reflected_black = reflect(black);
-    
+    uint64_t reflected_stable = ~EDGES;
+    uint64_t stable = ~EDGES;
+
+    /*
     // Pattern recognition on edges
     // Get top and bottom edge into uint16
     uint64_t stable = (uint64_t) ALL_STABLE_DISCS[7][((taken >> 48) & 0xFF00) | (black >> 56)] << 56;
@@ -813,11 +1057,9 @@ uint64_t Board::stable_discs() const {
     // Get left and right edges
     uint64_t reflected_stable = ALL_STABLE_DISCS[7][((reflected_taken << 8) & 0xFF00) | (reflected_black & 0xFF)];
     reflected_stable |= (uint64_t) ALL_STABLE_DISCS[7][((reflected_taken >> 48) & 0xFF00) | (reflected_black >> 56)] << 56;
+    */
 
     // Other row/column stability 
-    #define ROW_COL_CHECK_HELPER(i) ((uint64_t) STABLE_DISCS[7][((taken >> (40 - 8 * i)) & 0xFF00) | (0xFF & (black >> (48 - 8 * i)))] << (48 - 8 * i));
-    #define ROW_CHECK(i) stable |= ROW_COL_CHECK_HELPER(i)
-    #define COL_CHECK(i) reflected_stable |= ROW_COL_CHECK_HELPER(i)
     ROW_CHECK(0);
     ROW_CHECK(1);
     ROW_CHECK(2);
@@ -833,9 +1075,64 @@ uint64_t Board::stable_discs() const {
     stable &= reflect(reflected_stable);
 
     // Diagonals
-    #define LOOP_INNER(i) stable &= ~pattern_mask[i] | BYTE_TO_PATTERN[i][STABLE_DISCS[pattern_size[i] - 1][((uint16_t) PATTERN_TO_BYTE(i, taken & pattern_mask[i]) << 8) | PATTERN_TO_BYTE(i, black & pattern_mask[i])]]; 
-    #define LOOP_INNER_SE(i) stable &= ~pattern_mask[i] | BYTE_TO_PATTERN[i][STABLE_DISCS[pattern_size[i] - 1][((uint16_t) PATTERN_TO_BYTE_SE(i, taken & pattern_mask[i]) << 8) | PATTERN_TO_BYTE_SE(i, black & pattern_mask[i])]]; 
-    #define LOOP_INNER_NW(i) stable &= ~pattern_mask[i] | BYTE_TO_PATTERN[i][STABLE_DISCS[pattern_size[i] - 1][((uint16_t) PATTERN_TO_BYTE_NW(i, taken & pattern_mask[i]) << 8) | PATTERN_TO_BYTE_NW(i, black & pattern_mask[i])]];
+    LOOP_INNER_NW(12);
+    LOOP_INNER(13);
+    LOOP_INNER(14);
+    LOOP_INNER_SE(15);
+    LOOP_INNER_NW(16);
+    LOOP_INNER(17);
+    LOOP_INNER(18);
+    LOOP_INNER_SE(19);
+    LOOP_INNER_NW(20);
+    LOOP_INNER(21);
+    LOOP_INNER(22);
+    LOOP_INNER_SE(23);
+    LOOP_INNER_NW(24);
+    LOOP_INNER(25);
+    LOOP_INNER(26);
+    LOOP_INNER_SE(27);
+    LOOP_INNER_NW(28);
+    LOOP_INNER(29);
+    LOOP_INNER(30);
+    LOOP_INNER_SE(31);
+    LOOP_INNER_NW(32);
+    LOOP_INNER(33);
+    return stable;
+}
+
+uint64_t Board::stable_discs_log() const {
+    uint64_t reflected_taken = reflect(taken);
+    uint64_t reflected_black = reflect(black);
+    uint64_t reflected_stable = ~EDGES;
+    uint64_t stable = ~EDGES;
+
+    /*
+    // Pattern recognition on edges
+    // Get top and bottom edge into uint16
+    uint64_t stable = (uint64_t) ALL_STABLE_DISCS[7][((taken >> 48) & 0xFF00) | (black >> 56)] << 56;
+    stable |= ALL_STABLE_DISCS[7][((taken << 8) & 0xFF00) | (black & 0xFF)];
+    
+    // Get left and right edges
+    uint64_t reflected_stable = ALL_STABLE_DISCS[7][((reflected_taken << 8) & 0xFF00) | (reflected_black & 0xFF)];
+    reflected_stable |= (uint64_t) ALL_STABLE_DISCS[7][((reflected_taken >> 48) & 0xFF00) | (reflected_black >> 56)] << 56;
+    */
+
+    // Other row/column stability 
+    ROW_CHECK(0);
+    ROW_CHECK(1);
+    ROW_CHECK(2);
+    ROW_CHECK(3);
+    ROW_CHECK(4);
+    ROW_CHECK(5);
+    COL_CHECK(0);
+    COL_CHECK(1);
+    COL_CHECK(2);
+    COL_CHECK(3);
+    COL_CHECK(4);
+    COL_CHECK(5);
+    stable &= reflect(reflected_stable);
+
+    // Diagonals
     LOOP_INNER_NW(12);
     LOOP_INNER(13);
     LOOP_INNER(14);

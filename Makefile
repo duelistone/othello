@@ -6,7 +6,7 @@ PLAYERNAME  = duelist
 all: $(PLAYERNAME) testgame
 	
 $(PLAYERNAME): $(OBJS) timer.o wrapper.o 
-	$(CC) -o $@ $^ -lboost_system -pthread
+	$(CC) -o $@ $^ -pthread
 
 testgame: testgame.o 
 	$(CC) -o $@ $^ -pthread
