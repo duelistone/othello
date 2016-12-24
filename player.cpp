@@ -1134,15 +1134,23 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     }
     else if (totalCount == 5) {
         // Choose diagonal opening
-        int index = __builtin_clzl(legalMoves & (BIT(18) | BIT(21) | BIT(42) | BIT(45)));
+        int index = __builtin_clzll(legalMoves & (BIT(18) | BIT(21) | BIT(42) | BIT(45)));
         int x = FROM_INDEX_X(index);
         int y = FROM_INDEX_Y(index);
-        if (x == -1) return NULL;
-        currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
+        currBoard = currBoard.doMoveOnNewBoard(index, side);
         Move *move = new Move(x, y);
         return move;
     }
-    
+    else if (totalCount == 7 && __builtin_popcountll(legalMoves) == 2) {
+        // Symmetric position in parallel opening, either move is equivalent
+        int index = __builtin_clzll(legalMoves);
+        int x = FROM_INDEX_X(index);
+        int y = FROM_INDEX_Y(index);
+        currBoard = currBoard.doMoveOnNewBoard(index, side);
+        Move *move = new Move(x, y);
+        return move;
+    }
+
     // Set depth according to how far into game
     int depth;
     if (totalCount <= 20) depth = MAX_DEPTH;

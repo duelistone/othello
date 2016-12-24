@@ -949,6 +949,7 @@ void Board::print_eval_stats() const {
     // Minimize discs early
     int discdiff = __builtin_popcountll(white) - __builtin_popcountll(black);
     cerr << "Disc difference: " << ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0 << endl;
+    cerr << "Actual eval: " << pos_evaluate() << endl;
 }
 
 int Board::pos_evaluate() const {
@@ -958,6 +959,10 @@ int Board::pos_evaluate() const {
 
     // Compute frontier + stability + mobility
     uint64_t empty = ~taken;
+    empty &= ~((empty & CORNER_TL) >> 9); // Excluding dangerous X squares
+    empty &= ~((empty & CORNER_TR) >> 7);
+    empty &= ~((empty & CORNER_BL) << 7);
+    empty &= ~((empty & CORNER_BR) << 9);
     uint64_t frontier = (empty >> 1) & taken;
     frontier |= (empty << 1) & taken;
     frontier |= (empty << 8) & taken;
@@ -971,13 +976,13 @@ int Board::pos_evaluate() const {
     
     int blackFrontiers = __builtin_popcountll(black & frontier);
     int whiteFrontiers = __builtin_popcountll(white & frontier);
-    int blackMoves = __builtin_popcountll(findLegalMovesBlack());
-    int whiteMoves = __builtin_popcountll(findLegalMovesWhite());
+    int blackMoves = __builtin_popcountll(findLegalMovesBlack() & empty);
+    int whiteMoves = __builtin_popcountll(findLegalMovesWhite() & empty);
     double ee = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0) + STABLE_NONEDGES_WEIGHT * (__builtin_popcountll(stable_not_edge & black) - __builtin_popcountll(stable_not_edge & taken & ~black)) / 36.0 + MOBILITY_WEIGHT * (1 - totalCount / 60) * (1 - 0.1 * (totalCount / 50)) * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
 
     if (totalCount < 40) {
         // Penalty for risky squares if corner not filled
-        int x_square_penalty = -(!(taken & CORNER_TL) && (BIT(9) & black));
+        int x_square_penalty = -(!(taken & CORNER_TL) && (BIT(9) & black)); // TODO: Make this faster using empty technique above
         x_square_penalty += (!(taken & CORNER_TL) && (BIT(9) & white));
         x_square_penalty -= (!(taken & CORNER_TR) && (BIT(14) & black));
         x_square_penalty += (!(taken & CORNER_TR) && (BIT(14) & white));
@@ -997,7 +1002,7 @@ int Board::pos_evaluate() const {
 
     // Minimize discs early
     int discdiff = __builtin_popcountll(white) - __builtin_popcountll(black);
-    ee += ((79 - totalCount) / 40) * discdiff;
+    ee += ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0;
 
     return ee;
 }
