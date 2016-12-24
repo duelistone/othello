@@ -993,6 +993,9 @@ int Board::pos_evaluate() const {
         x_square_penalty *= X_SQUARE_PENALTY / 4.0;
         ee += x_square_penalty;
     }
+
+    // Penalty for leaving corner hanging
+    ee += CORNER_HANGING_PENALTY * (1 - (totalCount / 70.0)) * (__builtin_popcountll(blackMoves & CORNERS) - __builtin_popcountll(whiteMoves & CORNERS)) / 4.0;
     
     // Get top and bottom edge into uint16
     double ee2 = EDGE_WEIGHT * (1 - (totalCount / 70.0)) * (EDGE_VALUES[((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[(uint16_t) ((taken << 8) | (uint8_t) black)] + EDGE_VALUES[(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0);
