@@ -1,5 +1,43 @@
 #include "player.h"
 
+// Counting islands in a row
+int countIslandsBlack(uint8_t taken, uint8_t black) {
+    int result = 0;
+    bool inIsland = false;
+    for (int i = 0; i < 8; i++) {
+        if (black & RBIT(i)) {
+            if (!inIsland) {
+                result++;
+            }
+            inIsland = true;
+        }
+        else if ((taken & RBIT(i)) == 0) {
+            inIsland = false;
+        }
+    }
+
+    return result;
+}
+
+int countIslandsWhite(uint8_t taken, uint8_t black) {
+    black = taken & ~black; // Actually white
+    int result = 0;
+    bool inIsland = false;
+    for (int i = 0; i < 8; i++) {
+        if (black & RBIT(i)) {
+            if (!inIsland) {
+                result++;
+            }
+            inIsland = true;
+        }
+        else if ((taken & RBIT(i)) == 0) {
+            inIsland = false;
+        }
+    }
+
+    return result;
+}
+
 void playerConstructorHelper() {
     int size = 8;
     // get next greater value with same number of one bits
@@ -17,11 +55,11 @@ void playerConstructorHelper() {
     // 8 filled
     uint64_t taken = (1 << 8) - 1;
     for (uint64_t black = 0; black < 1 << 8; black++) {
-        uint64_t corners = (1 << 7) | 1;
+        // uint64_t corners = (1 << 7) | 1;
         STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
         PSEUDOSTABLE_DISCS[size - 1][(taken << 8) | black] = 0;
         ALL_STABLE_DISCS[size - 1][(taken << 8) | black] = taken;
-        EDGE_VALUES[(taken << 8) | black] = STABLE_WEIGHT * (2 * __builtin_popcountll(black) - 8) + CORNER_WEIGHT * (2 * __builtin_popcountll(black & corners) - 2);
+        // EDGE_VALUES[(taken << 8) | black] = STABLE_WEIGHT * (2 * __builtin_popcountll(black) - 8) + CORNER_WEIGHT * (2 * __builtin_popcountll(black & corners) - 2);
     }
     HELPER8(8, 7);
     HELPER8(8, 6);
@@ -33,7 +71,7 @@ void playerConstructorHelper() {
     // 0 filled
     STABLE_DISCS[size - 1][0] = 0;
     PSEUDOSTABLE_DISCS[size - 1][0] = 0;
-    EDGE_VALUES[0] = 0;
+    //EDGE_VALUES[0] = 0;
 
     size = 7;
 
@@ -53,7 +91,7 @@ void playerConstructorHelper() {
     // 0 filled
     STABLE_DISCS[size - 1][0] = 0;
     PSEUDOSTABLE_DISCS[size - 1][0] = 0;
-    EDGE_VALUES[0] = 0;
+    //EDGE_VALUES[0] = 0;
 
     size = 6;
 
@@ -74,7 +112,7 @@ void playerConstructorHelper() {
     STABLE_DISCS[size - 1][0] = 0;
     PSEUDOSTABLE_DISCS[size - 1][0] = 0;
     ALL_STABLE_DISCS[size - 1][0] = 0;
-    EDGE_VALUES[0] = 0;
+    //EDGE_VALUES[0] = 0;
 
     size = 5;
 
@@ -94,7 +132,7 @@ void playerConstructorHelper() {
     STABLE_DISCS[size - 1][0] = 0;
     PSEUDOSTABLE_DISCS[size - 1][0] = 0;
     ALL_STABLE_DISCS[size - 1][0] = 0;
-    EDGE_VALUES[0] = 0;
+    //EDGE_VALUES[0] = 0;
 
     size = 4;
 
@@ -113,7 +151,7 @@ void playerConstructorHelper() {
     STABLE_DISCS[size - 1][0] = 0;
     PSEUDOSTABLE_DISCS[size - 1][0] = 0;
     ALL_STABLE_DISCS[size - 1][0] = 0;
-    EDGE_VALUES[0] = 0;
+    //EDGE_VALUES[0] = 0;
 
     size = 3;
 
@@ -131,7 +169,7 @@ void playerConstructorHelper() {
     STABLE_DISCS[size - 1][0] = 0;
     PSEUDOSTABLE_DISCS[size - 1][0] = 0;
     ALL_STABLE_DISCS[size - 1][0] = 0;
-    EDGE_VALUES[0] = 0;
+    //EDGE_VALUES[0] = 0;
 
     size = 2;
 
@@ -148,7 +186,7 @@ void playerConstructorHelper() {
     STABLE_DISCS[size - 1][0] = 0;
     PSEUDOSTABLE_DISCS[size - 1][0] = 0;
     ALL_STABLE_DISCS[size - 1][0] = 0;
-    EDGE_VALUES[0] = 0;
+    //EDGE_VALUES[0] = 0;
 
 }
 
@@ -192,6 +230,19 @@ void playerConstructorHelper2() {
     cerr << "Ending second helper." << endl;
 }
 
+// Load EDGE_VALUES from file
+void playerConstructorHelper3() {
+    fstream edge_file("edge_values", ios_base::in);
+    int n, a;
+    double b;
+    while (edge_file >> n >> a >> b) {
+        EDGE_VALUES[n][a] = b * 36;
+    }
+    edge_file.close();
+
+    // Fill in gaps
+}
+
 /*
  * Constructor for the player; initialize everything here. The side your AI is
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish 
@@ -200,6 +251,7 @@ void playerConstructorHelper2() {
 Player::Player(Side s) : side(s), currBoard(Board()) {
     playerConstructorHelper();
     playerConstructorHelper2();
+    playerConstructorHelper3();
 }
 
 Player::~Player() {}

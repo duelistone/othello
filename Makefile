@@ -8,8 +8,14 @@ all: $(PLAYERNAME) testgame
 $(PLAYERNAME): $(OBJS) timer.o wrapper.o 
 	$(CC) -o $@ $^ -pthread
 
+learn: board.o learn.o
+	$(CC) $(CFLAGS) board.o learn.o -o learn
+
 testgame: testgame.o 
 	$(CC) -o $@ $^ -pthread
+
+learn.o: defs.h learn.cpp board.h
+	$(CC) -c $(CFLAGS) learn.cpp
 
 player.o: player.cpp common.h player.h board.h defs.h
 	$(CC) -c $(CFLAGS) player.cpp -pthread

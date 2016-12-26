@@ -568,7 +568,7 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
     
     uint64_t white = ~black & taken;
     
-    const uint64_t bi = SINGLE_BIT[index];
+    const uint64_t bi = BIT(index);
     uint64_t n = bi;
     
     uint64_t newwhite = white;
@@ -684,7 +684,7 @@ Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
     
     uint64_t white = ~black & taken;
     
-    const uint64_t bi = SINGLE_BIT[index];
+    const uint64_t bi = BIT(index);
     uint64_t n = bi;
     
     uint64_t newblack = black;
@@ -789,7 +789,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
 
     uint64_t white = ~black & taken;
     
-    const uint64_t bi = SINGLE_BIT[index];
+    const uint64_t bi = BIT(index);
     uint64_t n = bi;
     
     uint64_t newwhite = white;
@@ -902,53 +902,80 @@ void Board::print_eval_stats() const {
 
     uint64_t white = taken & ~black;
     int totalCount = __builtin_popcountll(taken);
-    uint64_t stable_not_edge = stable_discs_log();
-    PRINTBS(stable_not_edge)
+    uint64_t stable_not_edge = stable_discs();
 
     // Compute frontier + stability + mobility
     uint64_t empty = ~taken;
-    uint64_t frontier = (empty >> 1) & taken;
-    frontier |= (empty << 1) & taken;
-    frontier |= (empty << 8) & taken;
-    frontier |= (empty >> 8) & taken;
-    frontier |= (empty << 9) & taken;
-    frontier |= (empty >> 9) & taken;
-    frontier |= (empty << 7) & taken;
-    frontier |= (empty >> 7) & taken;
+    empty &= ~((empty & CORNER_TL) >> 9); // Excluding dangerous X squares
+    empty &= ~((empty & CORNER_TR) >> 7);
+    empty &= ~((empty & CORNER_BL) << 7);
+    empty &= ~((empty & CORNER_BR) << 9);
+    uint64_t empty2 = empty; // For excluding c squares
+    empty2 &= ~((empty & (CORNER_TL | CORNER_BL)) >> 1);
+    empty2 &= ~((empty & (CORNER_TL | CORNER_TR)) >> 8);
+    empty2 &= ~((empty & (CORNER_BL | CORNER_BR)) << 8);
+    empty2 &= ~((empty & (CORNER_TR | CORNER_BR)) << 1);
+    uint64_t frontier = (empty2 >> 1) & taken;
+    frontier |= (empty2 << 1) & taken;
+    frontier |= (empty2 << 8) & taken;
+    frontier |= (empty2 >> 8) & taken;
+    frontier |= (empty2 << 9) & taken;
+    frontier |= (empty2 >> 9) & taken;
+    frontier |= (empty2 << 7) & taken;
+    frontier |= (empty2 >> 7) & taken;
     frontier &= ~EDGES;
     frontier &= ~stable_not_edge;
     
     int blackFrontiers = __builtin_popcountll(black & frontier);
     int whiteFrontiers = __builtin_popcountll(white & frontier);
-    int blackMoves = __builtin_popcountll(findLegalMovesBlack());
-    int whiteMoves = __builtin_popcountll(findLegalMovesWhite());
-    
-    cerr << "Frontier score: " << FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0) << endl;
-    cerr << "Stable nonedges score: " << STABLE_NONEDGES_WEIGHT * (__builtin_popcountll(stable_not_edge & black) - __builtin_popcountll(stable_not_edge & taken & ~black)) / 36.0 << endl;
-    cerr << "Mobility score: " << MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0) * (1 - totalCount / 60) * (1 - 0.1 * (totalCount / 50)) << endl;
-    
-    if (totalCount < 40) {
-        // Penalty for risky squares if corner not filled
-        int x_square_penalty = -(!(taken & CORNER_TL) && (BIT(9) & black));
-        x_square_penalty += (!(taken & CORNER_TL) && (BIT(9) & white));
-        x_square_penalty -= (!(taken & CORNER_TR) && (BIT(14) & black));
-        x_square_penalty += (!(taken & CORNER_TR) && (BIT(14) & white));
-        x_square_penalty -= (!(taken & CORNER_BL) && (BIT(49) & black));
-        x_square_penalty += (!(taken & CORNER_BL) && (BIT(49) & white));
-        x_square_penalty -= (!(taken & CORNER_BR) && (BIT(54) & black));
-        x_square_penalty += (!(taken & CORNER_BR) && (BIT(54) & white));
-        x_square_penalty *= X_SQUARE_PENALTY / 4.0;
-        cerr << "X square penalty: " << x_square_penalty << endl;
-    }
+    uint64_t blackLM = findLegalMovesBlack();
+    uint64_t whiteLM = findLegalMovesWhite();
+    int blackMoves = __builtin_popcountll(blackLM & empty2);
+    int whiteMoves = __builtin_popcountll(whiteLM & empty2);
+    double eeF = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0);
+    double eeM = MOBILITY_WEIGHT * (1 - totalCount / 60) * (1 - 0.1 * (totalCount / 50)) * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
+    double ee = (eeF + eeM) * (1 - (eeF * eeM < 0) * INBALANCED_POSITION_PENALTY);
+
+    cerr << "Frontier score: " << eeF << endl;
+    cerr << "Mobility score: " << eeM << endl;
+    cerr << "ee: " << ee << endl;
+
+    // Penalty for risky squares if corner not filled
+    uint64_t bad_x_squares = ~empty ^ taken;
+    double ee2 = (1 - (totalCount / 40)) * (__builtin_popcountll(bad_x_squares & black) - __builtin_popcountll(bad_x_squares & white)) * X_SQUARE_PENALTY / 4.0;
+    cerr << "x square score: " << ee2;
+
+    // (Possibly) stable nonedges
+    double stable_nonedges_score = STABLE_NONEDGES_WEIGHT * (__builtin_popcountll(stable_not_edge & black) - __builtin_popcountll(stable_not_edge & taken & ~black)) / 36.0; 
+    cerr << "Stable nonedges: " << stable_nonedges_score << endl;
+    ee2 += stable_nonedges_score;
+
+    // Penalty for leaving corner hanging
+    double corner_hanging_score = CORNER_HANGING_PENALTY * (1 - (totalCount / 70.0)) * (__builtin_popcountll(blackLM & CORNERS) - __builtin_popcountll(whiteLM & CORNERS)) / 4.0;
+    cerr << corner_hanging_score << endl;
+    ee2 += corner_hanging_score;
     
     // Get top and bottom edge into uint16
-    cerr << "Edge top: " << EDGE_VALUES[((taken >> 56) << 8) | (black >> 56)] << endl;
-    cerr << "Edge bottom: " << EDGE_VALUES[(uint16_t) (taken << 8) | (uint8_t) black] << endl;
-    cerr << "Edges: " << EDGE_WEIGHT * (1 - (totalCount / 70.0)) * (EDGE_VALUES[((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[(uint16_t) (taken << 8) | (uint8_t) black] + EDGE_VALUES[(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0) << endl;
-    
+    ee2 += EDGE_WEIGHT * (EDGE_VALUES[totalCount][((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[totalCount][(uint16_t) ((taken << 8) | (uint8_t) black)] + EDGE_VALUES[totalCount][(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[totalCount][(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0);
+
+    // Edges
+    cerr << "Edges: " << EDGE_WEIGHT * (EDGE_VALUES[totalCount][((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[totalCount][(uint16_t) (taken << 8) | (uint8_t) black] + EDGE_VALUES[totalCount][(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[totalCount][(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0) << endl;
+    cerr << "ee2: " << ee2 << endl;
+
+    // Prefer balanced positions if winning
+    ee = (ee + ee2) * (1 - (ee * ee2 < 0) * INBALANCED_POSITION_PENALTY);
+    cerr << "ee and ee2 combined: " << ee << endl;
+
     // Minimize discs early
     int discdiff = __builtin_popcountll(white) - __builtin_popcountll(black);
+    ee += ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0;
+
+    // Maximize internal discs late
+    ee += (totalCount / 40) * ((totalCount - 40) / 26.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0;
+
     cerr << "Disc difference: " << ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0 << endl;
+    cerr << "Internal discs: " << (totalCount / 40) * ((totalCount - 40) / 26.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0 << endl;
+
     cerr << "Actual eval: " << pos_evaluate() << endl;
 }
 
@@ -963,42 +990,44 @@ int Board::pos_evaluate() const {
     empty &= ~((empty & CORNER_TR) >> 7);
     empty &= ~((empty & CORNER_BL) << 7);
     empty &= ~((empty & CORNER_BR) << 9);
-    uint64_t frontier = (empty >> 1) & taken;
-    frontier |= (empty << 1) & taken;
-    frontier |= (empty << 8) & taken;
-    frontier |= (empty >> 8) & taken;
-    frontier |= (empty << 9) & taken;
-    frontier |= (empty >> 9) & taken;
-    frontier |= (empty << 7) & taken;
-    frontier |= (empty >> 7) & taken;
+    uint64_t empty2 = empty; // For excluding c squares
+    empty2 &= ~((empty & (CORNER_TL | CORNER_BL)) >> 1);
+    empty2 &= ~((empty & (CORNER_TL | CORNER_TR)) >> 8);
+    empty2 &= ~((empty & (CORNER_BL | CORNER_BR)) << 8);
+    empty2 &= ~((empty & (CORNER_TR | CORNER_BR)) << 1);
+    uint64_t frontier = (empty2 >> 1) & taken;
+    frontier |= (empty2 << 1) & taken;
+    frontier |= (empty2 << 8) & taken;
+    frontier |= (empty2 >> 8) & taken;
+    frontier |= (empty2 << 9) & taken;
+    frontier |= (empty2 >> 9) & taken;
+    frontier |= (empty2 << 7) & taken;
+    frontier |= (empty2 >> 7) & taken;
     frontier &= ~EDGES;
     frontier &= ~stable_not_edge;
     
     int blackFrontiers = __builtin_popcountll(black & frontier);
     int whiteFrontiers = __builtin_popcountll(white & frontier);
-    int blackMoves = __builtin_popcountll(findLegalMovesBlack() & empty);
-    int whiteMoves = __builtin_popcountll(findLegalMovesWhite() & empty);
-    double ee = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0) + STABLE_NONEDGES_WEIGHT * (__builtin_popcountll(stable_not_edge & black) - __builtin_popcountll(stable_not_edge & taken & ~black)) / 36.0 + MOBILITY_WEIGHT * (1 - totalCount / 60) * (1 - 0.1 * (totalCount / 50)) * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
+    uint64_t blackLM = findLegalMovesBlack();
+    uint64_t whiteLM = findLegalMovesWhite();
+    int blackMoves = __builtin_popcountll(blackLM & empty2);
+    int whiteMoves = __builtin_popcountll(whiteLM & empty2);
+    double eeF = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0);
+    double eeM = MOBILITY_WEIGHT * (1 - totalCount / 60) * (1 - 0.1 * (totalCount / 50)) * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
+    double ee = (eeF + eeM) * (1 - (eeF * eeM < 0) * INBALANCED_POSITION_PENALTY);
 
-    if (totalCount < 40) {
-        // Penalty for risky squares if corner not filled
-        int x_square_penalty = -(!(taken & CORNER_TL) && (BIT(9) & black)); // TODO: Make this faster using empty technique above
-        x_square_penalty += (!(taken & CORNER_TL) && (BIT(9) & white));
-        x_square_penalty -= (!(taken & CORNER_TR) && (BIT(14) & black));
-        x_square_penalty += (!(taken & CORNER_TR) && (BIT(14) & white));
-        x_square_penalty -= (!(taken & CORNER_BL) && (BIT(49) & black));
-        x_square_penalty += (!(taken & CORNER_BL) && (BIT(49) & white));
-        x_square_penalty -= (!(taken & CORNER_BR) && (BIT(54) & black));
-        x_square_penalty += (!(taken & CORNER_BR) && (BIT(54) & white));
-        x_square_penalty *= X_SQUARE_PENALTY / 4.0;
-        ee += x_square_penalty;
-    }
+    // Penalty for risky squares if corner not filled
+    uint64_t bad_x_squares = ~empty ^ taken;
+    double ee2 = (1 - (totalCount / 40)) * (__builtin_popcountll(bad_x_squares & black) - __builtin_popcountll(bad_x_squares & white)) * X_SQUARE_PENALTY / 4.0;
+    
+    // (Possibly) stable nonedges
+    ee2 += STABLE_NONEDGES_WEIGHT * (__builtin_popcountll(stable_not_edge & black) - __builtin_popcountll(stable_not_edge & white)) / 36.0; 
 
     // Penalty for leaving corner hanging
-    ee += CORNER_HANGING_PENALTY * (1 - (totalCount / 70.0)) * (__builtin_popcountll(blackMoves & CORNERS) - __builtin_popcountll(whiteMoves & CORNERS)) / 4.0;
+    ee2 += CORNER_HANGING_PENALTY * (1 - (totalCount / 70.0)) * (__builtin_popcountll(blackLM & CORNERS) - __builtin_popcountll(whiteLM & CORNERS)) / 4.0;
     
-    // Get top and bottom edge into uint16
-    double ee2 = EDGE_WEIGHT * (1 - (totalCount / 70.0)) * (EDGE_VALUES[((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[(uint16_t) ((taken << 8) | (uint8_t) black)] + EDGE_VALUES[(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0);
+    // Edges
+    ee2 += EDGE_WEIGHT * (EDGE_VALUES[totalCount][((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[totalCount][(uint16_t) ((taken << 8) | (uint8_t) black)] + EDGE_VALUES[totalCount][(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[totalCount][(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0);
     
     // Prefer balanced positions if winning
     ee = (ee + ee2) * (1 - (ee * ee2 < 0) * INBALANCED_POSITION_PENALTY);
@@ -1006,6 +1035,9 @@ int Board::pos_evaluate() const {
     // Minimize discs early
     int discdiff = __builtin_popcountll(white) - __builtin_popcountll(black);
     ee += ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0;
+
+    // Maximize internal discs late
+    ee += (totalCount / 40) * ((totalCount - 40) / 26.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0;
 
     return ee;
 }

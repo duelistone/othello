@@ -121,7 +121,7 @@ using namespace std;
 
 extern "C" int other_side(int);
 
-extern int *EDGE_VALUES;
+extern int **EDGE_VALUES;
 extern uint8_t** STABLE_DISCS;
 extern uint8_t** PSEUDOSTABLE_DISCS;
 extern uint8_t** ALL_STABLE_DISCS;
@@ -154,6 +154,10 @@ public:
     int pos_evaluate() const;
      
     Board doMoveOnNewBoard(const int &index, const Side &side) const;
+    Board doMoveOnNewBoardWZH(const int &index, const Side &side) const {
+        if (side) return doMoveOnNewBoardBlackWZH(index);
+        return doMoveOnNewBoardWhiteWZH(index);
+    }
     Board doMoveOnNewBoardBlack(const int &index) const;
     Board doMoveOnNewBoardBlackWZH(const int &index) const;
 	Board doMoveOnNewBoardWhite(const int &index) const;

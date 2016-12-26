@@ -35,6 +35,7 @@
 #define INNER_EDGE_LEFT 0b0000000010000000100000001000000010000000100000001000000000000000ull
 #define INNER_EDGE_RIGHT 0b0000000000000001000000010000000100000001000000010000000100000000ull
 #define INNER_EDGES (INNER_EDGE_TOP | INNER_EDGE_BOTTOM | INNER_EDGE_LEFT | INNER_EDGE_RIGHT)
+#define INTERNAL_SQUARES 0x00003C3C3C3C0000ull
 #define EDGE_TOP 0b1111111100000000000000000000000000000000000000000000000000000000ull
 #define EDGE_BOTTOM 0b0000000000000000000000000000000000000000000000000000000011111111ull
 #define EDGE_LEFT 0b1000000010000000100000001000000010000000100000001000000010000000ull
@@ -49,7 +50,7 @@
 
 #define COL_MASK(x) (EDGE_LEFT >> (x))
 #define ROW_MASK(x) (EDGE_TOP >> (8 * (x)))
-#define COL(bits, x) (((bits & COL_MASK(x)) * MAGIC_COL(x)) >> 56) // The parentheses around bits would actually causes C++14 to ask for its address
+#define COL(bits, x) ((((bits) & COL_MASK(x)) * MAGIC_COL(x)) >> 56)
 
 #define EDGE_BIT(x) ((uint16_t) 1 << (15 - (x)))
 #define JUST_EDGE_BIT(x) ((uint8_t) 1 << (7 - (x)))
@@ -134,25 +135,26 @@
 #define LOOP_INNER_NW(i) stable &= ~pattern_mask[i] | BYTE_TO_PATTERN[i][STABLE_DISCS[pattern_size[i] - 1][((uint16_t) PATTERN_TO_BYTE_NW(i, taken & pattern_mask[i]) << 8) | PATTERN_TO_BYTE_NW(i, black & pattern_mask[i])]];
 
 // To speed things up in the Player constructor's helper
-#define HELPER8(s, n) {for (taken = (1 << (n)) - 1; taken < 1 << (s); taken = snoob(taken)) {uint64_t black = 0; uint8_t corners = 1 | (1 << (s - 1)); do {RowBoard<(s)> rb(taken, black); rb.set_stable(); EDGE_VALUES[(taken << 8) | black] = STABLE_WEIGHT * (__builtin_popcount(rb.all_stable() & black) - __builtin_popcount(rb.all_stable() & ~black)) + CORNER_WEIGHT * (__builtin_popcount(black & corners) - __builtin_popcount(taken & ~black & corners)); black = (black - taken) & taken;} while (black);}}
+#define HELPER8(s, n) {for (taken = (1 << (n)) - 1; taken < 1 << (s); taken = snoob(taken)) {uint64_t black = 0; /* uint8_t corners = 1 | (1 << (s - 1)); */ do {RowBoard<(s)> rb(taken, black); rb.set_stable(); /* EDGE_VALUES[(taken << 8) | black] = STABLE_WEIGHT * (__builtin_popcount(rb.all_stable() & black) - __builtin_popcount(rb.all_stable() & ~black)) + CORNER_WEIGHT * (__builtin_popcount(black & corners) - __builtin_popcount(taken & ~black & corners)); if ((3 & taken) == 2 && (3 & black) == 2 && (black != 126) && (rb.all_stable() & 2) == 0) EDGE_VALUES[(taken << 8) | black] -= C_SQUARE_PENALTY; if ((3 & taken) == 2 && (3 & taken & ~black) == 2 && (taken & ~black) != 126 && (rb.all_stable() & 2) == 0) EDGE_VALUES[(taken << 8) | black] += C_SQUARE_PENALTY; if ((0xC0 & taken) == 0x40 && (0xC0 & black) == 0x40 && (black != 126) && (rb.all_stable() & 0x40) == 0) EDGE_VALUES[(taken << 8) | black] -= C_SQUARE_PENALTY; if ((0xC0 & taken) == 0x40 && (0xC0 & taken & ~black) == 0x40 && (taken & ~black) != 126 && (rb.all_stable() & 0x40) == 0) EDGE_VALUES[(taken << 8) | black] += C_SQUARE_PENALTY; EDGE_VALUES[(taken << 8) | black] += ISLAND_PENALTY * (countIslandsWhite(taken, black) / 2); EDGE_VALUES[(taken << 8) | black] -= ISLAND_PENALTY * (countIslandsBlack(taken, black) / 2); */ black = (black - taken) & taken;} while (black);}}
 #define HELPER(s, n) {for (taken = (1 << (n)) - 1; taken < 1 << (s); taken = snoob(taken)) {uint64_t black = 0; do {RowBoard<(s)> rb(taken, black); rb.set_stable(); black = (black - taken) & taken;} while (black);}}
 
 // Configuration
 #define X_SQUARE_PENALTY 40
-#define MOBILITY_WEIGHT 70
-#define FRONTIER_WEIGHT 45
+#define MOBILITY_WEIGHT 60
+#define FRONTIER_WEIGHT 50
 #define DISC_DIFFERENCE_WEIGHT 10
 #define STABLE_NONEDGES_WEIGHT 70 
 #define INBALANCED_POSITION_PENALTY 0.3
 #define CORNER_HANGING_PENALTY 60
-#define EDGE_WEIGHT 450
+#define ISLAND_PENALTY 4
+#define EDGE_WEIGHT 150
+#define INTERNAL_DISCS_WEIGHT 40
 #define HASH_DEPTH (MAX_DEPTH - 1)
 #define CORNER_WEIGHT 6
 #define STABLE_WEIGHT 3
+#define C_SQUARE_PENALTY 3
 #define DIVISOR_FOR_AW 13
 #define MAX_PENULTIMATE_DEPTH_TIME 25
-#define SIMPLE_EVAL 1
-#define KILLER_HEURISTIC 0 
 #define IID 1
 #define USE_HASH_IN_ENDGAME_ALPHABETA 1
 #define MAX_DEPTH 15
