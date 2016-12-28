@@ -312,5 +312,7 @@ namespace std {
 	};
 }
 
+ostream & operator<<(ostream & os, const Board &b);
+
 #endif
 

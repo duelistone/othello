@@ -1,43 +1,5 @@
 #include "player.h"
 
-// Counting islands in a row
-int countIslandsBlack(uint8_t taken, uint8_t black) {
-    int result = 0;
-    bool inIsland = false;
-    for (int i = 0; i < 8; i++) {
-        if (black & RBIT(i)) {
-            if (!inIsland) {
-                result++;
-            }
-            inIsland = true;
-        }
-        else if ((taken & RBIT(i)) == 0) {
-            inIsland = false;
-        }
-    }
-
-    return result;
-}
-
-int countIslandsWhite(uint8_t taken, uint8_t black) {
-    black = taken & ~black; // Actually white
-    int result = 0;
-    bool inIsland = false;
-    for (int i = 0; i < 8; i++) {
-        if (black & RBIT(i)) {
-            if (!inIsland) {
-                result++;
-            }
-            inIsland = true;
-        }
-        else if ((taken & RBIT(i)) == 0) {
-            inIsland = false;
-        }
-    }
-
-    return result;
-}
-
 void playerConstructorHelper() {
     int size = 8;
     // get next greater value with same number of one bits
@@ -1152,6 +1114,32 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
     return make_pair(besti, v);
 }
 
+// Extracts principal variation from hash
+pair< vector<uint8_t>, Board> get_pv(Board b, Side side) {
+    vector<uint8_t> result;
+    
+    Side s = side;
+    for (int i = 0; i < 60; i++) {
+        uint8_t hash_move = tt[b.zobrist_hash];
+        if (hash_move >= 64) break;
+        uint64_t lm = b.findLegalMoves(s);
+        if (BIT(hash_move) & lm) {
+            result.push_back(hash_move);
+            b = b.doMoveOnNewBoard(hash_move, s);
+        }
+        else {
+            result.push_back(64); // A pass
+        }
+        s = !s;
+    }
+
+    for (int i = result.size() - 1; i >= 0; i--) {
+        if (result[i] == 64) result.pop_back();
+    }
+
+    return make_pair(result, b);
+}
+
 bool gameSolved = false;
 
 /*
@@ -1251,17 +1239,20 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
         //~ if (tt.table[i] != 64) positions++;
     //~ }
     
-    // Output some useful info and return (remove for more speed)
-    cerr << totalCount + 1 << " eval: " << eval << ' ' << endl;
-    if (gameSolved) cerr << "(Endgame eval)" << endl;
-    
-    // Make move
+    // Make move and output helpful info
     string letters = "abcdefgh";
     int x = FROM_INDEX_X(besti);
     int y = FROM_INDEX_Y(besti);
     cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << endl;
     currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
     currBoard.print_eval_stats();
+    pair< vector<uint8_t>, Board > pv_and_board = get_pv(currBoard, !side);
+    cerr << "PV (might contain errors): ";
+    for (size_t i = 0; i < pv_and_board.first.size(); i++) cerr << (int) pv_and_board.first[i] << ' ';
+    cerr << endl;
+    cerr << pv_and_board.second << endl;
+    cerr << totalCount + 1 << " eval: " << eval << ' ' << endl;
+    if (gameSolved) cerr << "(Endgame eval)" << endl;
     Move *move = new Move(x, y);
     return move;
     
