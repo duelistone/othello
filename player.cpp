@@ -1069,7 +1069,7 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
     
     int besti = -1;
     int v;
-    if (s == BLACK) {
+    if (s) {
         v = -1;
         if (guess > -1) {
             legalMoves ^= SINGLE_BIT[guess];
@@ -1079,7 +1079,7 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
             v = val;
         }
         while (legalMoves && v <= 0) {
-            int index = __builtin_clzl(legalMoves);
+            int index = __builtin_clzll(legalMoves);
             legalMoves ^= BIT(index);
             
             Board b2 = b.doMoveOnNewBoard(index, s);
@@ -1100,7 +1100,7 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
             v = val;
         }
         while (legalMoves && v >= 0) {
-            int index = __builtin_clzl(legalMoves);
+            int index = __builtin_clzll(legalMoves);
             legalMoves ^= BIT(index);
             
             Board b2 = b.doMoveOnNewBoard(index, s);
