@@ -695,6 +695,216 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
     return Board(taken | bi, ~newwhite & taken, 0);
 }
 
+uint64_t Board::doMoveOnNewBoardBlackWZHB(const int &index) const {
+    // Makes move on new board using bit operations
+    // This leads to no jumping when converted to assembly
+    
+    // Observe that if the move is illegal, taken will be updated, 
+    // but black will remain the same.
+    
+    uint64_t white = ~black & taken;
+    
+    const uint64_t bi = BIT(index);
+    uint64_t n = bi;
+    
+    uint64_t newblack = black;
+    uint64_t filtered;
+    
+    // LEFT
+    filtered = white & LEFT_FILTER;
+    n |= filtered & (n << 1);
+    n |= filtered & (n << 1);
+    n |= filtered & (n << 1);
+    n |= filtered & (n << 1);
+    n |= filtered & (n << 1);
+    n |= filtered & (n << 1);
+    if (black & LEFT_FILTER & (n << 1)) newblack |= n;
+
+    // RIGHT
+    n = bi;
+    filtered = white & RIGHT_FILTER;
+    n |= filtered & (n >> 1);
+    n |= filtered & (n >> 1);
+    n |= filtered & (n >> 1);
+    n |= filtered & (n >> 1);
+    n |= filtered & (n >> 1);
+    n |= filtered & (n >> 1);
+    if (black & RIGHT_FILTER & (n >> 1)) newblack |= n;
+    
+    // DOWN
+    n = bi;
+    filtered = white & DOWN_FILTER;
+    n |= filtered & (n >> 8);
+    n |= filtered & (n >> 8);
+    n |= filtered & (n >> 8);
+    n |= filtered & (n >> 8);
+    n |= filtered & (n >> 8);
+    n |= filtered & (n >> 8);
+    if (black & DOWN_FILTER & (n >> 8)) newblack |= n;
+    
+    // UP
+    n = bi;
+    filtered = white & UP_FILTER;
+    n |= filtered & (n << 8);
+    n |= filtered & (n << 8);
+    n |= filtered & (n << 8);
+    n |= filtered & (n << 8);
+    n |= filtered & (n << 8);
+    n |= filtered & (n << 8);
+    if (black & UP_FILTER & (n << 8)) newblack |= n;
+    
+    // UP_LEFT
+    n = bi;
+    filtered = white & UP_LEFT_FILTER;
+    n |= filtered & (n << 9);
+    n |= filtered & (n << 9);
+    n |= filtered & (n << 9);
+    n |= filtered & (n << 9);
+    n |= filtered & (n << 9);
+    n |= filtered & (n << 9);
+    if (black & UP_LEFT_FILTER & (n << 9)) newblack |= n;
+    
+    // DOWN_RIGHT
+    n = bi;
+    filtered = white & DOWN_RIGHT_FILTER;
+    n |= filtered & (n >> 9);
+    n |= filtered & (n >> 9);
+    n |= filtered & (n >> 9);
+    n |= filtered & (n >> 9);
+    n |= filtered & (n >> 9);
+    n |= filtered & (n >> 9);
+    if (black & DOWN_RIGHT_FILTER & (n >> 9)) newblack |= n;
+    
+    // UP_RIGHT
+    n = bi;
+    filtered = white & UP_RIGHT_FILTER;
+    n |= filtered & (n << 7);
+    n |= filtered & (n << 7);
+    n |= filtered & (n << 7);
+    n |= filtered & (n << 7);
+    n |= filtered & (n << 7);
+    n |= filtered & (n << 7);
+    if (black & UP_RIGHT_FILTER & (n << 7)) newblack |= n;
+    
+    // DOWN_LEFT
+    n = bi;
+    filtered = white & DOWN_LEFT_FILTER;
+    n |= filtered & (n >> 7);
+    n |= filtered & (n >> 7);
+    n |= filtered & (n >> 7);
+    n |= filtered & (n >> 7);
+    n |= filtered & (n >> 7);
+    n |= filtered & (n >> 7);
+    if (black & DOWN_LEFT_FILTER & (n >> 7)) newblack |= n;
+
+    return newblack;
+}
+
+uint64_t Board::doMoveOnNewBoardWhiteWZHB(const int &index) const {
+    // Makes move on new board using bit operations
+    // This leads to no jumping when converted to assembly
+    
+    // Observe that if the move is illegal, taken will be updated, 
+    // but black will remain the same.
+
+    uint64_t white = ~black & taken;
+    
+    const uint64_t bi = BIT(index);
+    uint64_t n = bi;
+    
+    uint64_t newwhite = white;
+    uint64_t filtered;
+    
+    // LEFT
+    filtered = black & LEFT_FILTER;
+    n |= filtered & (n << 1);
+    n |= filtered & (n << 1);
+    n |= filtered & (n << 1);
+    n |= filtered & (n << 1);
+    n |= filtered & (n << 1);
+    n |= filtered & (n << 1);
+    if (white & LEFT_FILTER & (n << 1)) newwhite |= n;
+    
+    // RIGHT
+    n = bi;
+    filtered = black & RIGHT_FILTER;
+    n |= filtered & (n >> 1);
+    n |= filtered & (n >> 1);
+    n |= filtered & (n >> 1);
+    n |= filtered & (n >> 1);
+    n |= filtered & (n >> 1);
+    n |= filtered & (n >> 1);
+    if (white & RIGHT_FILTER & (n >> 1)) newwhite |= n;
+    
+    // DOWN
+    n = bi;
+    filtered = black & DOWN_FILTER;
+    n |= filtered & (n >> 8);
+    n |= filtered & (n >> 8);
+    n |= filtered & (n >> 8);
+    n |= filtered & (n >> 8);
+    n |= filtered & (n >> 8);
+    n |= filtered & (n >> 8);
+    if (white & DOWN_FILTER & (n >> 8)) newwhite |= n;
+    
+    // UP
+    n = bi;
+    filtered = black & UP_FILTER;
+    n |= filtered & (n << 8);
+    n |= filtered & (n << 8);
+    n |= filtered & (n << 8);
+    n |= filtered & (n << 8);
+    n |= filtered & (n << 8);
+    n |= filtered & (n << 8);
+    if (white & UP_FILTER & (n << 8)) newwhite |= n;
+    
+    // UP_LEFT
+    n = bi;
+    filtered = black & UP_LEFT_FILTER;
+    n |= filtered & (n << 9);
+    n |= filtered & (n << 9);
+    n |= filtered & (n << 9);
+    n |= filtered & (n << 9);
+    n |= filtered & (n << 9);
+    n |= filtered & (n << 9);
+    if (white & UP_LEFT_FILTER & (n << 9)) newwhite |= n;
+    
+    // DOWN_RIGHT
+    n = bi;
+    filtered = black & DOWN_RIGHT_FILTER;
+    n |= filtered & (n >> 9);
+    n |= filtered & (n >> 9);
+    n |= filtered & (n >> 9);
+    n |= filtered & (n >> 9);
+    n |= filtered & (n >> 9);
+    n |= filtered & (n >> 9);
+    if (white & DOWN_RIGHT_FILTER & (n >> 9)) newwhite |= n;
+            
+    // UP_RIGHT
+    n = bi;
+    filtered = black & UP_RIGHT_FILTER;
+    n |= filtered & (n << 7);
+    n |= filtered & (n << 7);
+    n |= filtered & (n << 7);
+    n |= filtered & (n << 7);
+    n |= filtered & (n << 7);
+    n |= filtered & (n << 7);
+    if (white & UP_RIGHT_FILTER & (n << 7)) newwhite |= n;
+    
+    // DOWN_LEFT
+    n = bi;
+    filtered = black & DOWN_LEFT_FILTER;
+    n |= filtered & (n >> 7);
+    n |= filtered & (n >> 7);
+    n |= filtered & (n >> 7);
+    n |= filtered & (n >> 7);
+    n |= filtered & (n >> 7);
+    n |= filtered & (n >> 7);
+    if (white & DOWN_LEFT_FILTER & (n >> 7)) newwhite |= n;
+        
+    return ~newwhite & taken;
+}
+
 void Board::print_eval_stats() const {
     cerr << "Position: " << endl;
     cerr << *this << endl;

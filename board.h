@@ -149,8 +149,6 @@ public:
     uint64_t findLegalMoves(const Side &side) const;
     uint64_t findLegalMovesBlack() const;
     uint64_t findLegalMovesWhite() const;
-    uint64_t flippableBlack() const;
-    uint64_t flippableWhite() const;
     int pos_evaluate() const;
      
     Board doMoveOnNewBoard(const int &index, const Side &side) const;
@@ -160,8 +158,10 @@ public:
     }
     Board doMoveOnNewBoardBlack(const int &index) const;
     Board doMoveOnNewBoardBlackWZH(const int &index) const;
+    uint64_t doMoveOnNewBoardBlackWZHB(const int &index) const;
 	Board doMoveOnNewBoardWhite(const int &index) const;
 	Board doMoveOnNewBoardWhiteWZH(const int &index) const;
+	uint64_t doMoveOnNewBoardWhiteWZHB(const int &index) const;
     int count (Side side) const;
     int countBlack() const;
     int countWhite() const;
