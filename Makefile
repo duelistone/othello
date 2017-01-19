@@ -1,5 +1,5 @@
 CC          = g++
-CFLAGS      = -Wall -O3 -msse2 -march=corei7 -ansi -pedantic -std=c++14 -pthread
+CFLAGS      = -Wall -O3 -msse2 -march=native -ansi -pedantic -std=c++14 -pthread
 OBJS        = player.o board.o 
 PLAYERNAME  = duelist
 

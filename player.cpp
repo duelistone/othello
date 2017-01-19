@@ -1,5 +1,14 @@
 #include "player.h"
 
+// Comparison function for pairs based on second value
+bool pairCmpBlack(pair<Board, int> a, pair<Board, int> b) {
+    return a.second > b.second;
+}
+
+bool pairCmpWhite(pair<Board, int> a, pair<Board, int> b) {
+    return a.second < b.second;
+}
+
 void playerConstructorHelper() {
     int size = 8;
     // get next greater value with same number of one bits
@@ -556,7 +565,7 @@ pair<int, int> main_minimax_aw(Board b, const Side s, int guess = -1) {
     int d = 3;
     for (; ; d++) {
         if (d % 2) {
-            int diff = abs(eOdd) / DIVISOR_FOR_AW + 5; 
+            int diff = abs(eOdd) / DIVISOR_FOR_AW + 500; 
             int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
             int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
             int counter = 1;
@@ -585,7 +594,7 @@ pair<int, int> main_minimax_aw(Board b, const Side s, int guess = -1) {
             tim.endms();
         }
         else {
-            int diff = abs(eEven) / DIVISOR_FOR_AW + 5;
+            int diff = abs(eEven) / DIVISOR_FOR_AW + 500;
             int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
             int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
             int counter = 1;
@@ -919,6 +928,9 @@ inline int deep_endgame_alphabeta_white_59(Board b, int alpha, int beta, bool pr
     return beta;
 }
 inline int deep_endgame_alphabeta_black(Board b, int alpha, int beta, bool prevPass) {
+    int totalCount = __builtin_popcountll(b.taken);
+    if (totalCount == 59) return deep_endgame_alphabeta_black_59(b, alpha, beta, prevPass);
+
     uint64_t legalMoves = b.findLegalMovesBlack();
     
     if (legalMoves == 0) {
@@ -927,14 +939,19 @@ inline int deep_endgame_alphabeta_black(Board b, int alpha, int beta, bool prevP
         }
         return deep_endgame_alphabeta_white(b, alpha, beta, true);
     }
-
-    while (alpha < beta && legalMoves) {
-        int index = __builtin_clzll(legalMoves);
-        legalMoves ^= BIT(index);
-        int v;
-        if (__builtin_popcountll(b.taken) == 58) v = deep_endgame_alphabeta_white_59(b.doMoveOnNewBoardBlackWZH(index), alpha, beta, false);
-        else v = deep_endgame_alphabeta_white(b.doMoveOnNewBoardBlackWZH(index), alpha, beta, false);
-        alpha = (v > alpha) ? v : alpha;
+    if (alpha < beta) {
+        vector< pair<Board, int> > boards_and_evals;
+        while (legalMoves) {
+            int index = __builtin_clzll(legalMoves);
+            legalMoves ^= BIT(index);
+            Board b2 = b.doMoveOnNewBoardBlackWZH(index);
+            boards_and_evals.push_back(make_pair(b2, __builtin_popcountll(b2.findLegalMovesBlack()) - __builtin_popcountll(b2.findLegalMovesWhite()))); // pvsWhite(b2, DEEP_ENDGAME_PRESEARCH_DEPTH)));
+        }
+        sort(boards_and_evals.begin(), boards_and_evals.end(), pairCmpBlack);
+        for (size_t i = 0; alpha < beta && i < boards_and_evals.size(); i++) {
+            int v = deep_endgame_alphabeta_white(boards_and_evals[i].first, alpha, beta);
+            alpha = (v > alpha) ? v : alpha;
+        }
     }
 
     return alpha;
@@ -942,6 +959,9 @@ inline int deep_endgame_alphabeta_black(Board b, int alpha, int beta, bool prevP
 
 
 inline int deep_endgame_alphabeta_white(Board b, int alpha, int beta, bool prevPass) {
+    int totalCount = __builtin_popcountll(b.taken);
+    if (totalCount == 59) return deep_endgame_alphabeta_white_59(b, alpha, beta, prevPass);
+
     uint64_t legalMoves = b.findLegalMovesWhite();
     
     if (legalMoves == 0) {
@@ -950,14 +970,19 @@ inline int deep_endgame_alphabeta_white(Board b, int alpha, int beta, bool prevP
         }
         return deep_endgame_alphabeta_black(b, alpha, beta, true);
     }
-
-    while (alpha < beta && legalMoves) {
-        int index = __builtin_clzll(legalMoves);
-        legalMoves ^= BIT(index);
-        int v;
-        if (__builtin_popcountll(b.taken) == 58) v = deep_endgame_alphabeta_black_59(b.doMoveOnNewBoardWhiteWZH(index), alpha, beta, false);
-        else v = deep_endgame_alphabeta_black(b.doMoveOnNewBoardWhiteWZH(index), alpha, beta, false);
-        beta = (v < beta) ? v : beta;
+    if (alpha < beta) {
+        vector< pair<Board, int> > boards_and_evals;
+        while (legalMoves) {
+            int index = __builtin_clzll(legalMoves);
+            legalMoves ^= BIT(index);
+            Board b2 = b.doMoveOnNewBoardWhiteWZH(index);
+            boards_and_evals.push_back(make_pair(b2, __builtin_popcountll(b2.findLegalMovesBlack()) - __builtin_popcountll(b2.findLegalMovesWhite()))); // pvsBlack(b2, DEEP_ENDGAME_PRESEARCH_DEPTH, BLACK)));
+        }
+        sort(boards_and_evals.begin(), boards_and_evals.end(), pairCmpWhite);
+        for (size_t i = 0; alpha < beta && i < boards_and_evals.size(); i++) {
+            int v = deep_endgame_alphabeta_black(boards_and_evals[i].first, alpha, beta);
+            beta = (v < beta) ? v : beta;
+        }
     }
 
     return beta;
@@ -1005,8 +1030,10 @@ int endgame_alphabeta(Board b, const Side s, int alpha = -1, int beta = 1) {
         }
     }
     
-    if (totalCount >= 42 + HASH_DEPTH) return deep_endgame_alphabeta(b, s, alpha, beta);
-    
+    if (totalCount >= DEEP_ENDGAME_START) return deep_endgame_alphabeta(b, s, alpha, beta);
+
+    int presearch_depth = ENDGAME_PRESEARCH_DEPTH - (totalCount - 42) / 3;
+
     uint64_t legalMoves = b.findLegalMoves(s);
     
     if (legalMoves == 0) {
@@ -1031,11 +1058,19 @@ int endgame_alphabeta(Board b, const Side s, int alpha = -1, int beta = 1) {
             alpha = (v > alpha) ? v : alpha;
         }
         #endif
-        while (alpha < beta && legalMoves) {
-            int index = __builtin_clzl(legalMoves);
-            legalMoves ^= BIT(index);
-            int v = endgame_alphabeta(b.doMoveOnNewBoardBlack(index), WHITE, alpha, beta);
-            alpha = (v > alpha) ? v : alpha;
+        if (alpha < beta) {
+            vector< pair<Board, int> > boards_and_evals;
+            while (legalMoves) {
+                int index = __builtin_clzll(legalMoves);
+                legalMoves ^= BIT(index);
+                Board b2 = b.doMoveOnNewBoardBlack(index);
+                boards_and_evals.push_back(make_pair(b2, pvs(b2, presearch_depth, WHITE)));
+            }
+            sort(boards_and_evals.begin(), boards_and_evals.end(), pairCmpBlack);
+            for (size_t i = 0; alpha < beta && i < boards_and_evals.size(); i++) {
+                int v = endgame_alphabeta(boards_and_evals[i].first, WHITE, alpha, beta);
+                alpha = (v > alpha) ? v : alpha;
+            }
         }
     }
     else {
@@ -1047,11 +1082,19 @@ int endgame_alphabeta(Board b, const Side s, int alpha = -1, int beta = 1) {
             beta = (v < beta) ? v : beta;
         }
         #endif
-        while (alpha < beta && legalMoves) {
-            int index = __builtin_clzl(legalMoves);
-            legalMoves ^= BIT(index);
-            int v = endgame_alphabeta(b.doMoveOnNewBoardWhite(index), BLACK, alpha, beta);
-            beta = (v < beta) ? v : beta;
+        if (alpha < beta) {
+            vector< pair<Board, int> > boards_and_evals;
+            while (legalMoves) {
+                int index = __builtin_clzll(legalMoves);
+                legalMoves ^= BIT(index);
+                Board b2 = b.doMoveOnNewBoardWhite(index);
+                boards_and_evals.push_back(make_pair(b2, pvs(b2, presearch_depth, BLACK)));
+            }
+            sort(boards_and_evals.begin(), boards_and_evals.end(), pairCmpWhite);
+            for (size_t i = 0; alpha < beta && i < boards_and_evals.size(); i++) {
+                int v = endgame_alphabeta(boards_and_evals[i].first, BLACK, alpha, beta);
+                beta = (v < beta) ? v : beta;
+            }
         }
     }
     
@@ -1072,7 +1115,7 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
     if (s) {
         v = -1;
         if (guess > -1) {
-            legalMoves ^= SINGLE_BIT[guess];
+            legalMoves ^= BIT(guess);
             Board b2 = b.doMoveOnNewBoard(guess, s);
             int val = endgame_alphabeta(b2, !s, v, 1);
             besti = guess;
@@ -1093,7 +1136,7 @@ pair<int, int> endgame_minimax(Board b, Side s, int guess = -1) {
     else {
         v = 1;
         if (guess > -1) {
-            legalMoves ^= SINGLE_BIT[guess];
+            legalMoves ^= BIT(guess);
             Board b2 = b.doMoveOnNewBoard(guess, s);
             int val = endgame_alphabeta(b2, !s, -1, v);
             besti = guess;
@@ -1193,9 +1236,7 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
 
     // Set depth according to how far into game
     int depth;
-    if (totalCount <= 20) depth = MAX_DEPTH;
-    else if (totalCount <= 30) depth = MAX_DEPTH;
-    else if (totalCount <= 41) depth = MAX_DEPTH;
+    if (totalCount < ENDGAME_START) depth = MAX_DEPTH;
     else depth = INT_MAX; // Search to end (much faster)
     
     int eval = -10000; // Just a value

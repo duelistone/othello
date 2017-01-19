@@ -1051,7 +1051,7 @@ int Board::pos_evaluate() const {
     // Maximize internal discs late
     ee += (totalCount / 40) * ((totalCount - 40) / 26.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0;
 
-    return ee;
+    return 100 * ee;
 }
 
 /*
