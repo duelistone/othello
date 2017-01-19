@@ -162,7 +162,6 @@ public:
 	Board doMoveOnNewBoardWhite(const int &index) const;
 	Board doMoveOnNewBoardWhiteWZH(const int &index) const;
 	uint64_t doMoveOnNewBoardWhiteWZHB(const int &index) const;
-    int count (Side side) const;
     int countBlack() const;
     int countWhite() const;
     uint64_t stable_discs() const;

@@ -1055,13 +1055,6 @@ int Board::pos_evaluate() const {
 }
 
 /*
- * Current count of given side's stones.
- */
-int Board::count(Side side) const {
-    return (side == BLACK) ? countBlack() : countWhite();
-}
-
-/*
  * Current count of black stones.
  */
 int Board::countBlack() const {
