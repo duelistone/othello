@@ -21,6 +21,7 @@
 #include <vector>
 #include <fstream>
 #include <algorithm>
+#include <stack>
 #include "timer.h"
 #include "tt.h"
 
