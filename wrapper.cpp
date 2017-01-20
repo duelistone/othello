@@ -20,7 +20,7 @@ uint64_t** BYTE_TO_PATTERN;
 uint64_t SINGLE_BIT[64];
 fstream fil("c.txt", ios_base::out);
 
-BoardHash tt(1024);
+BoardHash tt(256);
 EndgameBoardHash endgameTT(64);
 
 size_t random_numbers[130];
