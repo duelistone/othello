@@ -21,6 +21,7 @@ uint64_t SINGLE_BIT[64];
 fstream fil("c.txt", ios_base::out);
 
 BoardHash tt(256);
+BoardHash2 tt2(4);
 EndgameBoardHash endgameTT(64);
 
 size_t random_numbers[130];

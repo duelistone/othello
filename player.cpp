@@ -219,7 +219,7 @@ void playerConstructorHelper3() {
  * on (BLACK or WHITE) is passed in as "side". The constructor must finish 
  * within 30 seconds if using the Java tester.
  */
-Player::Player(Side s) : side(s), currBoard(Board()) {
+Player::Player(Side s) : side(s), last_depth(4), currBoard(Board()) {
     playerConstructorHelper();
     playerConstructorHelper2();
     playerConstructorHelper3();
@@ -229,6 +229,7 @@ Player::~Player() {}
 
 // Search functions
 
+/*
 int alphabeta(Board b, const int depth, const Side s, int alpha, int beta, const int depth2, const bool prevPass) {
     if (depth <= 0) return b.pos_evaluate();
 
@@ -295,13 +296,12 @@ int alphabeta(Board b, const int depth, const Side s, int alpha, int beta, const
         if (depth2 <= HASH_DEPTH) tt[b.zobrist_hash] = besti;
         return beta;
     }
-}
+}*/
 
 int pvsBlack(Board b, const int depth, int alpha = INT_MIN, const int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
 int pvsWhite(Board b, const int depth, const int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
 int pvsBlackMove(Board b, const int depth, int alpha = INT_MIN, const int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
 int pvsWhiteMove(Board b, const int depth, const int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
-int pvsWhiteNull(Board b, const int depth, const int alpha = INT_MIN, const int depth2 = 0, const bool prevPass = false);
 
 int pvs(Board b, const int depth, const Side s, int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false) {
     if (s) return pvsBlack(b, depth, alpha, beta, depth2, prevPass);
@@ -309,6 +309,8 @@ int pvs(Board b, const int depth, const Side s, int alpha = INT_MIN, int beta = 
 }
 
 int pvsBlack(Board b, const int depth, int alpha, const int beta, const int depth2, const bool prevPass) {
+    int original_alpha = alpha;
+    //int expected_result = INT_MAX;
     //string padding;
     //for (int i = 0; i < depth2; i++) padding += " ";
     //cerr << padding + "Entering pvsBlack with depth " << depth << " and depth2 " << depth2 <<  endl;
@@ -330,7 +332,7 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
         return pvsWhite(b, depth - 1, alpha, beta, depth2 + 1, true);
     }
     
-    if (depth == 1) {
+    if (depth <= 1) {
         // Fall back to alphabeta
         int v = INT_MIN;
         // Best move
@@ -377,6 +379,21 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
         if (BIT_SAFE(index) & legalMoves) {
             use_hash:
             // The move is valid
+            
+            if (depth2 <= HASH_DEPTH2) {
+                TTStruct hash_result = tt2[b.zobrist_hash];
+                if (hash_result.black == b.black && hash_result.taken == b.taken && depth <= hash_result.d && hash_result.s == BLACK) {
+                    if ((hash_result.e >= hash_result.alpha && hash_result.e <= hash_result.beta) || // In range, true eval
+                     (hash_result.e >= hash_result.beta && hash_result.e >= beta)) {                 // If fail high with both, then good enough
+                        return hash_result.e;
+                        //expected_result = hash_result.e;
+                    }
+                    if (hash_result.e <= hash_result.alpha && hash_result.e <= alpha) {              // If both fail low, return alpha
+                        //expected_result = alpha;
+                        return alpha;
+                    }
+                }
+            }
             legalMoves ^= BIT(index);
             besti = index;
             v = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
@@ -402,7 +419,7 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
         }
         else {
             #if IID
-            index = pvsBlackMove(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
+            index = pvsBlackMove(b, depth - 1, alpha, beta, depth2); 
             goto use_hash;
             #endif
             // Fall back to normal search
@@ -416,6 +433,7 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
                 alpha = (v > alpha) ? v : alpha;
             }
         }
+        if (depth2 <= HASH_DEPTH2) tt2[b.zobrist_hash] = TTStruct(b, BLACK, alpha, depth, original_alpha, beta);
         tt[b.zobrist_hash] = besti;
     }
     else {
@@ -426,11 +444,15 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
             alpha = (val > alpha) ? val : alpha;
         }
     }
-
+    /*if (!(expected_result == alpha || alpha >= beta || expected_result == INT_MAX)) {
+        cerr << expected_result << ' ' << alpha << ' ' << beta << endl;
+        exit(1);
+    }*/
     return alpha;
 }
 
 int pvsWhite(Board b, const int depth, const int alpha, int beta, const int depth2, const bool prevPass) {
+    int original_beta = beta;
     //string padding;
     //for (int i = 0; i < depth2; i++) padding += " ";
     //cerr << padding + "Entering pvsWhite with depth " << depth << " and depth2 " << depth2 << " and alpha " << alpha << " and beta " << beta << endl;
@@ -451,7 +473,7 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
         return pvsBlack(b, depth - 1, alpha, beta, depth2 + 1, true);
     }
 
-    if (depth == 1) {
+    if (depth <= 1) {
         int v = INT_MAX;
         // Best move
         uint8_t index = 64;
@@ -497,6 +519,18 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
         if (BIT_SAFE(index) & legalMoves) {
             use_hash:
             // The move is valid
+            if (depth2 <= HASH_DEPTH2) {
+                TTStruct hash_result = tt2[b.zobrist_hash];
+                if (hash_result.black == b.black && hash_result.taken == b.taken && depth <= hash_result.d && hash_result.s == WHITE) { 
+                    if ((hash_result.e >= hash_result.alpha && hash_result.e <= hash_result.beta) ||
+                        (hash_result.e <= hash_result.alpha && hash_result.e <= alpha)) {
+                        return hash_result.e;
+                    }
+                    if (hash_result.e >= hash_result.beta && hash_result.e >= beta) {
+                        return beta;
+                    }
+                }
+            }
             legalMoves ^= BIT(index);
             besti = index;
             v = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
@@ -521,7 +555,7 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
         else {
             // Fall back to normal search
             #if IID
-            index = pvsWhiteMove(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
+            index = pvsWhiteMove(b, depth - 1, alpha, beta, depth2);
             goto use_hash;
             #endif
             while (alpha < beta && legalMoves) {    
@@ -534,6 +568,7 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
                 beta = (val < beta) ? val : beta;
             }
         }
+        if (depth2 <= HASH_DEPTH2) tt2[b.zobrist_hash] = TTStruct(b, WHITE, beta, depth, alpha, original_beta);
         tt[b.zobrist_hash] = besti;
     }
     else {
@@ -686,20 +721,19 @@ int pvsWhiteMove(Board b, const int depth, const int alpha, int beta, const int 
     return besti;
 }
 
-int last_depth_4 = INT_MIN;
-pair<int, int> main_minimax_aw(Board b, const Side s, int guess = -1) {
+pair<int, int> Player::main_minimax_aw(Board b, const Side s, int guess) {
     Timer tim;
 
     pair<int, int> result;
     int eOdd, eEven;
     // First two plies
-    eOdd = pvs(b, 1, s, INT_MIN, INT_MAX);
-    eEven = pvs(b, 2, s, INT_MIN, INT_MAX);
-    cerr << "Finished depth 1: " << eOdd << endl;
-    cerr << "Finished depth 2: " << eEven << endl;
+    eOdd = pvs(b, last_depth - 3, s, INT_MIN, INT_MAX);
+    eEven = pvs(b, last_depth - 2, s, INT_MIN, INT_MAX);
+    cerr << "Finished depth -3: " << eOdd << endl;
+    cerr << "Finished depth -2: " << eEven << endl;
     
     // Other plies
-    int d = 3;
+    int d = last_depth - 1;
     for (; ; d++) {
         if (d % 2) {
             int diff = abs(eOdd) / DIVISOR_FOR_AW + 500; 
@@ -737,7 +771,6 @@ pair<int, int> main_minimax_aw(Board b, const Side s, int guess = -1) {
             int counter = 1;
             try_again2:
             eEven = pvs(b, d, s, lower, upper);
-            if (d == 4) last_depth_4 = eEven;
             result = make_pair(tt[b.zobrist_hash], eEven);
             if (eEven <= lower && lower != INT_MIN) {
                 tim.endms("Recalculating (failed low) ");
@@ -760,7 +793,10 @@ pair<int, int> main_minimax_aw(Board b, const Side s, int guess = -1) {
             cerr << "Finished depth " << d << " search: " << eEven << ' ';
             tim.endms();
         }
-        if (tim.getms() / 1000 > MAX_PENULTIMATE_DEPTH_TIME || d >= MAX_DEPTH) return result;
+        if (tim.getms() / 1000 > MAX_PENULTIMATE_DEPTH_TIME || d >= MAX_DEPTH) {
+            last_depth = d;
+            return result;
+        }
     }
 }
 

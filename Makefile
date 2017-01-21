@@ -17,13 +17,13 @@ testgame: testgame.o
 learn.o: defs.h learn.cpp board.h
 	$(CC) -c $(CFLAGS) learn.cpp
 
-player.o: player.cpp common.h player.h board.h defs.h
+player.o: player.cpp common.h player.h board.h defs.h tt.h
 	$(CC) -c $(CFLAGS) player.cpp -pthread
 
-board.o: board.cpp common.h player.h board.h defs.h
+board.o: board.cpp common.h player.h board.h defs.h tt.h
 	$(CC) -c $(CFLAGS) board.cpp -pthread
 
-wrapper.o: wrapper.cpp common.h player.h board.h defs.h
+wrapper.o: wrapper.cpp common.h player.h board.h defs.h tt.h
 	$(CC) -c $(CFLAGS) wrapper.cpp -pthread
 
 timer.o: timer.cpp timer.h

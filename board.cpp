@@ -41,10 +41,7 @@ size_t Board::make_zobrist_hash() const {
         whiteCopy ^= BIT(index);
         result ^= random_numbers[index + 64];
     }
-    /*
-    if (s) result ^= random_numbers[128];
-    else result ^= random_numbers[129];
-    */
+    
     return result;
 }
 

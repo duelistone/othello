@@ -32,6 +32,7 @@ extern double minutesForMove;
 extern fstream fil;
 
 extern BoardHash tt;
+extern BoardHash2 tt2;
 extern EndgameBoardHash endgameTT;
 extern uint64_t ** BYTE_TO_COL;
 
@@ -44,6 +45,7 @@ using namespace std;
 class Player {
 private:
 	Side side;
+    int last_depth;
 
 public:
     Player(Side);
@@ -51,10 +53,12 @@ public:
     
     Board currBoard;
     
+    pair<int, int> main_minimax_aw(Board b, Side s, int guess = -1);
+
     Move *doMove(Move *opponentsMove, int msLeft);
 };
 
 
-int alphabeta(const Board b, const int depth, const Side s, int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
+// int alphabeta(const Board b, const int depth, const Side s, int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
 
 #endif
