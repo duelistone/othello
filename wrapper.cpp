@@ -90,10 +90,10 @@ int main(int argc, char *argv[]) {
     Board b(ENTIRE_BOARD ^ BIT(0) ^ BIT(1), ENTIRE_BOARD ^ BIT(0) ^ BIT(1) ^ BIT(63)), b2(ENTIRE_BOARD ^ BIT(0) ^ BIT(1), BIT(63));
 Timer tim;
     #define NUM_REPETITIONS 10000000
-    for (int i = 0; i < NUM_REPETITIONS; i++) {alphabeta(b, 0, WHITE);}
+    for (int i = 0; i < NUM_REPETITIONS; i++) {b.doMoveOnNewBoardBlackWZH(1);}
 tim.end(); cerr << NUM_REPETITIONS << endl;   exit(0);
-*/    
 
+*/
     // Tell java wrapper that we are done initializing.
     cout << "Init done" << endl;
     cout.flush();    

@@ -1141,6 +1141,10 @@ int endgame_alphabeta(Board b, const Side s, int alpha = -1, int beta = 1) {
                 int index = __builtin_clzll(legalMoves);
                 legalMoves ^= BIT(index);
                 Board b2 = b.doMoveOnNewBoardWhite(index);
+                if (b2.black != b.doMoveOnNewBoardWhiteWZH(index).black) {
+                    cerr << b << index << endl << b2 << b.doMoveOnNewBoardBlackWZH(index) << endl;
+                    exit(1);
+                }
                 boards_and_evals.push_back(make_pair(b2, pvs(b2, presearch_depth, BLACK)));
             }
             sort(boards_and_evals.begin(), boards_and_evals.end(), pairCmpWhite);
@@ -1255,7 +1259,12 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
     if (msLeft > 0) minutesForMove = msLeft / 60.0 / 1000 / 2;
     
     if (opponentsMove != NULL) {
+//        int index = TO_INDEX(opponentsMove->x, opponentsMove->y);
         currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(opponentsMove->x, opponentsMove->y), !side);
+  //      if(!(currBoard.doMoveOnNewBoardBlackWZH(index).black == currBoard.doMoveOnNewBoardBlackWZH2(index).black)) {
+    //        cerr << currBoard << index << endl << currBoard.doMoveOnNewBoardBlackWZH(index) << currBoard.doMoveOnNewBoardBlackWZH2(index);
+      //      exit(0);
+        //}
     }
     
     uint64_t legalMoves = currBoard.findLegalMoves(side);
