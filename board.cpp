@@ -1,6 +1,5 @@
 #include "board.h"
 
-
 // 6.7 ns average time
 uint64_t reflect(uint64_t x) {
     x = ((x >> 36) & 0xF0F0F0Full) | ((x << 36) & 0xF0F0F0F000000000ull) | (0x0F0F0F0FF0F0F0F0ull & x);
@@ -272,6 +271,7 @@ Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
     #define UP_LEFT(x) DMB(x, UP_LEFT_FILTER, <<, 9)
     #define UP_RIGHT(x) DMB(x, UP_RIGHT_FILTER, <<, 7)
     #define LEFT(x) DMB(x, LEFT_FILTER, << , 1)
+
     switch (index) {
         case 0:
             RIGHT(6)
@@ -2651,215 +2651,6 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
 }
 #endif
 
-uint64_t Board::doMoveOnNewBoardBlackWZHB(const int &index) const {
-    // Makes move on new board using bit operations
-    // This leads to no jumping when converted to assembly
-    
-    // Observe that if the move is illegal, taken will be updated, 
-    // but black will remain the same.
-    
-    uint64_t white = ~black & taken;
-    
-    const uint64_t bi = BIT(index);
-    uint64_t n = bi;
-    
-    uint64_t newblack = black;
-    uint64_t filtered;
-    
-    // LEFT
-    filtered = white & LEFT_FILTER;
-    n |= filtered & (n << 1);
-    n |= filtered & (n << 1);
-    n |= filtered & (n << 1);
-    n |= filtered & (n << 1);
-    n |= filtered & (n << 1);
-    n |= filtered & (n << 1);
-    if (black & LEFT_FILTER & (n << 1)) newblack |= n;
-
-    // RIGHT
-    n = bi;
-    filtered = white & RIGHT_FILTER;
-    n |= filtered & (n >> 1);
-    n |= filtered & (n >> 1);
-    n |= filtered & (n >> 1);
-    n |= filtered & (n >> 1);
-    n |= filtered & (n >> 1);
-    n |= filtered & (n >> 1);
-    if (black & RIGHT_FILTER & (n >> 1)) newblack |= n;
-    
-    // DOWN
-    n = bi;
-    filtered = white & DOWN_FILTER;
-    n |= filtered & (n >> 8);
-    n |= filtered & (n >> 8);
-    n |= filtered & (n >> 8);
-    n |= filtered & (n >> 8);
-    n |= filtered & (n >> 8);
-    n |= filtered & (n >> 8);
-    if (black & DOWN_FILTER & (n >> 8)) newblack |= n;
-    
-    // UP
-    n = bi;
-    filtered = white & UP_FILTER;
-    n |= filtered & (n << 8);
-    n |= filtered & (n << 8);
-    n |= filtered & (n << 8);
-    n |= filtered & (n << 8);
-    n |= filtered & (n << 8);
-    n |= filtered & (n << 8);
-    if (black & UP_FILTER & (n << 8)) newblack |= n;
-    
-    // UP_LEFT
-    n = bi;
-    filtered = white & UP_LEFT_FILTER;
-    n |= filtered & (n << 9);
-    n |= filtered & (n << 9);
-    n |= filtered & (n << 9);
-    n |= filtered & (n << 9);
-    n |= filtered & (n << 9);
-    n |= filtered & (n << 9);
-    if (black & UP_LEFT_FILTER & (n << 9)) newblack |= n;
-    
-    // DOWN_RIGHT
-    n = bi;
-    filtered = white & DOWN_RIGHT_FILTER;
-    n |= filtered & (n >> 9);
-    n |= filtered & (n >> 9);
-    n |= filtered & (n >> 9);
-    n |= filtered & (n >> 9);
-    n |= filtered & (n >> 9);
-    n |= filtered & (n >> 9);
-    if (black & DOWN_RIGHT_FILTER & (n >> 9)) newblack |= n;
-    
-    // UP_RIGHT
-    n = bi;
-    filtered = white & UP_RIGHT_FILTER;
-    n |= filtered & (n << 7);
-    n |= filtered & (n << 7);
-    n |= filtered & (n << 7);
-    n |= filtered & (n << 7);
-    n |= filtered & (n << 7);
-    n |= filtered & (n << 7);
-    if (black & UP_RIGHT_FILTER & (n << 7)) newblack |= n;
-    
-    // DOWN_LEFT
-    n = bi;
-    filtered = white & DOWN_LEFT_FILTER;
-    n |= filtered & (n >> 7);
-    n |= filtered & (n >> 7);
-    n |= filtered & (n >> 7);
-    n |= filtered & (n >> 7);
-    n |= filtered & (n >> 7);
-    n |= filtered & (n >> 7);
-    if (black & DOWN_LEFT_FILTER & (n >> 7)) newblack |= n;
-
-    return newblack;
-}
-
-uint64_t Board::doMoveOnNewBoardWhiteWZHB(const int &index) const {
-    // Makes move on new board using bit operations
-    // This leads to no jumping when converted to assembly
-    
-    // Observe that if the move is illegal, taken will be updated, 
-    // but black will remain the same.
-
-    uint64_t white = ~black & taken;
-    
-    const uint64_t bi = BIT(index);
-    uint64_t n = bi;
-    
-    uint64_t newwhite = white;
-    uint64_t filtered;
-    
-    // LEFT
-    filtered = black & LEFT_FILTER;
-    n |= filtered & (n << 1);
-    n |= filtered & (n << 1);
-    n |= filtered & (n << 1);
-    n |= filtered & (n << 1);
-    n |= filtered & (n << 1);
-    n |= filtered & (n << 1);
-    if (white & LEFT_FILTER & (n << 1)) newwhite |= n;
-    
-    // RIGHT
-    n = bi;
-    filtered = black & RIGHT_FILTER;
-    n |= filtered & (n >> 1);
-    n |= filtered & (n >> 1);
-    n |= filtered & (n >> 1);
-    n |= filtered & (n >> 1);
-    n |= filtered & (n >> 1);
-    n |= filtered & (n >> 1);
-    if (white & RIGHT_FILTER & (n >> 1)) newwhite |= n;
-    
-    // DOWN
-    n = bi;
-    filtered = black & DOWN_FILTER;
-    n |= filtered & (n >> 8);
-    n |= filtered & (n >> 8);
-    n |= filtered & (n >> 8);
-    n |= filtered & (n >> 8);
-    n |= filtered & (n >> 8);
-    n |= filtered & (n >> 8);
-    if (white & DOWN_FILTER & (n >> 8)) newwhite |= n;
-    
-    // UP
-    n = bi;
-    filtered = black & UP_FILTER;
-    n |= filtered & (n << 8);
-    n |= filtered & (n << 8);
-    n |= filtered & (n << 8);
-    n |= filtered & (n << 8);
-    n |= filtered & (n << 8);
-    n |= filtered & (n << 8);
-    if (white & UP_FILTER & (n << 8)) newwhite |= n;
-    
-    // UP_LEFT
-    n = bi;
-    filtered = black & UP_LEFT_FILTER;
-    n |= filtered & (n << 9);
-    n |= filtered & (n << 9);
-    n |= filtered & (n << 9);
-    n |= filtered & (n << 9);
-    n |= filtered & (n << 9);
-    n |= filtered & (n << 9);
-    if (white & UP_LEFT_FILTER & (n << 9)) newwhite |= n;
-    
-    // DOWN_RIGHT
-    n = bi;
-    filtered = black & DOWN_RIGHT_FILTER;
-    n |= filtered & (n >> 9);
-    n |= filtered & (n >> 9);
-    n |= filtered & (n >> 9);
-    n |= filtered & (n >> 9);
-    n |= filtered & (n >> 9);
-    n |= filtered & (n >> 9);
-    if (white & DOWN_RIGHT_FILTER & (n >> 9)) newwhite |= n;
-            
-    // UP_RIGHT
-    n = bi;
-    filtered = black & UP_RIGHT_FILTER;
-    n |= filtered & (n << 7);
-    n |= filtered & (n << 7);
-    n |= filtered & (n << 7);
-    n |= filtered & (n << 7);
-    n |= filtered & (n << 7);
-    n |= filtered & (n << 7);
-    if (white & UP_RIGHT_FILTER & (n << 7)) newwhite |= n;
-    
-    // DOWN_LEFT
-    n = bi;
-    filtered = black & DOWN_LEFT_FILTER;
-    n |= filtered & (n >> 7);
-    n |= filtered & (n >> 7);
-    n |= filtered & (n >> 7);
-    n |= filtered & (n >> 7);
-    n |= filtered & (n >> 7);
-    n |= filtered & (n >> 7);
-    if (white & DOWN_LEFT_FILTER & (n >> 7)) newwhite |= n;
-        
-    return ~newwhite & taken;
-}
 
 void Board::print_eval_stats() const {
     cerr << "Position: " << endl;
@@ -2868,7 +2659,9 @@ void Board::print_eval_stats() const {
     uint64_t white = taken & ~black;
     int totalCount = __builtin_popcountll(taken);
     uint64_t stable_not_edge = 0;
+    #if STABILITY
     if (taken & CORNERS) stable_not_edge = stable_discs();
+    #endif
 
     // Compute frontier + stability + mobility
     uint64_t empty = ~taken;
@@ -2912,9 +2705,11 @@ void Board::print_eval_stats() const {
     cerr << "x square score: " << ee2 << endl;
 
     // (Possibly) stable nonedges
+    #if STABILITY
     double stable_nonedges_score = STABLE_NONEDGES_WEIGHT * (__builtin_popcountll(stable_not_edge & black) - __builtin_popcountll(stable_not_edge & taken & ~black)) / 36.0; 
     cerr << "Stable nonedges: " << stable_nonedges_score << endl;
     ee2 += stable_nonedges_score;
+    #endif
 
     // Penalty for leaving corner hanging
     double corner_hanging_score = CORNER_HANGING_PENALTY * (1 - (totalCount / 70.0)) * (__builtin_popcountll(blackLM & CORNERS) - __builtin_popcountll(whiteLM & CORNERS)) / 4.0;
@@ -2950,10 +2745,12 @@ int Board::pos_evaluate() const {
     int totalCount = __builtin_popcountll(taken);
     uint64_t stable_not_edge = 0;
     double ee2 = 0;
+    #if STABILITY
     if (taken & CORNERS) {
         stable_not_edge = stable_discs(); // Only calculate if there is a corner
         ee2 += STABLE_NONEDGES_WEIGHT * (__builtin_popcountll(stable_not_edge & black) - __builtin_popcountll(stable_not_edge & white)) / 36.0; 
     }
+    #endif
 
     // Compute frontier + stability + mobility
     uint64_t empty = ~taken;
@@ -3010,38 +2807,11 @@ int Board::pos_evaluate() const {
     return 100 * ee;
 }
 
-/*
- * Current count of black stones.
- */
-int Board::countBlack() const {
-    return __builtin_popcountll(black & taken);
-}
-
-/*
- * Current count of white stones.
- */
-int Board::countWhite() const {
-    return __builtin_popcountll(taken & ~black);
-}
-
-/*
- * Sets the board state given an 8x8 char array where 'w' indicates a white
- * piece and 'b' indicates a black piece. Mainly for testing purposes.
- */
-void Board::setBoard(char data[]) {
-    taken = 0;
-    black = 0;
-    for (int i = 0; i < 64; i++) {
-        if (data[i] != ' ') taken |= BIT(i);
-        if (data[i] == 'b') black |= BIT(i);
-    }
-}
-
 bool operator==(const BoardWithSide& l, const BoardWithSide& r) {
     return (l.taken == r.taken) && (l.black == r.black) && (l.side == r.side);
 }
 
-
+#if STABILITY
 // 64-68 ns, maybe less after edge stability no longer computed
 uint64_t Board::stable_discs() const {
     uint64_t reflected_taken = reflect(taken);
@@ -3100,6 +2870,7 @@ uint64_t Board::stable_discs() const {
     LOOP_INNER(33);
     return stable;
 }
+#endif
 
 // For debugging and convenience
 ostream & operator<<(ostream & os, const Board &b) {

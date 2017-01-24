@@ -36,7 +36,6 @@ struct BoardHash {
         return table[zh & (mod - 1)];
     }
 	~BoardHash() { delete table; }
-	
 };
 
 struct BoardHash2 {
@@ -70,7 +69,6 @@ struct EndgameBoardHash {
         return table[zh & (mod - 1)];
 	}
 	~EndgameBoardHash() { delete table; }
-	
 };
 
 #endif

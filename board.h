@@ -158,17 +158,12 @@ public:
     }
     Board doMoveOnNewBoardBlack(const int &index) const;
     Board doMoveOnNewBoardBlackWZH(const int &index) const;
-    uint64_t doMoveOnNewBoardBlackWZHB(const int &index) const;
 	Board doMoveOnNewBoardWhite(const int &index) const;
 	Board doMoveOnNewBoardWhiteWZH(const int &index) const;
-	uint64_t doMoveOnNewBoardWhiteWZHB(const int &index) const;
-    int countBlack() const;
-    int countWhite() const;
     uint64_t stable_discs() const;
     
     size_t make_zobrist_hash() const;
 
-    void setBoard(char data[]);
     void print_eval_stats() const;
     uint64_t stable_discs_log() const;
 };
@@ -299,17 +294,6 @@ public:
 };
 
 bool operator==(const BoardWithSide&, const BoardWithSide&);
-
-namespace std {	
-	template<> struct hash<BoardWithSide> {
-		size_t operator()(const BoardWithSide & b) const {
-			size_t seed = 0;
-			boost::hash_combine(seed, b.taken);
-			boost::hash_combine(seed, b.black);
-			return hash<unsigned long long>()(seed);
-		}
-	};
-}
 
 ostream & operator<<(ostream & os, const Board &b);
 

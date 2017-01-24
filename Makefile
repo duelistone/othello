@@ -1,5 +1,5 @@
 CC          = g++
-CFLAGS      = -Wall -O3 -funroll-loops -msse2 -march=native -ansi -pedantic -std=c++14 -pthread
+CFLAGS      = -Wall -O3 -msse2 -march=native -ansi -pedantic -std=c++14 -pthread
 OBJS        = player.o board.o 
 PLAYERNAME  = duelist
 
@@ -7,6 +7,7 @@ all: $(PLAYERNAME) testgame
 	
 $(PLAYERNAME): $(OBJS) timer.o wrapper.o 
 	$(CC) -o $@ $^ -pthread
+	strip $(PLAYERNAME)
 
 learn: board.o learn.o
 	$(CC) $(CFLAGS) board.o learn.o -o learn
@@ -21,7 +22,7 @@ player.o: player.cpp common.h player.h board.h defs.h tt.h
 	$(CC) -c $(CFLAGS) player.cpp -pthread
 
 board.o: board.cpp common.h player.h board.h defs.h tt.h
-	$(CC) -c $(CFLAGS) board.cpp -pthread
+	$(CC) -c $(CFLAGS) -funroll-loops board.cpp -pthread
 
 wrapper.o: wrapper.cpp common.h player.h board.h defs.h tt.h
 	$(CC) -c $(CFLAGS) wrapper.cpp -pthread
