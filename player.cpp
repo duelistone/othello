@@ -349,13 +349,13 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
                 // The move is valid
                 legalMoves ^= BIT(index);
                 besti = index;
-                v = b.doMoveOnNewBoardBlack(index).pos_evaluate();
+                v = b.doMoveOnNewBoardBlackWZH(index).pos_evaluate();
                 alpha = (v > alpha) ? v : alpha;
             }
             while (alpha < beta && legalMoves) {    
                 uint8_t index = __builtin_clzll(legalMoves);
                 legalMoves ^= BIT(index);
-                int val = b.doMoveOnNewBoardBlack(index).pos_evaluate();
+                int val = b.doMoveOnNewBoardBlackWZH(index).pos_evaluate();
                 bool temp = (val > v);
                 besti = temp ? index : besti;
                 v = temp ? val : v;
@@ -367,7 +367,7 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
             while (alpha < beta && legalMoves) {    
                 uint8_t index = __builtin_clzll(legalMoves);
                 legalMoves ^= BIT(index);
-                int val = b.doMoveOnNewBoardBlack(index).pos_evaluate();
+                int val = b.doMoveOnNewBoardBlackWZH(index).pos_evaluate();
                 alpha = (val > alpha) ? val : alpha;
             }
         }
@@ -426,7 +426,7 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
             #if IID
             index = pvsBlackMove(b, depth - 1, alpha, beta, depth2); 
             goto use_hash;
-            #endif
+            #else
             // Fall back to normal search
             while (alpha < beta && legalMoves) {    
                 uint8_t index = __builtin_clzll(legalMoves);
@@ -437,6 +437,7 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
                 v = temp ? val : v;
                 alpha = (v > alpha) ? v : alpha;
             }
+            #endif
         }
         if (depth2 <= HASH_DEPTH2) tt2[b.zobrist_hash] = TTStruct(b, BLACK, alpha, depth, original_alpha, beta);
         tt[b.zobrist_hash] = besti;
@@ -445,14 +446,10 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
         while (alpha < beta && legalMoves) {    
             uint8_t index = __builtin_clzll(legalMoves);
             legalMoves ^= BIT(index);
-            int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
+            int val = pvsWhite(b.doMoveOnNewBoardBlackWZH(index), depth - 1, alpha, beta, depth2 + 1);
             alpha = (val > alpha) ? val : alpha;
         }
     }
-    /*if (!(expected_result == alpha || alpha >= beta || expected_result == INT_MAX)) {
-        cerr << expected_result << ' ' << alpha << ' ' << beta << endl;
-        exit(1);
-    }*/
     return alpha;
 }
 
@@ -489,13 +486,13 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
                 // The move is valid
                 legalMoves ^= BIT(index);
                 besti = index;
-                v = b.doMoveOnNewBoardWhite(index).pos_evaluate();
+                v = b.doMoveOnNewBoardWhiteWZH(index).pos_evaluate();
                 beta = (v < beta) ? v : beta;
             }
             while (alpha < beta && legalMoves) {
                 uint8_t index = __builtin_clzll(legalMoves);
                 legalMoves ^= BIT(index);
-                int val = b.doMoveOnNewBoardWhite(index).pos_evaluate();
+                int val = b.doMoveOnNewBoardWhiteWZH(index).pos_evaluate();
                 bool temp = (val < v);
                 besti = temp ? index : besti;
                 v = temp ? val : v;
@@ -507,7 +504,7 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
             while (alpha < beta && legalMoves) {    
                 uint8_t index = __builtin_clzll(legalMoves);
                 legalMoves ^= BIT(index);
-                int val = b.doMoveOnNewBoardWhite(index).pos_evaluate();
+                int val = b.doMoveOnNewBoardWhiteWZH(index).pos_evaluate();
                 beta = (val < beta) ? val : beta;
             }
         }
@@ -562,7 +559,7 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
             #if IID
             index = pvsWhiteMove(b, depth - 1, alpha, beta, depth2);
             goto use_hash;
-            #endif
+            #else
             while (alpha < beta && legalMoves) {    
                 uint8_t index = __builtin_clzll(legalMoves);
                 legalMoves ^= BIT(index);
@@ -572,6 +569,7 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
                 v = temp ? val : v;
                 beta = (val < beta) ? val : beta;
             }
+            #endif
         }
         if (depth2 <= HASH_DEPTH2) tt2[b.zobrist_hash] = TTStruct(b, WHITE, beta, depth, alpha, original_beta);
         tt[b.zobrist_hash] = besti;
@@ -580,7 +578,7 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
         while (alpha < beta && legalMoves) {    
             uint8_t index = __builtin_clzll(legalMoves);
             legalMoves ^= BIT(index);
-            int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
+            int val = pvsBlack(b.doMoveOnNewBoardWhiteWZH(index), depth - 1, alpha, beta, depth2 + 1);
             beta = (val < beta) ? val : beta;
         }
     }
@@ -631,7 +629,7 @@ int pvsBlackMove(Board b, const int depth, int alpha, const int beta, const int 
             #if IID
             index = pvsBlackMove(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
             goto use_hash;
-            #endif
+            #else
             // Fall back to normal search
             while (alpha < beta && legalMoves) {    
                 uint8_t index = __builtin_clzll(legalMoves);
@@ -642,6 +640,7 @@ int pvsBlackMove(Board b, const int depth, int alpha, const int beta, const int 
                 v = temp ? val : v;
                 alpha = (v > alpha) ? v : alpha;
             }
+            #endif
         }
         tt[b.zobrist_hash] = besti;
     }
@@ -649,7 +648,7 @@ int pvsBlackMove(Board b, const int depth, int alpha, const int beta, const int 
         while (alpha < beta && legalMoves) {    
             uint8_t index = __builtin_clzll(legalMoves);
             legalMoves ^= BIT(index);
-            int val = pvsWhite(b.doMoveOnNewBoardBlack(index), depth - 1, alpha, beta, depth2 + 1);
+            int val = pvsWhite(b.doMoveOnNewBoardBlackWZH(index), depth - 1, alpha, beta, depth2 + 1);
             besti = (val > alpha) ? index : besti;
             alpha = (val > alpha) ? val : alpha;
         }
@@ -717,7 +716,7 @@ int pvsWhiteMove(Board b, const int depth, const int alpha, int beta, const int 
         while (alpha < beta && legalMoves) {    
             uint8_t index = __builtin_clzll(legalMoves);
             legalMoves ^= BIT(index);
-            int val = pvsBlack(b.doMoveOnNewBoardWhite(index), depth - 1, alpha, beta, depth2 + 1);
+            int val = pvsBlack(b.doMoveOnNewBoardWhiteWZH(index), depth - 1, alpha, beta, depth2 + 1);
             besti = (val < beta) ? index : besti;
             beta = (val < beta) ? val : beta;
         }
