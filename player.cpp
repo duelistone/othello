@@ -209,7 +209,7 @@ void playerConstructorHelper3() {
     int n, a;
     double b;
     while (edge_file >> n >> a >> b) {
-        EDGE_VALUES[n][a] = b * 36;
+        EDGE_VALUES[(1 << 16) * n + a] = b;
     }
     edge_file.close();
 
@@ -234,83 +234,19 @@ Player::~Player() {}
 
 // Search functions
 
-/*
-int alphabeta(Board b, const int depth, const Side s, int alpha, int beta, const int depth2, const bool prevPass) {
-    if (depth <= 0) return b.pos_evaluate();
-
-    uint64_t legalMoves = b.findLegalMoves(s);
-    
-    // Special case
-    if (!legalMoves) {
-        if (prevPass) {
-            int blacks = __builtin_popcountll(b.black);
-            int whites = __builtin_popcountll(b.taken & ~b.black); 
-            return (blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0);
-        }
-        return alphabeta(b, depth - 1, !s, alpha, beta, depth2 + 1, true);
-    }
-    
-    uint8_t besti = 64;
-    if (s) {
-        int v = INT_MIN;
-        // Best move
-        uint8_t index = 64;
-        if (depth2 <= HASH_DEPTH) {
-            index = tt[b.zobrist_hash];
-            if (index < 64 && (BIT(index) & legalMoves)) {
-                // The move is valid
-                legalMoves ^= BIT(index);
-                besti = index;
-                v = alphabeta(b.doMoveOnNewBoardBlack(index), depth - 1, WHITE, alpha, beta, depth2 + 1);
-                alpha = (v > alpha) ? v : alpha;
-            }
-        }
-        while (alpha < beta && legalMoves) {    
-            uint8_t index = __builtin_clzll(legalMoves);
-            legalMoves ^= BIT(index);
-            int val = alphabeta(b.doMoveOnNewBoardBlack(index), depth - 1, WHITE, alpha, beta, depth2 + 1);
-            besti = (val > v) ? index : besti;
-            v = (val > v) ? val : v;
-            alpha = (v > alpha) ? v : alpha;
-        }
-        if (depth2 <= HASH_DEPTH) tt[b.zobrist_hash] = besti;
-        return alpha;
-    }
-    else {
-        int v = INT_MAX;
-        // Best move
-        uint8_t index = 64;
-        if (depth2 <= HASH_DEPTH) {
-            index = tt[b.zobrist_hash];
-            if (index < 64 && (BIT(index) & legalMoves)) {
-                // The move is valid
-                legalMoves ^= BIT(index);
-                besti = index;
-                v = alphabeta(b.doMoveOnNewBoardWhite(index), depth - 1, BLACK, alpha, beta, depth2 + 1);
-                beta = (v < beta) ? v : beta;
-            }
-        }
-        while (alpha < beta && legalMoves) {    
-            uint8_t index = __builtin_clzll(legalMoves);
-            legalMoves ^= BIT(index);
-            int val = alphabeta(b.doMoveOnNewBoardWhite(index), depth - 1, BLACK, alpha, beta, depth2 + 1);
-            besti = (val < v) ? index : besti;
-            v = (val < v) ? val : v;
-            beta = (v < beta) ? v : beta;
-        }
-        if (depth2 <= HASH_DEPTH) tt[b.zobrist_hash] = besti;
-        return beta;
-    }
-}*/
-
 int pvsBlack(Board b, const int depth, int alpha = INT_MIN, const int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
 int pvsWhite(Board b, const int depth, const int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
-int pvsBlackMove(Board b, const int depth, int alpha = INT_MIN, const int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
-int pvsWhiteMove(Board b, const int depth, const int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
+pair<int, int> pvsBlackMove(Board b, const int depth, int alpha = INT_MIN, const int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
+pair<int, int> pvsWhiteMove(Board b, const int depth, const int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
 
 int pvs(Board b, const int depth, const Side s, int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false) {
     if (s) return pvsBlack(b, depth, alpha, beta, depth2, prevPass);
     else return pvsWhite(b, depth, alpha, beta, depth2, prevPass);
+}
+
+pair<int, int> pvsMove(Board b, const int depth, const Side s, int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false) {
+    if (s) return pvsBlackMove(b, depth, alpha, beta, depth2, prevPass);
+    else return pvsWhiteMove(b, depth, alpha, beta, depth2, prevPass);
 }
 
 int pvsBlack(Board b, const int depth, int alpha, const int beta, const int depth2, const bool prevPass) {
@@ -424,7 +360,7 @@ int pvsBlack(Board b, const int depth, int alpha, const int beta, const int dept
         }
         else {
             #if IID
-            index = pvsBlackMove(b, depth - 1, alpha, beta, depth2); 
+            index = pvsBlackMove(b, depth - 1, alpha, beta, depth2).first; 
             goto use_hash;
             #else
             // Fall back to normal search
@@ -557,7 +493,7 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
         else {
             // Fall back to normal search
             #if IID
-            index = pvsWhiteMove(b, depth - 1, alpha, beta, depth2);
+            index = pvsWhiteMove(b, depth - 1, alpha, beta, depth2).first;
             goto use_hash;
             #else
             while (alpha < beta && legalMoves) {    
@@ -586,14 +522,14 @@ int pvsWhite(Board b, const int depth, const int alpha, int beta, const int dept
     return beta;
 }
 
-int pvsBlackMove(Board b, const int depth, int alpha, const int beta, const int depth2, const bool prevPass) {
+pair<int, int> pvsBlackMove(Board b, const int depth, int alpha, const int beta, const int depth2, const bool prevPass) {
     // Assumes there is a legal move available, and that alpha < beta
 
     uint64_t legalMoves = b.findLegalMovesBlack();
         
     int besti = __builtin_clzll(legalMoves);
     int index = besti;
-    if (depth <= 1) return besti;
+    if (depth <= 1) return make_pair(besti, -1000000);
 
     // Best move
     if (depth2 <= HASH_DEPTH) {
@@ -627,7 +563,7 @@ int pvsBlackMove(Board b, const int depth, int alpha, const int beta, const int 
         }
         else {
             #if IID
-            index = pvsBlackMove(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
+            index = pvsBlackMove(b, depth - 1, alpha, beta, depth2).first; 
             goto use_hash;
             #else
             // Fall back to normal search
@@ -654,17 +590,17 @@ int pvsBlackMove(Board b, const int depth, int alpha, const int beta, const int 
         }
     }
 
-    return besti;
+    return make_pair(besti, alpha);
 }
 
-int pvsWhiteMove(Board b, const int depth, const int alpha, int beta, const int depth2, const bool prevPass) {
+pair<int, int> pvsWhiteMove(Board b, const int depth, const int alpha, int beta, const int depth2, const bool prevPass) {
     // Assumes there is a legal move available, and that alpha < beta
 
     uint64_t legalMoves = b.findLegalMovesWhite();
         
     int besti = __builtin_clzll(legalMoves);
     int index = besti;
-    if (depth <= 1) return besti;
+    if (depth <= 1) return make_pair(besti, -1000000);
 
     // Best move
     if (depth2 <= HASH_DEPTH) {
@@ -697,7 +633,7 @@ int pvsWhiteMove(Board b, const int depth, const int alpha, int beta, const int 
         else {
             // Fall back to normal search
             #if IID
-            index = pvsWhiteMove(b, depth - 1, alpha, beta, depth2); // Changing HASH_DEPTH will cause an infinite loop here
+            index = pvsWhiteMove(b, depth - 1, alpha, beta, depth2).first; // Changing HASH_DEPTH will cause an infinite loop here
             goto use_hash;
             #endif
             while (alpha < beta && legalMoves) {    
@@ -722,7 +658,7 @@ int pvsWhiteMove(Board b, const int depth, const int alpha, int beta, const int 
         }
     }
 
-    return besti;
+    return make_pair(besti, beta);
 }
 
 pair<int, int> Player::main_minimax_aw(Board b, const Side s, int guess) {
@@ -740,13 +676,13 @@ pair<int, int> Player::main_minimax_aw(Board b, const Side s, int guess) {
     int d = last_depth - 1;
     for (; ; d++) {
         if (d % 2) {
-            int diff = abs(eOdd) / DIVISOR_FOR_AW + 500; 
+            int diff = abs(eOdd) / DIVISOR_FOR_AW + 400; 
             int lower = (eOdd == INT_MIN) ? INT_MIN : eOdd - diff;
             int upper = (eOdd == INT_MAX) ? INT_MAX : eOdd + diff;
             int counter = 1;
             try_again1:
-            eOdd = pvs(b, d, s, lower, upper);
-            result = make_pair(tt[b.zobrist_hash], eOdd);
+            result = pvsMove(b, d, s, lower, upper);
+            eOdd = result.second;
             if (eOdd <= lower && lower != INT_MIN) {
                 tim.endms("Recalculating (failed low) ");
                 diff *= 2;
@@ -769,13 +705,13 @@ pair<int, int> Player::main_minimax_aw(Board b, const Side s, int guess) {
             tim.endms();
         }
         else {
-            int diff = abs(eEven) / DIVISOR_FOR_AW + 500;
+            int diff = abs(eEven) / DIVISOR_FOR_AW + 400;
             int lower = (eEven == INT_MIN) ? INT_MIN : eEven - diff;
             int upper = (eEven == INT_MAX) ? INT_MAX : eEven + diff;
             int counter = 1;
             try_again2:
-            eEven = pvs(b, d, s, lower, upper);
-            result = make_pair(tt[b.zobrist_hash], eEven);
+            result = pvsMove(b, d, s, lower, upper);
+            eEven = result.second;
             if (eEven <= lower && lower != INT_MIN) {
                 tim.endms("Recalculating (failed low) ");
                 diff *= 2;
@@ -797,7 +733,7 @@ pair<int, int> Player::main_minimax_aw(Board b, const Side s, int guess) {
             cerr << "Finished depth " << d << " search: " << eEven << ' ';
             tim.endms();
         }
-        if (tim.getms() / 1000 > MAX_PENULTIMATE_DEPTH_TIME || d >= MAX_DEPTH) {
+        if (tim.getms() / 1000 > MAX_PENULTIMATE_DEPTH_TIME - 1 || d >= MAX_DEPTH) {
             last_depth = d;
             return result;
         }
@@ -821,7 +757,7 @@ int deep_endgame_alphabeta_black_63(Board b) {
     uint64_t newblack = b.doMoveOnNewBoardBlackWZH(__builtin_clzll(~b.taken)).black;
 
     if (b.black == newblack) {
-        uint64_t newblack = b.doMoveOnNewBoardWhiteWZH(__builtin_clzll(~b.taken)).black;
+        newblack = b.doMoveOnNewBoardWhiteWZH(__builtin_clzll(~b.taken)).black;
         if (b.black == newblack) {
             return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         }
@@ -833,7 +769,7 @@ int deep_endgame_alphabeta_white_63(Board b) {
     uint64_t newblack = b.doMoveOnNewBoardWhiteWZH(__builtin_clzll(~b.taken)).black;
 
     if (b.black == newblack) {
-        uint64_t newblack = b.doMoveOnNewBoardBlackWZH(__builtin_clzll(~b.taken)).black;
+        newblack = b.doMoveOnNewBoardBlackWZH(__builtin_clzll(~b.taken)).black;
         if (b.black == newblack) {
             return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         }
@@ -987,7 +923,7 @@ int deep_endgame_alphabeta_white_59(Board b, int alpha, int beta, bool prevPass)
 
 int deep_endgame_alphabeta_black(Board b, int alpha, int beta, bool prevPass) {
     int totalCount = __builtin_popcountll(b.taken);
-    if (totalCount == 59) return deep_endgame_alphabeta_black_60(b, alpha, beta, prevPass);
+    if (totalCount == 59) return deep_endgame_alphabeta_black_59(b, alpha, beta, prevPass);
 
     uint64_t legalMoves = b.findLegalMovesBlack();
     
@@ -1047,16 +983,17 @@ int deep_endgame_alphabeta_white(Board b, int alpha, int beta, bool prevPass) {
 }
 
 int deep_endgame_alphabeta(Board b, const Side s, int alpha = -1, int beta = 1) {
-    if (s) return deep_endgame_alphabeta_black(b, (alpha == 0) ? 0 : -1, (beta == 0) ? 0 : 1);
-    return deep_endgame_alphabeta_white(b, (alpha == 0) ? 0 : -1, (beta == 0) ? 0 : 1);
+    if (s) return deep_endgame_alphabeta_black(b, alpha, beta);
+    return deep_endgame_alphabeta_white(b, alpha, beta);
 }
 
 int endgame_alphabeta(Board b, const Side s, int alpha = -1, int beta = 1) {
-    // Assumes totalCount <= DEEP_ENDGAME_START
+    #if USE_HASH_IN_ENDGAME_ALPHABETA
     BoardWithSide bws(b.taken, b.black, b.zobrist_hash, s);
     if (endgameTT[b.zobrist_hash].e < 64 && endgameTT[b.zobrist_hash].b == bws) {
         return endgameTT[b.zobrist_hash].e;
     }
+    #endif
     
     int totalCount = __builtin_popcountll(b.taken);
     
@@ -1073,8 +1010,10 @@ int endgame_alphabeta(Board b, const Side s, int alpha = -1, int beta = 1) {
             return __builtin_popcountll(b.black) - __builtin_popcountll(b.taken & ~b.black);
         }
         int ret = endgame_alphabeta(b, !s, alpha, beta);
+        #if USE_HASH_IN_ENDGAME_ALPHABETA
         endgameTT[b.zobrist_hash].e = ret;
         endgameTT[b.zobrist_hash].b = bws;
+        #endif
         return ret;
     }
     
@@ -1118,10 +1057,6 @@ int endgame_alphabeta(Board b, const Side s, int alpha = -1, int beta = 1) {
                 int index = __builtin_clzll(legalMoves);
                 legalMoves ^= BIT(index);
                 Board b2 = b.doMoveOnNewBoardWhite(index);
-                if (b2.black != b.doMoveOnNewBoardWhiteWZH(index).black) {
-                    cerr << b << index << endl << b2 << b.doMoveOnNewBoardBlackWZH(index) << endl;
-                    exit(1);
-                }
                 boards_and_evals.push_back(make_pair(b2, pvs(b2, presearch_depth, BLACK)));
             }
             sort(boards_and_evals.begin(), boards_and_evals.end(), pairCmpWhite);
@@ -1133,10 +1068,12 @@ int endgame_alphabeta(Board b, const Side s, int alpha = -1, int beta = 1) {
     }
     
     int ret = s ? alpha : beta;
-    if (alpha != 0 || beta != 0) {
+    #if USE_HASH_IN_ENDGAME_ALPHABETA
+    if (alpha >= 1 || beta <= -1) {
        endgameTT[b.zobrist_hash].e = ret;
        endgameTT[b.zobrist_hash].b = bws;
     }
+    #endif
     return ret;
 }
 
@@ -1313,17 +1250,11 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
         }
     }
     
-    // Count collisions
-    //~ int positions = 0;
-    //~ for (size_t i = 0; i < tt.mod; i++) {
-        //~ if (tt.table[i] != 64) positions++;
-    //~ }
-    
     // Make move and output helpful info
     string letters = "abcdefgh";
     int x = FROM_INDEX_X(besti);
     int y = FROM_INDEX_Y(besti);
-    cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << endl;
+    cerr << ((side == BLACK) ? "Black " : "White ") << "Move: " << letters[x] << ' ' << y + 1 << " (" << besti << ") " << endl;
     currBoard = currBoard.doMoveOnNewBoard(TO_INDEX(x, y), side);
     currBoard.print_eval_stats();
     pair< vector<uint8_t>, Board > pv_and_board = get_pv(currBoard, !side);

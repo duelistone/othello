@@ -9,7 +9,7 @@ using namespace std;
 
 // Global variables
 double minutesForMove = 1;
-int **EDGE_VALUES;
+double *EDGE_VALUES;
 uint8_t **STABLE_DISCS;
 uint8_t **PSEUDOSTABLE_DISCS;
 uint8_t **ALL_STABLE_DISCS;
@@ -38,8 +38,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Allocate
-    EDGE_VALUES = (int **) malloc(sizeof(int *) * 65);
-    for (int i = 0; i < 65; i++) EDGE_VALUES[i] = (int *) malloc(sizeof(int) * (1 << 16));
+    EDGE_VALUES = (double *) malloc(sizeof(double) * 65 * (1 << 16));
     STABLE_DISCS = (uint8_t **) malloc(sizeof(uint8_t *) * 8);
     PSEUDOSTABLE_DISCS = (uint8_t **) malloc(sizeof(uint8_t *) * 8);
     ALL_STABLE_DISCS = (uint8_t **) malloc(sizeof(uint8_t *) * 8);

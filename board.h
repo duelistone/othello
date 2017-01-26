@@ -14,7 +14,6 @@
 #include <cmath>
 #include <atomic>
 #include <bitset>
-#include <boost/functional/hash.hpp>
 #include "common.h"
 #include "timer.h"
 #include "defs.h"
@@ -121,7 +120,7 @@ using namespace std;
 
 extern "C" int other_side(int);
 
-extern int **EDGE_VALUES;
+extern double *EDGE_VALUES;
 extern uint8_t** STABLE_DISCS;
 extern uint8_t** PSEUDOSTABLE_DISCS;
 extern uint8_t** ALL_STABLE_DISCS;
@@ -160,8 +159,11 @@ public:
     Board doMoveOnNewBoardBlackWZH(const int &index) const;
 	Board doMoveOnNewBoardWhite(const int &index) const;
 	Board doMoveOnNewBoardWhiteWZH(const int &index) const;
+
+    #if STABILITY 
     uint64_t stable_discs() const;
-    
+    #endif
+
     size_t make_zobrist_hash() const;
 
     void print_eval_stats() const;

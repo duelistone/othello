@@ -769,112 +769,112 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             RIGHTW(6)
             DOWNW(6)
             DOWN_RIGHTW(6)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 1:
             RIGHTW(5)
             DOWNW(6)
             DOWN_RIGHTW(5)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 2:
             RIGHTW(4)
             DOWNW(6)
             DOWN_RIGHTW(4)
             DOWN_LEFTW(1)
             LEFTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 3:
             RIGHTW(3)
             DOWNW(6)
             DOWN_RIGHTW(3)
             DOWN_LEFTW(2)
             LEFTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 4:
             RIGHTW(2)
             DOWNW(6)
             DOWN_RIGHTW(2)
             DOWN_LEFTW(3)
             LEFTW(3)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 5:
             RIGHTW(1)
             DOWNW(6)
             DOWN_RIGHTW(1)
             DOWN_LEFTW(4)
             LEFTW(4)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 6:
             DOWNW(6)
             DOWN_LEFTW(5)
             LEFTW(5)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 7:
             DOWNW(6)
             DOWN_LEFTW(6)
             LEFTW(6)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 8:
             RIGHTW(6)
             DOWNW(5)
             DOWN_RIGHTW(5)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 9:
             RIGHTW(5)
             DOWNW(5)
             DOWN_RIGHTW(5)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 10:
             RIGHTW(4)
             DOWNW(5)
             DOWN_RIGHTW(4)
             DOWN_LEFTW(1)
             LEFTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 11:
             RIGHTW(3)
             DOWNW(5)
             DOWN_RIGHTW(3)
             DOWN_LEFTW(2)
             LEFTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 12:
             RIGHTW(2)
             DOWNW(5)
             DOWN_RIGHTW(2)
             DOWN_LEFTW(3)
             LEFTW(3)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 13:
             RIGHTW(1)
             DOWNW(5)
             DOWN_RIGHTW(1)
             DOWN_LEFTW(4)
             LEFTW(4)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 14:
             DOWNW(5)
             DOWN_LEFTW(5)
             LEFTW(5)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 15:
             DOWNW(5)
             DOWN_LEFTW(5)
             LEFTW(6)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 16:
             RIGHTW(6)
             DOWNW(4)
             DOWN_RIGHTW(4)
             UPW(1)
             UP_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 17:
             RIGHTW(5)
             DOWNW(4)
             DOWN_RIGHTW(4)
             UPW(1)
             UP_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 18:
             RIGHTW(4)
             DOWNW(4)
@@ -884,7 +884,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             UPW(1)
             UP_LEFTW(1)
             UP_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 19:
             RIGHTW(3)
             DOWNW(4)
@@ -894,7 +894,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             UPW(1)
             UP_LEFTW(1)
             UP_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 20:
             RIGHTW(2)
             DOWNW(4)
@@ -904,7 +904,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             UPW(1)
             UP_LEFTW(1)
             UP_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 21:
             RIGHTW(1)
             DOWNW(4)
@@ -914,35 +914,35 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             UPW(1)
             UP_LEFTW(1)
             UP_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 22:
             DOWNW(4)
             DOWN_LEFTW(4)
             LEFTW(5)
             UPW(1)
             UP_LEFTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 23:
             DOWNW(4)
             DOWN_LEFTW(4)
             LEFTW(6)
             UPW(1)
             UP_LEFTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 24:
             RIGHTW(6)
             DOWNW(3)
             DOWN_RIGHTW(3)
             UPW(2)
             UP_RIGHTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 25:
             RIGHTW(5)
             DOWNW(3)
             DOWN_RIGHTW(3)
             UPW(2)
             UP_RIGHTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 26:
             RIGHTW(4)
             DOWNW(3)
@@ -952,7 +952,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             UPW(2)
             UP_LEFTW(1)
             UP_RIGHTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 27:
             RIGHTW(3)
             DOWNW(3)
@@ -962,7 +962,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             UPW(2)
             UP_LEFTW(2)
             UP_RIGHTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 28:
             RIGHTW(2)
             DOWNW(3)
@@ -972,7 +972,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             UPW(2)
             UP_LEFTW(2)
             UP_RIGHTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 29:
             RIGHTW(1)
             DOWNW(3)
@@ -982,35 +982,35 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             UPW(2)
             UP_LEFTW(2)
             UP_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 30:
             DOWNW(3)
             DOWN_LEFTW(3)
             LEFTW(5)
             UPW(2)
             UP_LEFTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 31:
             DOWNW(3)
             DOWN_LEFTW(3)
             LEFTW(6)
             UPW(2)
             UP_LEFTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 32:
             RIGHTW(6)
             UPW(3)
             UP_RIGHTW(3)
             DOWNW(2)
             DOWN_RIGHTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 33:
             RIGHTW(5)
             UPW(3)
             UP_RIGHTW(3)
             DOWNW(2)
             DOWN_RIGHTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 34:
             RIGHTW(4)
             UPW(3)
@@ -1020,7 +1020,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             DOWNW(2)
             DOWN_LEFTW(1)
             DOWN_RIGHTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 35:
             RIGHTW(3)
             UPW(3)
@@ -1030,7 +1030,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             DOWNW(2)
             DOWN_LEFTW(2)
             DOWN_RIGHTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 36:
             RIGHTW(2)
             UPW(3)
@@ -1040,7 +1040,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             DOWNW(2)
             DOWN_LEFTW(2)
             DOWN_RIGHTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 37:
             RIGHTW(1)
             UPW(3)
@@ -1050,35 +1050,35 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             DOWNW(2)
             DOWN_LEFTW(2)
             DOWN_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 38:
             UPW(3)
             UP_LEFTW(3)
             LEFTW(5)
             DOWNW(2)
             DOWN_LEFTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 39:
             UPW(3)
             UP_LEFTW(3)
             LEFTW(6)
             DOWNW(2)
             DOWN_LEFTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 40:
             RIGHTW(6)
             UPW(4)
             UP_RIGHTW(4)
             DOWNW(1)
             DOWN_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 41:
             RIGHTW(5)
             UPW(4)
             UP_RIGHTW(4)
             DOWNW(1)
             DOWN_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 42:
             RIGHTW(4)
             UPW(4)
@@ -1088,7 +1088,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             DOWNW(1)
             DOWN_LEFTW(1)
             DOWN_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 43:
             RIGHTW(3)
             UPW(4)
@@ -1098,7 +1098,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             DOWNW(1)
             DOWN_LEFTW(1)
             DOWN_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 44:
             RIGHTW(2)
             UPW(4)
@@ -1108,7 +1108,7 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             DOWNW(1)
             DOWN_LEFTW(1)
             DOWN_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 45:
             RIGHTW(1)
             UPW(4)
@@ -1118,118 +1118,118 @@ Board Board::doMoveOnNewBoardWhiteWZH(const int &index) const {
             DOWNW(1)
             DOWN_LEFTW(1)
             DOWN_RIGHTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 46:
             UPW(4)
             UP_LEFTW(4)
             LEFTW(5)
             DOWNW(1)
             DOWN_LEFTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 47:
             UPW(4)
             UP_LEFTW(4)
             LEFTW(6)
             DOWNW(1)
             DOWN_LEFTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 48:
             RIGHTW(6)
             UPW(5)
             UP_RIGHTW(5)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 49:
             RIGHTW(5)
             UPW(5)
             UP_RIGHTW(5)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 50:
             RIGHTW(4)
             UPW(5)
             UP_RIGHTW(4)
             UP_LEFTW(1)
             LEFTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 51:
             RIGHTW(3)
             UPW(5)
             UP_RIGHTW(3)
             UP_LEFTW(2)
             LEFTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 52:
             RIGHTW(2)
             UPW(5)
             UP_RIGHTW(2)
             UP_LEFTW(3)
             LEFTW(3)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 53:
             RIGHTW(1)
             UPW(5)
             UP_RIGHTW(1)
             UP_LEFTW(4)
             LEFTW(4)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 54:
             UPW(5)
             UP_LEFTW(5)
             LEFTW(5)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 55:
             UPW(5)
             UP_LEFTW(5)
             LEFTW(6)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 56:
             RIGHTW(6)
             UPW(6)
             UP_RIGHTW(6)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 57:
             RIGHTW(5)
             UPW(6)
             UP_RIGHTW(5)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 58:
             RIGHTW(4)
             UPW(6)
             UP_RIGHTW(4)
             UP_LEFTW(1)
             LEFTW(1)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 59:
             RIGHTW(3)
             UPW(6)
             UP_RIGHTW(3)
             UP_LEFTW(2)
             LEFTW(2)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 60:
             RIGHTW(2)
             UPW(6)
             UP_RIGHTW(2)
             UP_LEFTW(3)
             LEFTW(3)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 61:
             RIGHTW(1)
             UPW(6)
             UP_RIGHTW(1)
             UP_LEFTW(4)
             LEFTW(4)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 62:
             UPW(6)
             UP_LEFTW(5)
             LEFTW(5)
-            return Board(taken | bi, ~newwhite & taken, 0);
+            return Board(taken | bi, ~newwhite & black, 0);
         case 63:
             UPW(6)
             UP_LEFTW(6)
             LEFTW(6)
     }
-    return Board(taken | bi, ~newwhite & taken, 0);
+    return Board(taken | bi, ~newwhite & black, 0);
 }
 
 Board Board::doMoveOnNewBoardBlack(const int &index) const {
@@ -2202,7 +2202,7 @@ Board Board::doMoveOnNewBoardWhite(const int &index) const {
         zobrist_hash_copy ^= random_numbers[index + 64];
         zobrist_hash_copy ^= random_numbers[index];
     }
-    return Board(taken | bi, ~newwhite & taken, zobrist_hash_copy);
+    return Board(taken | bi, ~newwhite & black, zobrist_hash_copy);
 }
 #else
 Board Board::doMoveOnNewBoardBlackWZH(const int &index) const {
@@ -2689,11 +2689,12 @@ void Board::print_eval_stats() const {
     int whiteFrontiers = __builtin_popcountll(white & frontier);
     uint64_t blackLM = findLegalMovesBlack();
     uint64_t whiteLM = findLegalMovesWhite();
-    int blackMoves = __builtin_popcountll(blackLM & empty2);
-    int whiteMoves = __builtin_popcountll(whiteLM & empty2);
+    uint64_t commonLM = blackLM & whiteLM;
+    int blackMoves = 2 * __builtin_popcountll(blackLM & empty2) - __builtin_popcountll(commonLM);
+    int whiteMoves = 2 * __builtin_popcountll(whiteLM & empty2) - __builtin_popcountll(commonLM);
     double eeF = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0);
-    double eeM = MOBILITY_WEIGHT * (1 - totalCount / 60) * (1 - 0.1 * (totalCount / 50)) * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
-    double ee = (eeF + eeM) * (1 - (eeF * eeM < 0) * INBALANCED_POSITION_PENALTY);
+    double eeM = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
+    double ee = abs(eeF + eeM) * (eeF + eeM) / (abs(eeF) + abs(eeM)) * (1 - 0.2 * (totalCount / 50.0));
 
     cerr << "Frontier score: " << eeF << endl;
     cerr << "Mobility score: " << eeM << endl;
@@ -2713,29 +2714,30 @@ void Board::print_eval_stats() const {
 
     // Penalty for leaving corner hanging
     double corner_hanging_score = CORNER_HANGING_PENALTY * (1 - (totalCount / 70.0)) * (__builtin_popcountll(blackLM & CORNERS) - __builtin_popcountll(whiteLM & CORNERS)) / 4.0;
-    cerr << corner_hanging_score << endl;
+    cerr << "Corner hanging: " << corner_hanging_score << endl;
     ee2 += corner_hanging_score;
     
     // Get top and bottom edge into uint16
-    ee2 += EDGE_WEIGHT * (EDGE_VALUES[totalCount][((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[totalCount][(uint16_t) ((taken << 8) | (uint8_t) black)] + EDGE_VALUES[totalCount][(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[totalCount][(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0);
+    int start = (1 << 16) * totalCount;
+    ee2 += EDGE_WEIGHT * 2 * (8 * (EDGE_VALUES[start + (((taken >> 56) << 8) | (black >> 56))] / 2 + 0.5) * (EDGE_VALUES[start + ((uint16_t) ((taken << 8) | (uint8_t) black))] / 2 + 0.5) * (EDGE_VALUES[start + ((COL(taken, 0) << 8) | COL(black, 0))] / 2 + 0.5) * (EDGE_VALUES[start + ((COL(taken, 7) << 8) | COL(black, 7))] / 2 + 0.5) - 0.5);
 
     // Edges
-    cerr << "Edges: " << EDGE_WEIGHT * (EDGE_VALUES[totalCount][((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[totalCount][(uint16_t) (taken << 8) | (uint8_t) black] + EDGE_VALUES[totalCount][(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[totalCount][(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0) << endl;
+    cerr << "Edges: " << EDGE_WEIGHT * 2 * (8 * (EDGE_VALUES[start + (((taken >> 56) << 8) | (black >> 56))] / 2 + 0.5) * (EDGE_VALUES[start + ((uint16_t) ((taken << 8) | (uint8_t) black))] / 2 + 0.5) * (EDGE_VALUES[start + ((COL(taken, 0) << 8) | COL(black, 0))] / 2 + 0.5) * (EDGE_VALUES[start + ((COL(taken, 7) << 8) | COL(black, 7))] / 2 + 0.5) - 0.5) << endl;
     cerr << "ee2: " << ee2 << endl;
-
-    // Prefer balanced positions if winning
-    ee = (ee + ee2) * (1 - (ee * ee2 < 0) * INBALANCED_POSITION_PENALTY);
-    cerr << "ee and ee2 combined: " << ee << endl;
 
     // Minimize discs early
     int discdiff = __builtin_popcountll(white) - __builtin_popcountll(black);
-    ee += ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0;
+    ee2 += ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0;
 
     // Maximize internal discs late
-    ee += (totalCount / 40) * ((totalCount - 40) / 26.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0;
+    ee2 += (totalCount / 40) * ((totalCount - 40) / 26.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0;
 
     cerr << "Disc difference: " << ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0 << endl;
-    cerr << "Internal discs: " << (totalCount / 40) * ((totalCount - 40) / 26.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0 << endl;
+    cerr << "Internal discs: " << (totalCount / 40) * ((totalCount - 40) / 13.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0 << endl;
+
+    // Prefer balanced positions if winning
+    ee = abs(ee + ee2) * (ee + ee2) / (abs(ee) + abs(ee2)); 
+    cerr << "ee and ee2 combined: " << ee << endl;
 
     cerr << "Actual eval: " << pos_evaluate() << endl;
 }
@@ -2745,7 +2747,7 @@ int Board::pos_evaluate() const {
     int totalCount = __builtin_popcountll(taken);
     uint64_t stable_not_edge = 0;
     double ee2 = 0;
-    #if STABILITY
+    #if STABILITY && !LEARNING
     if (taken & CORNERS) {
         stable_not_edge = stable_discs(); // Only calculate if there is a corner
         ee2 += STABLE_NONEDGES_WEIGHT * (__builtin_popcountll(stable_not_edge & black) - __builtin_popcountll(stable_not_edge & white)) / 36.0; 
@@ -2778,11 +2780,12 @@ int Board::pos_evaluate() const {
     int whiteFrontiers = __builtin_popcountll(white & frontier);
     uint64_t blackLM = findLegalMovesBlack();
     uint64_t whiteLM = findLegalMovesWhite();
-    int blackMoves = __builtin_popcountll(blackLM & empty2);
-    int whiteMoves = __builtin_popcountll(whiteLM & empty2);
-    double eeF = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0);
-    double eeM = MOBILITY_WEIGHT * (1 - totalCount / 60) * (1 - 0.1 * (totalCount / 50)) * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
-    double ee = (eeF + eeM) * (1 - (eeF * eeM < 0) * INBALANCED_POSITION_PENALTY);
+    uint64_t commonLM = blackLM & whiteLM;
+    int blackMoves = 2 * __builtin_popcountll(blackLM & empty2) - __builtin_popcountll(commonLM);
+    int whiteMoves = 2 * __builtin_popcountll(whiteLM & empty2) - __builtin_popcountll(commonLM);
+    double eeF = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 2.0);
+    double eeM = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
+    double ee = abs(eeF + eeM) * (eeF + eeM) / (abs(eeF) + abs(eeM)) * (1 - 0.2 * (totalCount / 50.0));
 
     // Penalty for risky squares if corner not filled
     uint64_t bad_x_squares = ~empty ^ taken;
@@ -2792,17 +2795,18 @@ int Board::pos_evaluate() const {
     ee2 += CORNER_HANGING_PENALTY * (1 - (totalCount / 70.0)) * (__builtin_popcountll(blackLM & CORNERS) - __builtin_popcountll(whiteLM & CORNERS)) / 4.0;
     
     // Edges
-    ee2 += EDGE_WEIGHT * (EDGE_VALUES[totalCount][((taken >> 56) << 8) | (black >> 56)] + EDGE_VALUES[totalCount][(uint16_t) ((taken << 8) | (uint8_t) black)] + EDGE_VALUES[totalCount][(COL(taken, 0) << 8) | COL(black, 0)] + EDGE_VALUES[totalCount][(COL(taken, 7) << 8) | COL(black, 7)]) / (144.0);
-    
-    // Prefer balanced positions if winning
-    ee = (ee + ee2) * (1 - (ee * ee2 < 0) * INBALANCED_POSITION_PENALTY);
+    int start = (1 << 16) * (totalCount);
+    ee2 += EDGE_WEIGHT * 2 * (8 * (EDGE_VALUES[start + (((taken >> 56) << 8) | (black >> 56))] / 2 + 0.5) * (EDGE_VALUES[start + ((uint16_t) ((taken << 8) | (uint8_t) black))] / 2 + 0.5) * (EDGE_VALUES[start + ((COL(taken, 0) << 8) | COL(black, 0))] / 2 + 0.5) * (EDGE_VALUES[start + ((COL(taken, 7) << 8) | COL(black, 7))] / 2 + 0.5) - 0.5);
 
     // Minimize discs early
     int discdiff = __builtin_popcountll(white) - __builtin_popcountll(black);
-    ee += ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0;
+    ee2 += ((79 - totalCount) / 40) * discdiff * DISC_DIFFERENCE_WEIGHT / 60.0;
 
     // Maximize internal discs late
-    ee += (totalCount / 40) * ((totalCount - 40) / 26.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0;
+    ee2 += (totalCount / 40) * ((totalCount - 40) / 13.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0;
+
+    // Prefer balanced positions if winning
+    ee = abs(ee + ee2) * (ee + ee2) / (abs(ee) + abs(ee2)); 
 
     return 100 * ee;
 }
