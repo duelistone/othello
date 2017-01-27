@@ -9,8 +9,6 @@
 #include <string>
 #include <cmath>
 
-#define START_SOLVING_DEPTH 46
-
 using namespace std;
 
 double *EDGE_VALUES;
@@ -28,6 +26,7 @@ int main(int argc, char **argv) {
     int AB_LEARN_DEPTH = 2;
     if (argc > 1) AB_LEARN_DEPTH = atoi(argv[1]);
     fstream fil("game_database", ios_base::in);
+    fstream resultsFile("game_results", ios_base::in);
     // fstream nnFile("training_data", ios_base::out);
 
     double **edge_wins;
@@ -47,6 +46,8 @@ int main(int argc, char **argv) {
             edge_total[j][i] = 0;
         }
     }
+
+    bool stopEndgame = false;
     
     cout << "Pass 1" << endl;
     string line;
@@ -54,6 +55,12 @@ int main(int argc, char **argv) {
     while (getline(fil, line)) {
         if (counter % 10 == 0) cout << counter << endl;
         counter++;
+
+        string resultLine;
+        getline(resultsFile, resultLine);
+        if (resultLine == "") stopEndgame = true;
+        stringstream ss2(resultLine);
+
         Board b;
         Side s = BLACK;
         stringstream ss(line);
@@ -93,10 +100,9 @@ int main(int argc, char **argv) {
             
             int tc = __builtin_popcountll(b.taken);
             if (tc < 40) continue;
-            else if (tc > 40 && tc < START_SOLVING_DEPTH) continue;
-            else if (tc >= START_SOLVING_DEPTH) {
-                result = endgame_alphabeta(b, s);
-                if (result != 0) result = result / abs(result);
+            else if (stopEndgame) break;
+            else if (tc > 40) {
+                ss2 >> result;
             }
 
             // Extract edges and save scores
@@ -151,6 +157,15 @@ int main(int argc, char **argv) {
             if (score2 > 1) score2 = 1;
             else if (score2 < -1) score2 = -1;
             EDGE_VALUES[(1 << 16) * j + i] = score2; // The default
+        }
+        for (int j = 41; j < 65; j++) {
+            if (edge_total[j][i] >= 16) {
+                double score = (double) edge_wins[j][i] / edge_total[j][i];
+                EDGE_VALUES[(1 << 16) * j + i] = score;
+            }
+            else {
+                EDGE_VALUES[(1 << 16) * j + i] = EDGE_VALUES[(1 << 16) * (j - 1) + i] / 1.1;
+            }
         }
     }
 
