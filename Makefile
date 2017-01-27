@@ -21,7 +21,7 @@ database_solver: database_solver.o search.o board.o player.o
 testgame: testgame.o 
 	$(CC) -o $@ $^ -pthread
 
-learn.o: defs.h learn.cpp board.cpp board.h common.h
+learn.o: defs.h learn.cpp board.cpp search.h board.h common.h
 	$(CC) -c $(CFLAGS) -funroll-loops board.cpp -D LEARNING
 	$(CC) -c $(CFLAGS) learn.cpp -g
 
@@ -29,10 +29,10 @@ database_solver.o: defs.h database_solver.cpp board.h search.h common.h
 	$(CC) -c $(CFLAGS) -funroll-loops board.cpp -D LEARNING
 	$(CC) -c $(CFLAGS) database_solver.cpp
 
-player.o: player.cpp common.h player.h board.h defs.h tt.h timer.h
+player.o: player.cpp common.h player.h board.h search.h defs.h tt.h timer.h
 	$(CC) -c $(CFLAGS) player.cpp
 
-search.o: search.cpp common.h player.h board.h defs.h tt.h timer.h
+search.o: search.cpp common.h player.h board.h defs.h tt.h search.h timer.h
 	$(CC) -c $(CFLAGS) search.cpp
 
 board.o: board.cpp common.h player.h board.h defs.h tt.h

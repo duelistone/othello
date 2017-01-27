@@ -5,6 +5,7 @@
 #include <fstream>
 #include "player.h"
 #include "tt.h"
+
 using namespace std;
 
 // Global variables

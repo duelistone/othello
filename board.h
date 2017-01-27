@@ -4,15 +4,12 @@
 #include <cstdint>
 #include <vector>
 #include <climits>
-#include <unordered_map>
-#include <thread>
 #include <iostream>
 #include <sstream>
 #include <iomanip>
 #include <chrono>
 #include <cassert>
 #include <cmath>
-#include <atomic>
 #include <bitset>
 #include "common.h"
 #include "timer.h"
