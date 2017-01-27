@@ -1209,6 +1209,17 @@ Move *Player::doMove(Move *opponentsMove, int msLeft) {
         Move *move = new Move(x, y);
         return move;
     }
+    else if (totalCount == 6 && (currBoard.taken & ~currBoard.black & (BIT(18) | BIT(21) | BIT(42) | BIT(45)))) {
+        // Diagonal opening
+        uint64_t mask = BIT(19) | BIT(26) | BIT(37) | BIT(44);
+        uint64_t bit = currBoard.black & mask;
+        if ((bit << 7) & mask) bit <<= 7;
+        else bit >>= 7;
+        int index = __builtin_clzll(bit);
+        currBoard = currBoard.doMoveOnNewBoard(index, side);
+        Move *move = new Move(FROM_INDEX_X(index), FROM_INDEX_Y(index));
+        return move;
+    }
 
     // Set depth according to how far into game
     int depth;
