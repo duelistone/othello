@@ -8,15 +8,12 @@
 using namespace std;
 
 // Global variables
-double minutesForMove = 1;
 double *EDGE_VALUES;
 uint8_t **STABLE_DISCS;
 uint8_t **PSEUDOSTABLE_DISCS;
 uint8_t **ALL_STABLE_DISCS;
 uint64_t** BYTE_TO_COL;
 uint64_t** BYTE_TO_PATTERN;
-uint64_t SINGLE_BIT[64];
-fstream fil("c.txt", ios_base::out);
 
 BoardHash tt(256);
 BoardHash2 tt2(4);
@@ -32,11 +29,6 @@ int main(int argc, char *argv[]) {
     }
     Side side = (!strcmp(argv[1], "Black")) ? BLACK : WHITE;
 
-    // Initialize SINGLE_BIT array
-    for (int i = 0; i < 64; i++) {
-        SINGLE_BIT[i] = BIT(i);
-    }
-    
     // Allocate
     EDGE_VALUES = (double *) malloc(sizeof(double) * 65 * (1 << 16));
     STABLE_DISCS = (uint8_t **) malloc(sizeof(uint8_t *) * 8);

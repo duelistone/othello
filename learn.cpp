@@ -1,6 +1,7 @@
 #include "defs.h"
 #include "board.h"
 #include "tt.h"
+#include "search.h"
 #include <fstream>
 #include <algorithm>
 #include <iostream>
@@ -8,85 +9,20 @@
 #include <string>
 #include <cmath>
 
+#define START_SOLVING_DEPTH 46
+
 using namespace std;
+
 double *EDGE_VALUES;
 size_t random_numbers[130];
 uint64_t SINGLE_BIT[64];
 uint8_t **STABLE_DISCS;
 uint64_t **BYTE_TO_PATTERN;
 
-pair<int, vector<uint8_t> > alphabeta(Board b, const int depth, const Side s, int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false) {
-    if (depth <= 0) return make_pair(b.pos_evaluate(), vector<uint8_t>());
-
-    uint64_t legalMoves = b.findLegalMoves(s);
-    
-    // Special case
-    if (!legalMoves) {
-        if (prevPass) {
-            int blacks = __builtin_popcountll(b.black);
-            int whites = __builtin_popcountll(b.taken & ~b.black); 
-            return make_pair((blacks > whites) ? INT_MAX : ((whites > blacks) ? INT_MIN : 0), vector<uint8_t>());
-        }
-        return alphabeta(b, depth - 1, !s, alpha, beta, depth2 + 1, true);
-    }
-    
-    int besti = 64;
-    vector<uint8_t> bestpv;
-    if (s) {
-        int v = INT_MIN;
-        // uint8_t index = 64;
-        // if (depth2 <= HASH_DEPTH) {
-        //     index = tt[b.zobrist_hash];
-        //     if (index < 64 && (BIT(index) & legalMoves)) {
-        //         // The move is valid
-        //         legalMoves ^= BIT(index);
-        //         besti = index;
-        //         v = alphabeta(b.doMoveOnNewBoardBlack(index), depth - 1, WHITE, alpha, beta, depth2 + 1);
-        //         alpha = (v > alpha) ? v : alpha;
-        //     }
-        // }
-        while (alpha < beta && legalMoves) {    
-            uint8_t index = __builtin_clzll(legalMoves);
-            legalMoves ^= BIT(index);
-            pair< int, vector<uint8_t> > p = alphabeta(b.doMoveOnNewBoardBlackWZH(index), depth - 1, WHITE, alpha, beta, depth2 + 1);
-            int val = p.first;
-            bestpv = (val > v) ? p.second : bestpv;
-            besti = (val > v) ? index : besti;
-            v = (val > v) ? val : v;
-            alpha = (v > alpha) ? v : alpha;
-        }
-        // if (depth2 <= HASH_DEPTH) tt[b.zobrist_hash] = besti;
-        bestpv.push_back(besti);
-        return make_pair(alpha, bestpv);
-    }
-    else {
-        int v = INT_MAX;
-        // uint8_t index = 64;
-        // if (depth2 <= HASH_DEPTH) {
-        //     index = tt[b.zobrist_hash];
-        //     if (index < 64 && (BIT(index) & legalMoves)) {
-        //         // The move is valid
-        //         legalMoves ^= BIT(index);
-        //         besti = index;
-        //         v = alphabeta(b.doMoveOnNewBoardWhite(index), depth - 1, BLACK, alpha, beta, depth2 + 1);
-        //         beta = (v < beta) ? v : beta;
-        //     }
-        // }
-        while (alpha < beta && legalMoves) {    
-            uint8_t index = __builtin_clzll(legalMoves);
-            legalMoves ^= BIT(index);
-            pair<int, vector<uint8_t> > p = alphabeta(b.doMoveOnNewBoardWhiteWZH(index), depth - 1, BLACK, alpha, beta, depth2 + 1);
-            int val = p.first;
-            besti = (val < v) ? index : besti;
-            bestpv = (val < v) ? p.second : bestpv;
-            v = (val < v) ? val : v;
-            beta = (v < beta) ? v : beta;
-        }
-        // if (depth2 <= HASH_DEPTH) tt[b.zobrist_hash] = besti;
-        bestpv.push_back(besti);
-        return make_pair(beta, bestpv);
-    }
-}
+// Hashes (smaller here)
+BoardHash tt(4); // Instead of 256
+BoardHash2 tt2(4);
+EndgameBoardHash endgameTT(64);
 
 int main(int argc, char **argv) {
     int AB_LEARN_DEPTH = 2;
@@ -111,9 +47,13 @@ int main(int argc, char **argv) {
             edge_total[j][i] = 0;
         }
     }
-
+    
+    cout << "Pass 1" << endl;
     string line;
+    int counter = 0;
     while (getline(fil, line)) {
+        if (counter % 10 == 0) cout << counter << endl;
+        counter++;
         Board b;
         Side s = BLACK;
         stringstream ss(line);
@@ -153,7 +93,11 @@ int main(int argc, char **argv) {
             
             int tc = __builtin_popcountll(b.taken);
             if (tc < 40) continue;
-            else if (tc > 40) break;
+            else if (tc > 40 && tc < START_SOLVING_DEPTH) continue;
+            else if (tc >= START_SOLVING_DEPTH) {
+                result = endgame_alphabeta(b, s);
+                if (result != 0) result = result / abs(result);
+            }
 
             // Extract edges and save scores
             edge_wins[tc][(uint16_t) ((COL(b.taken, 0) << 8) | COL(b.black, 0))] += result;
@@ -209,6 +153,8 @@ int main(int argc, char **argv) {
             EDGE_VALUES[(1 << 16) * j + i] = score2; // The default
         }
     }
+
+    cout << "Pass 2" << endl;
 
     // Lower values
     for (int k = 39; k >= 4; k--) {

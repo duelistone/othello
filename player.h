@@ -4,6 +4,7 @@
 #include <iostream>
 #include "common.h"
 #include "board.h"
+#include "search.h"
 #include <bitset>
 #include <unistd.h>
 #include <climits>
@@ -28,19 +29,9 @@
 using namespace std;
 
 extern double minutesForMove;
-
 extern fstream fil;
 
-extern BoardHash tt;
-extern BoardHash2 tt2;
-extern EndgameBoardHash endgameTT;
 extern uint64_t ** BYTE_TO_COL;
-
-// To avoid um getting too big
-#define STOP_SAVING_THRESHOLD 50
-
-using namespace std;
-
 
 class Player {
 private:
@@ -57,8 +48,5 @@ public:
 
     Move *doMove(Move *opponentsMove, int msLeft);
 };
-
-
-// int alphabeta(const Board b, const int depth, const Side s, int alpha = INT_MIN, int beta = INT_MAX, const int depth2 = 0, const bool prevPass = false);
 
 #endif
