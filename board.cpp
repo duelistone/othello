@@ -2694,7 +2694,7 @@ void Board::print_eval_stats() const {
     int whiteMoves = 2 * __builtin_popcountll(whiteLM & empty2) - __builtin_popcountll(commonLM);
     double eeF = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0);
     double eeM = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
-    double ee = abs(eeF + eeM) * (eeF + eeM) / (abs(eeF) + abs(eeM)) * (1 - 0.2 * (totalCount / 50.0));
+    double ee = (abs(eeF) + abs(eeM) > 0) ? abs(eeF + eeM) * (eeF + eeM) / (abs(eeF) + abs(eeM)) * (1 - 0.2 * (totalCount / 50.0)) : 0;
 
     cerr << "Frontier score: " << eeF << endl;
     cerr << "Mobility score: " << eeM << endl;
@@ -2736,7 +2736,7 @@ void Board::print_eval_stats() const {
     cerr << "Internal discs: " << (totalCount / 40) * ((totalCount - 40) / 13.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0 << endl;
 
     // Prefer balanced positions if winning
-    ee = abs(ee + ee2) * (ee + ee2) / (abs(ee) + abs(ee2)); 
+    ee = (abs(ee) + abs(ee2) > 0) ? abs(ee + ee2) * (ee + ee2) / (abs(ee) + abs(ee2)) : 0; 
     cerr << "ee and ee2 combined: " << ee << endl;
 
     cerr << "Actual eval: " << pos_evaluate() << endl;
@@ -2785,7 +2785,7 @@ int Board::pos_evaluate() const {
     int whiteMoves = 2 * __builtin_popcountll(whiteLM & empty2) - __builtin_popcountll(commonLM);
     double eeF = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 2.0);
     double eeM = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
-    double ee = abs(eeF + eeM) * (eeF + eeM) / (abs(eeF) + abs(eeM)) * (1 - 0.2 * (totalCount / 50.0));
+    double ee = (abs(eeF) + abs(eeM) > 0) ? abs(eeF + eeM) * (eeF + eeM) / (abs(eeF) + abs(eeM)) * (1 - 0.2 * (totalCount / 50.0)) : 0;
 
     // Penalty for risky squares if corner not filled
     uint64_t bad_x_squares = ~empty ^ taken;
@@ -2806,7 +2806,7 @@ int Board::pos_evaluate() const {
     ee2 += (totalCount / 40) * ((totalCount - 40) / 13.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0;
 
     // Prefer balanced positions if winning
-    ee = abs(ee + ee2) * (ee + ee2) / (abs(ee) + abs(ee2)); 
+    ee = (abs(ee) + abs(ee2) > 0) ? abs(ee + ee2) * (ee + ee2) / (abs(ee) + abs(ee2)) : 0; 
 
     return 100 * ee;
 }
