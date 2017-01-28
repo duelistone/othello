@@ -139,14 +139,14 @@
 #define HELPER(s, n) {for (taken = (1 << (n)) - 1; taken < 1 << (s); taken = snoob(taken)) {uint64_t black = 0; do {RowBoard<(s)> rb(taken, black); rb.set_stable(); black = (black - taken) & taken;} while (black);}}
 
 // Configuration
-#define X_SQUARE_PENALTY 40
-#define MOBILITY_WEIGHT 45
+#define X_SQUARE_PENALTY 70
+#define MOBILITY_WEIGHT 60
 #define FRONTIER_WEIGHT 60
 #define DISC_DIFFERENCE_WEIGHT 10
 #define STABLE_NONEDGES_WEIGHT 70 
 #define CORNER_HANGING_PENALTY 60
 #define ISLAND_PENALTY 4
-#define EDGE_WEIGHT 35
+#define EDGE_WEIGHT 30
 #define INTERNAL_DISCS_WEIGHT 50
 #define HASH_DEPTH 12
 #define HASH_DEPTH2 7

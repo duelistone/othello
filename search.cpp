@@ -28,17 +28,17 @@ pair<int, vector<uint8_t> > alphabeta(Board b, const int depth, const Side s, in
     vector<uint8_t> bestpv;
     if (s) {
         int v = INT_MIN;
-        // uint8_t index = 64;
-        // if (depth2 <= HASH_DEPTH) {
-        //     index = tt[b.zobrist_hash];
-        //     if (index < 64 && (BIT(index) & legalMoves)) {
-        //         // The move is valid
-        //         legalMoves ^= BIT(index);
-        //         besti = index;
-        //         v = alphabeta(b.doMoveOnNewBoardBlack(index), depth - 1, WHITE, alpha, beta, depth2 + 1);
-        //         alpha = (v > alpha) ? v : alpha;
-        //     }
-        // }
+        uint8_t index = 64;
+        if (depth2 <= HASH_DEPTH) {
+            index = tt[b.zobrist_hash];
+            if (index < 64 && (BIT(index) & legalMoves)) {
+                // The move is valid
+                legalMoves ^= BIT(index);
+                besti = index;
+                v = alphabeta(b.doMoveOnNewBoardBlack(index), depth - 1, WHITE, alpha, beta, depth2 + 1).first;
+                alpha = (v > alpha) ? v : alpha;
+            }
+        }
         while (alpha < beta && legalMoves) {    
             uint8_t index = __builtin_clzll(legalMoves);
             legalMoves ^= BIT(index);
@@ -49,23 +49,23 @@ pair<int, vector<uint8_t> > alphabeta(Board b, const int depth, const Side s, in
             v = (val > v) ? val : v;
             alpha = (v > alpha) ? v : alpha;
         }
-        // if (depth2 <= HASH_DEPTH) tt[b.zobrist_hash] = besti;
+        if (depth2 <= HASH_DEPTH) tt[b.zobrist_hash] = besti;
         bestpv.push_back(besti);
         return make_pair(alpha, bestpv);
     }
     else {
         int v = INT_MAX;
-        // uint8_t index = 64;
-        // if (depth2 <= HASH_DEPTH) {
-        //     index = tt[b.zobrist_hash];
-        //     if (index < 64 && (BIT(index) & legalMoves)) {
-        //         // The move is valid
-        //         legalMoves ^= BIT(index);
-        //         besti = index;
-        //         v = alphabeta(b.doMoveOnNewBoardWhite(index), depth - 1, BLACK, alpha, beta, depth2 + 1);
-        //         beta = (v < beta) ? v : beta;
-        //     }
-        // }
+        uint8_t index = 64;
+        if (depth2 <= HASH_DEPTH) {
+            index = tt[b.zobrist_hash];
+            if (index < 64 && (BIT(index) & legalMoves)) {
+                // The move is valid
+                legalMoves ^= BIT(index);
+                besti = index;
+                v = alphabeta(b.doMoveOnNewBoardWhite(index), depth - 1, BLACK, alpha, beta, depth2 + 1).first;
+                beta = (v < beta) ? v : beta;
+            }
+        }
         while (alpha < beta && legalMoves) {    
             uint8_t index = __builtin_clzll(legalMoves);
             legalMoves ^= BIT(index);
@@ -76,7 +76,7 @@ pair<int, vector<uint8_t> > alphabeta(Board b, const int depth, const Side s, in
             v = (val < v) ? val : v;
             beta = (v < beta) ? v : beta;
         }
-        // if (depth2 <= HASH_DEPTH) tt[b.zobrist_hash] = besti;
+        if (depth2 <= HASH_DEPTH) tt[b.zobrist_hash] = besti;
         bestpv.push_back(besti);
         return make_pair(beta, bestpv);
     }
