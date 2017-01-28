@@ -2665,10 +2665,10 @@ void Board::print_eval_stats() const {
 
     // Compute frontier + stability + mobility
     uint64_t empty = ~taken;
-    empty &= ~((empty & CORNER_TL) >> 9); // Excluding dangerous X squares
-    empty &= ~((empty & CORNER_TR) >> 7);
-    empty &= ~((empty & CORNER_BL) << 7);
-    empty &= ~((empty & CORNER_BR) << 9);
+    empty |= ((empty & CORNER_TL) >> 9); // Excluding dangerous X squares
+    empty |= ((empty & CORNER_TR) >> 7);
+    empty |= ((empty & CORNER_BL) << 7);
+    empty |= ((empty & CORNER_BR) << 9);
     uint64_t empty2 = empty; // For excluding c squares
     empty2 &= ~((empty & (CORNER_TL | CORNER_BL)) >> 1);
     empty2 &= ~((empty & (CORNER_TL | CORNER_TR)) >> 8);
@@ -2682,19 +2682,20 @@ void Board::print_eval_stats() const {
     frontier |= (empty2 >> 9) & taken;
     frontier |= (empty2 << 7) & taken;
     frontier |= (empty2 >> 7) & taken;
-    frontier &= ~EDGES;
     frontier &= ~stable_not_edge;
     
     int blackFrontiers = __builtin_popcountll(black & frontier);
+    int blackInteriors = __builtin_popcountll(black & ~EDGES) - blackFrontiers;
     int whiteFrontiers = __builtin_popcountll(white & frontier);
+    int whiteInteriors = __builtin_popcountll(white & ~EDGES) - whiteFrontiers;
     uint64_t blackLM = findLegalMovesBlack();
     uint64_t whiteLM = findLegalMovesWhite();
     uint64_t commonLM = blackLM & whiteLM;
     int blackMoves = 2 * __builtin_popcountll(blackLM & empty2) - __builtin_popcountll(commonLM);
     int whiteMoves = 2 * __builtin_popcountll(whiteLM & empty2) - __builtin_popcountll(commonLM);
-    double eeF = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 1.0);
+    double eeF = FRONTIER_WEIGHT * (whiteFrontiers + blackInteriors - blackFrontiers - whiteInteriors) / (whiteFrontiers + blackInteriors + whiteInteriors + blackFrontiers + 1.0);
     double eeM = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
-    double ee = (abs(eeF) + abs(eeM) > 0) ? abs(eeF + eeM) * (eeF + eeM) / (abs(eeF) + abs(eeM)) * (1 - 0.2 * (totalCount / 50.0)) : 0;
+    double ee = (abs(eeF) + abs(eeM) > 0) ? (eeF + eeM) * sqrt(abs(eeF + eeM) / (abs(eeF) + abs(eeM))) * (1 - 0.2 * (totalCount / 50.0)) : 0;
 
     cerr << "Frontier score: " << eeF << endl;
     cerr << "Mobility score: " << eeM << endl;
@@ -2702,7 +2703,7 @@ void Board::print_eval_stats() const {
 
     // Penalty for risky squares if corner not filled
     uint64_t bad_x_squares = ~empty ^ taken;
-    double ee2 = (1 - (totalCount / 40)) * (__builtin_popcountll(bad_x_squares & black) - __builtin_popcountll(bad_x_squares & white)) * X_SQUARE_PENALTY / 4.0;
+    double ee2 = (1 - (totalCount / 45)) * (1 - (totalCount / 45.0)) * (__builtin_popcountll(bad_x_squares & white) - __builtin_popcountll(bad_x_squares & black)) * X_SQUARE_PENALTY / 4.0;
     cerr << "x square score: " << ee2 << endl;
 
     // (Possibly) stable nonedges
@@ -2736,7 +2737,7 @@ void Board::print_eval_stats() const {
     cerr << "Internal discs: " << (totalCount / 40) * ((totalCount - 40) / 13.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0 << endl;
 
     // Prefer balanced positions if winning
-    ee = (abs(ee) + abs(ee2) > 0) ? abs(ee + ee2) * (ee + ee2) / (abs(ee) + abs(ee2)) : 0; 
+    ee = (abs(ee) + abs(ee2) > 0) ? (ee + ee2) * sqrt(abs(ee + ee2) / (abs(ee) + abs(ee2))) : 0; 
     cerr << "ee and ee2 combined: " << ee << endl;
 
     cerr << "Actual eval: " << pos_evaluate() << endl;
@@ -2756,10 +2757,10 @@ int Board::pos_evaluate() const {
 
     // Compute frontier + stability + mobility
     uint64_t empty = ~taken;
-    empty &= ~((empty & CORNER_TL) >> 9); // Excluding dangerous X squares
-    empty &= ~((empty & CORNER_TR) >> 7);
-    empty &= ~((empty & CORNER_BL) << 7);
-    empty &= ~((empty & CORNER_BR) << 9);
+    empty |= ((empty & CORNER_TL) >> 9); // Excluding dangerous X squares
+    empty |= ((empty & CORNER_TR) >> 7);
+    empty |= ((empty & CORNER_BL) << 7);
+    empty |= ((empty & CORNER_BR) << 9);
     uint64_t empty2 = empty; // For excluding c squares
     empty2 &= ~((empty & (CORNER_TL | CORNER_BL)) >> 1);
     empty2 &= ~((empty & (CORNER_TL | CORNER_TR)) >> 8);
@@ -2773,23 +2774,24 @@ int Board::pos_evaluate() const {
     frontier |= (empty2 >> 9) & taken;
     frontier |= (empty2 << 7) & taken;
     frontier |= (empty2 >> 7) & taken;
-    frontier &= ~EDGES;
     frontier &= ~stable_not_edge;
     
     int blackFrontiers = __builtin_popcountll(black & frontier);
+    int blackInteriors = __builtin_popcountll(black & ~EDGES) - blackFrontiers;
     int whiteFrontiers = __builtin_popcountll(white & frontier);
+    int whiteInteriors = __builtin_popcountll(white & ~EDGES) - whiteFrontiers;
     uint64_t blackLM = findLegalMovesBlack();
     uint64_t whiteLM = findLegalMovesWhite();
     uint64_t commonLM = blackLM & whiteLM;
     int blackMoves = 2 * __builtin_popcountll(blackLM & empty2) - __builtin_popcountll(commonLM);
     int whiteMoves = 2 * __builtin_popcountll(whiteLM & empty2) - __builtin_popcountll(commonLM);
-    double eeF = FRONTIER_WEIGHT * (whiteFrontiers - blackFrontiers) / (whiteFrontiers + blackFrontiers + 2.0);
+    double eeF = FRONTIER_WEIGHT * (whiteFrontiers + blackInteriors - blackFrontiers - whiteInteriors) / (whiteFrontiers + blackInteriors + whiteInteriors + blackFrontiers + 1.0);
     double eeM = MOBILITY_WEIGHT * (blackMoves - whiteMoves) / (blackMoves + whiteMoves + 1.0);
-    double ee = (abs(eeF) + abs(eeM) > 0) ? abs(eeF + eeM) * (eeF + eeM) / (abs(eeF) + abs(eeM)) * (1 - 0.2 * (totalCount / 50.0)) : 0;
+    double ee = (abs(eeF) + abs(eeM) > 0) ? (eeF + eeM) * sqrt(abs(eeF + eeM) / (abs(eeF) + abs(eeM))) * (1 - 0.2 * (totalCount / 50.0)) : 0;
 
     // Penalty for risky squares if corner not filled
     uint64_t bad_x_squares = ~empty ^ taken;
-    ee2 += (1 - (totalCount / 40)) * (__builtin_popcountll(bad_x_squares & black) - __builtin_popcountll(bad_x_squares & white)) * X_SQUARE_PENALTY / 4.0;
+    ee2 += (1 - (totalCount / 45)) * (1 - (totalCount / 45.0)) * (__builtin_popcountll(bad_x_squares & white) - __builtin_popcountll(bad_x_squares & black)) * X_SQUARE_PENALTY / 4.0;
     
     // Penalty for leaving corner hanging
     ee2 += CORNER_HANGING_PENALTY * (1 - (totalCount / 70.0)) * (__builtin_popcountll(blackLM & CORNERS) - __builtin_popcountll(whiteLM & CORNERS)) / 4.0;
@@ -2806,7 +2808,7 @@ int Board::pos_evaluate() const {
     ee2 += (totalCount / 40) * ((totalCount - 40) / 13.0) * (__builtin_popcountll(black & INTERNAL_SQUARES) - __builtin_popcountll(white & INTERNAL_SQUARES)) * INTERNAL_DISCS_WEIGHT / 16.0;
 
     // Prefer balanced positions if winning
-    ee = (abs(ee) + abs(ee2) > 0) ? abs(ee + ee2) * (ee + ee2) / (abs(ee) + abs(ee2)) : 0; 
+    ee = (abs(ee) + abs(ee2) > 0) ? (ee + ee2) * sqrt(abs(ee + ee2) / (abs(ee) + abs(ee2))) : 0; 
 
     return 100 * ee;
 }

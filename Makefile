@@ -8,25 +8,19 @@ $(PLAYERNAME): board.o player.o timer.o wrapper.o search.o
 	$(CC) -o $@ $^ -pthread
 	strip $(PLAYERNAME)
 
-learn: board.o learn.o search.o
-	$(CC) $(CFLAGS) board.o learn.o search.o -o learn
-	rm board.o
-	make board.o
+learn: board.o learn.o search.o player.o
+	$(CC) $(CFLAGS) board.o learn.o search.o player.o -o learn
 
 database_solver: database_solver.o search.o board.o player.o
 	$(CC) $(CFLAGS) database_solver.o search.o board.o player.o -o database_solver
-	rm board.o
-	make board.o
 
 testgame: testgame.o 
 	$(CC) -o $@ $^ -pthread
 
-learn.o: defs.h learn.cpp board.cpp search.h board.h common.h
-	$(CC) -c $(CFLAGS) -funroll-loops board.cpp -D LEARNING
+learn.o: defs.h learn.cpp search.h board.h common.h player.h
 	$(CC) -c $(CFLAGS) learn.cpp -g
 
-database_solver.o: defs.h database_solver.cpp board.h search.h common.h
-	$(CC) -c $(CFLAGS) -funroll-loops board.cpp -D LEARNING
+database_solver.o: defs.h database_solver.cpp board.h search.h common.h player.h
 	$(CC) -c $(CFLAGS) database_solver.cpp
 
 player.o: player.cpp common.h player.h board.h search.h defs.h tt.h timer.h

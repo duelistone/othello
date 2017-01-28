@@ -1,4 +1,5 @@
 #include "defs.h"
+#include "player.h"
 #include "board.h"
 #include "tt.h"
 #include "search.h"
@@ -12,10 +13,12 @@
 using namespace std;
 
 double *EDGE_VALUES;
-size_t random_numbers[130];
-uint64_t SINGLE_BIT[64];
 uint8_t **STABLE_DISCS;
-uint64_t **BYTE_TO_PATTERN;
+uint8_t **PSEUDOSTABLE_DISCS;
+uint8_t **ALL_STABLE_DISCS;
+uint64_t** BYTE_TO_COL;
+uint64_t** BYTE_TO_PATTERN;
+size_t random_numbers[130];
 
 // Hashes (smaller here)
 BoardHash tt(4); // Instead of 256
@@ -23,11 +26,29 @@ BoardHash2 tt2(4);
 EndgameBoardHash endgameTT(64);
 
 int main(int argc, char **argv) {
+    EDGE_VALUES = (double *) malloc(sizeof(double) * 65 * (1 << 16));
+    STABLE_DISCS = (uint8_t **) malloc(sizeof(uint8_t *) * 8);
+    PSEUDOSTABLE_DISCS = (uint8_t **) malloc(sizeof(uint8_t *) * 8);
+    ALL_STABLE_DISCS = (uint8_t **) malloc(sizeof(uint8_t *) * 8);
+    BYTE_TO_COL = (uint64_t **) malloc(sizeof(uint64_t *) * 8);
+    BYTE_TO_PATTERN = (uint64_t **) malloc(sizeof(uint64_t *) * NUM_PATTERNS);
+    for (int i = 0; i < 8; i++) {
+        STABLE_DISCS[i] = (uint8_t *) malloc(sizeof(uint8_t) * (1 << 16));
+        PSEUDOSTABLE_DISCS[i] = (uint8_t *) malloc(sizeof(uint8_t) * (1 << 16));
+        ALL_STABLE_DISCS[i] = (uint8_t *) malloc(sizeof(uint8_t) * (1 << 16));
+        BYTE_TO_COL[i] = (uint64_t *) malloc(sizeof(uint64_t) * (1 << 8));
+    }
+    for (int i = 0; i < NUM_PATTERNS; i++) {
+        BYTE_TO_PATTERN[i] = (uint64_t *) malloc(sizeof(uint64_t) * (1 << 8));
+    }
+    srand(0);
+    for (int i = 0; i < 130; i++) random_numbers[i] = ((size_t) rand() << 33) | ((size_t) rand() << 2) | ((size_t) rand() & 3);
+    
+    Player initializer(true);
     int AB_LEARN_DEPTH = 2;
     if (argc > 1) AB_LEARN_DEPTH = atoi(argv[1]);
     fstream fil("game_database", ios_base::in);
     fstream resultsFile("game_results", ios_base::in);
-    // fstream nnFile("training_data", ios_base::out);
 
     double **edge_wins;
     int **edge_total;
@@ -37,7 +58,6 @@ int main(int argc, char **argv) {
         edge_wins[i] = (double *) malloc(sizeof(double) * (1 << 16));
         edge_total[i] = (int *) malloc(sizeof(int) * (1 << 16));
     }
-    EDGE_VALUES = (double *) malloc(sizeof(double) * (1 << 16) * 65);
     for (int i = 0; i < (1 << 16) * 65; i++) EDGE_VALUES[i] = 0;
     
     for (int j = 0; j < 65; j++) {
@@ -53,7 +73,7 @@ int main(int argc, char **argv) {
     string line;
     int counter = 0;
     while (getline(fil, line)) {
-        if (counter % 10 == 0) cout << counter << endl;
+        if (counter % 1000 == 0) cout << counter << endl;
         counter++;
 
         string resultLine;
@@ -76,16 +96,6 @@ int main(int argc, char **argv) {
         else result = 0;
         
         for (int i = 0; i < 60; i++) {
-            // if (i == 38) {
-            //     // 42 discs on board currently
-            //     for (int j = 0; j < 64; j++) {
-            //         if (BIT(j) & b.black) nnFile << 1.0 << ' ';
-            //         else if (BIT(j) & b.taken & ~b.black) nnFile << 0.0 << ' ';
-            //         else nnFile << 0.5 << ' ';
-            //     }
-            //     nnFile << score << endl;
-            // }
-
             if (moves[i] == -9) break;
             if (BIT(moves[i]) & b.findLegalMoves(s)) {
                 b = b.doMoveOnNewBoardWZH(moves[i], s);
@@ -100,9 +110,10 @@ int main(int argc, char **argv) {
             
             int tc = __builtin_popcountll(b.taken);
             if (tc < 40) continue;
-            else if (stopEndgame) break;
+            else if (tc > 40 && stopEndgame) break;
             else if (tc > 40) {
                 ss2 >> result;
+                if (ss2.eof()) break;
             }
 
             // Extract edges and save scores
@@ -241,28 +252,7 @@ int main(int argc, char **argv) {
                     edge_total[tc][(reverse_byte[(uint8_t) b.taken] << 8)         | reverse_byte[(uint8_t) b.black]        ]++;
                     edge_wins[tc][ (reverse_byte[(uint8_t) (b.taken >> 56)] << 8) | reverse_byte[b.black >> 56]            ] += EDGE_VALUES[start + ( (reverse_byte[(uint8_t) (b2.taken >> 56)] << 8) | reverse_byte[b2.black >> 56]           )];
                     edge_total[tc][(reverse_byte[(uint8_t) (b.taken >> 56)] << 8) | reverse_byte[b.black >> 56]            ]++;
-/*
-                    uint64_t white = b.taken & ~b.black;
-                    uint64_t white2 = b2.taken & ~b2.black;
 
-                    edge_wins[tc][(uint16_t) ((COL(b.taken, 0) << 8) | COL(white, 0))] -= EDGE_VALUES[start + ((uint16_t) ((COL(b2.taken, 0) << 8) | COL(white2, 0)))];
-                    edge_total[tc][(uint16_t) ((COL(b.taken, 0) << 8) | COL(white, 0))]++;
-                    edge_wins[tc][(uint16_t) ((COL(b.taken, 7) << 8) | COL(white, 7))] -= EDGE_VALUES[start + ((uint16_t) ((COL(b2.taken, 7) << 8) | COL(white2, 7)))];
-                    edge_total[tc][(uint16_t) ((COL(b.taken, 7) << 8) | COL(white, 7))]++;
-                    edge_wins[tc][(uint16_t) ((b.taken << 8) | (uint8_t) white)] -= EDGE_VALUES[start + ((uint16_t) ((b2.taken << 8) | (uint8_t) white2))];
-                    edge_total[tc][(uint16_t) ((b.taken << 8) | (uint8_t) white)]++;
-                    edge_wins[tc][(uint16_t) (((b.taken >> 56) << 8) | (white >> 56))] -= EDGE_VALUES[start + ((uint16_t) (((b2.taken >> 56) << 8) | (white2 >> 56)))];
-                    edge_total[tc][(uint16_t) (((b.taken >> 56) << 8) | (white >> 56))]++;
-
-                    edge_wins[tc][ (reverse_byte[(uint8_t) COL(b.taken, 0)] << 8) | reverse_byte[(uint8_t) COL(white, 0)]] -= EDGE_VALUES[start + ( (reverse_byte[(uint8_t) COL(b2.taken, 0)] << 8) | reverse_byte[(uint8_t) COL(white2, 0)])];
-                    edge_total[tc][(reverse_byte[(uint8_t) COL(b.taken, 0)] << 8) | reverse_byte[(uint8_t) COL(white, 0)]]++;
-                    edge_wins[tc][ (reverse_byte[(uint8_t) COL(b.taken, 7)] << 8) | reverse_byte[(uint8_t) COL(white, 7)]] -= EDGE_VALUES[start + ( (reverse_byte[(uint8_t) COL(b2.taken, 7)] << 8) | reverse_byte[(uint8_t) COL(white2, 7)])];
-                    edge_total[tc][(reverse_byte[(uint8_t) COL(b.taken, 7)] << 8) | reverse_byte[(uint8_t) COL(white, 7)]]++;
-                    edge_wins[tc][ (reverse_byte[(uint8_t) b.taken] << 8)         | reverse_byte[(uint8_t) white]        ] -= EDGE_VALUES[start + ( (reverse_byte[(uint8_t) b2.taken] << 8)         | reverse_byte[(uint8_t) white2]       )];
-                    edge_total[tc][(reverse_byte[(uint8_t) b.taken] << 8)         | reverse_byte[(uint8_t) white]        ]++;
-                    edge_wins[tc][ (reverse_byte[(uint8_t) (b.taken >> 56)] << 8) | reverse_byte[white >> 56]            ] -= EDGE_VALUES[start + ( (reverse_byte[(uint8_t) (b2.taken >> 56)] << 8) | reverse_byte[white2 >> 56]           )];
-                    edge_total[tc][(reverse_byte[(uint8_t) (b.taken >> 56)] << 8) | reverse_byte[white >> 56]            ]++;
-*/
                     break;
                 }
             }
